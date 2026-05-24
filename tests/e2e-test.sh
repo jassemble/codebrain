@@ -208,6 +208,122 @@ node -e "
   process.exit(0);
 " 2>/dev/null && ok "T9: package.json shape valid" || nope "T9: package.json shape invalid"
 
+# === Test 10: M#2 skill surface ==============================================
+
+for f in \
+  "$CODEBRAIN_ROOT/skills/core/init/SKILL.md" \
+  "$CODEBRAIN_ROOT/skills/core/init/templates/claude-md-schema.md" \
+  "$CODEBRAIN_ROOT/skills/core/init/templates/overview-starter.md" \
+  "$CODEBRAIN_ROOT/skills/core/init/templates/stack-detection.json"
+do
+  [ -f "$f" ] && ok "T10: $(basename "$f") exists" || nope "T10: $(basename "$f") missing"
+done
+
+head -1 "$CODEBRAIN_ROOT/skills/core/init/SKILL.md" | grep -q '^---$' \
+  && ok "T10: init SKILL.md starts with YAML frontmatter" \
+  || nope "T10: init SKILL.md missing frontmatter"
+
+# Check all 7 required frontmatter fields present
+for field in name description origin version tier pattern related_skills; do
+  grep -q "^${field}:" "$CODEBRAIN_ROOT/skills/core/init/SKILL.md" \
+    && ok "T10: init SKILL.md has '${field}' field" \
+    || nope "T10: init SKILL.md missing '${field}' field"
+done
+
+# tier:core is required
+grep -q "^tier: core$" "$CODEBRAIN_ROOT/skills/core/init/SKILL.md" \
+  && ok "T10: init SKILL.md is tier:core" \
+  || nope "T10: init SKILL.md wrong tier"
+
+# stack-detection.json parses with expected shape
+node -e "
+  const j = require('$CODEBRAIN_ROOT/skills/core/init/templates/stack-detection.json');
+  if (!j.version) { console.error('missing version'); process.exit(1); }
+  if (!Array.isArray(j.stacks)) { console.error('stacks not an array'); process.exit(1); }
+  for (const s of j.stacks) {
+    if (!s.name || !Array.isArray(s.signals) || !s.detected_skill) {
+      console.error('bad stack entry: ' + JSON.stringify(s));
+      process.exit(1);
+    }
+  }
+  if (j.stacks.length < 5) { console.error('stack catalog too small'); process.exit(1); }
+  process.exit(0);
+" 2>/dev/null \
+  && ok "T10: stack-detection.json shape valid (≥5 stacks, each with name/signals/detected_skill)" \
+  || nope "T10: stack-detection.json invalid shape"
+
+# Schema block respects ≤150-line cap (PRD Design Decision #7)
+schema_lines=$(wc -l < "$CODEBRAIN_ROOT/skills/core/init/templates/claude-md-schema.md")
+[ "$schema_lines" -le 150 ] && ok "T10: schema block ≤150 lines ($schema_lines)" || nope "T10: schema block too long ($schema_lines lines)"
+
+# overview-starter.md has AGENT instruction comments
+grep -q "AGENT:" "$CODEBRAIN_ROOT/skills/core/init/templates/overview-starter.md" \
+  && ok "T10: overview-starter.md has AGENT instructions" \
+  || nope "T10: overview-starter.md missing AGENT instructions"
+
+# === Test 11: init verb no longer stubbed; other verbs still stubbed =========
+
+! grep -q 'init.*Milestone #2.*not yet implemented' "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T11: brain.md init verb no longer stubbed as 'Milestone #2 not yet implemented'" \
+  || nope "T11: brain.md init still stubbed"
+
+! grep -q 'init.*Milestone #2.*not yet implemented' "$CODEBRAIN_ROOT/commands/codebrain.md" \
+  && ok "T11: codebrain.md init verb no longer stubbed" \
+  || nope "T11: codebrain.md init still stubbed"
+
+# Other Milestone-N verbs ARE still stubbed
+for milestone in 3 5 6 7; do
+  grep -q "Milestone #${milestone}" "$CODEBRAIN_ROOT/commands/brain.md" \
+    && ok "T11: brain.md still has Milestone #${milestone} content (stubs preserved)" \
+    || nope "T11: brain.md missing Milestone #${milestone} stub"
+done
+
+# brain.md has the full When-init procedure
+grep -q "When \`\$ARGUMENTS\` is \`init\`" "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T11: brain.md has 'When \$ARGUMENTS is init' section" \
+  || nope "T11: brain.md missing init agent procedure section"
+
+grep -q "Step 1 — Preconditions" "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T11: brain.md has Step 1 (Preconditions)" \
+  || nope "T11: brain.md missing Step 1"
+
+grep -q "Step 7 — Report" "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T11: brain.md has Step 7 (Report)" \
+  || nope "T11: brain.md missing Step 7"
+
+# === Test 12: alias parity — init agent procedure identical between brain.md
+# and codebrain.md. (The /brand-specific help text above the procedure
+# intentionally differs — brain.md says "/brain ..." and codebrain.md says
+# "/codebrain ..." — so we compare only the H2 procedure section, anchored at
+# the section header, to end of file.)
+
+brain_proc=$(sed -n '/^## When `\$ARGUMENTS` is `init`$/,$p' "$CODEBRAIN_ROOT/commands/brain.md")
+cb_proc=$(sed -n '/^## When `\$ARGUMENTS` is `init`$/,$p' "$CODEBRAIN_ROOT/commands/codebrain.md")
+if [ "$brain_proc" = "$cb_proc" ] && [ -n "$brain_proc" ]; then
+  ok "T12: brain.md and codebrain.md init agent procedure is byte-identical"
+else
+  nope "T12: alias drift in init agent procedure"
+fi
+
+# === Test 13: npm pack includes new M#2 templates ============================
+
+pack_list="$(cd "$CODEBRAIN_ROOT" && npm pack --dry-run 2>&1)"
+echo "$pack_list" | grep -q 'skills/core/init/SKILL.md' \
+  && ok "T13: SKILL.md in npm pack" \
+  || nope "T13: SKILL.md missing from npm pack"
+
+echo "$pack_list" | grep -q 'skills/core/init/templates/claude-md-schema.md' \
+  && ok "T13: claude-md-schema.md in npm pack" \
+  || nope "T13: schema template missing from npm pack"
+
+echo "$pack_list" | grep -q 'skills/core/init/templates/overview-starter.md' \
+  && ok "T13: overview-starter.md in npm pack" \
+  || nope "T13: overview template missing from npm pack"
+
+echo "$pack_list" | grep -q 'skills/core/init/templates/stack-detection.json' \
+  && ok "T13: stack-detection.json in npm pack" \
+  || nope "T13: stack-detection.json missing from npm pack"
+
 # === Summary ==================================================================
 
 total=$((pass+fail))

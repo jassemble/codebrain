@@ -186,8 +186,8 @@ Where `<op>` is one of `ingest | query | lint | refresh | learn | promote`. Exam
 
 | # | Milestone | Outcome | Status | Plan |
 |---|---|---|---|---|
-| 1 | npm package skeleton + init | `npx codebrain init` scaffolds `.brain/` in cwd, writes `/brain` + `/codebrain` slash commands into `.claude/commands/`, merges codebrain hooks block into `.claude/settings.local.json` — project-local by default; `--global` for `~/.claude/`; `--force` overrides; idempotent on repeat | in-progress | [.claude/plans/codebrain.plan.md](.claude/plans/codebrain.plan.md) |
-| 2 | Init + schema scaffolding | `/brain init` creates full `.brain/` layout (code/, concepts/, decisions/, overview.md, index.md, log.md, decisions.md, status.md); appends `## codebrain` schema block to CLAUDE.md; idempotent | pending | — |
+| 1 | npm package skeleton + init | `npx codebrain init` scaffolds `.brain/` in cwd, writes `/brain` + `/codebrain` slash commands into `.claude/commands/`, merges codebrain hooks block into `.claude/settings.local.json` — project-local by default; `--global` for `~/.claude/`; `--force` overrides; idempotent on repeat | complete | [.claude/plans/codebrain.plan.md](.claude/plans/codebrain.plan.md) |
+| 2 | Init + schema scaffolding | `/brain init` creates full `.brain/` layout (code/, concepts/, decisions/, overview.md, index.md, log.md, decisions.md, status.md); appends `## codebrain` schema block to CLAUDE.md; idempotent | complete | [.claude/plans/codebrain-m2.plan.md](.claude/plans/codebrain-m2.plan.md) |
 | 3 | Ingest pipeline | `/brain ingest <path>` produces folder-mirrored code pages with wikilinks; concept pages for cross-cutting ideas; tiered-auto-prioritize when no args; navigable in Obsidian | pending | — |
 | 4 | Staleness model (4-tier) | PostToolUse hook: wikilink reverse-lookup + `sources:` frontmatter respect; query-time refresh; lint contradiction-check skill — verified on edit + rename + behavior-drift fixtures | pending | — |
 | 5 | Query helper | `/brain query "..."` pointer-first: index → 1–3 pages → cite source; auto-refresh on STALE hit; A/B baseline against grep+read established on one fixture repo | pending | — |

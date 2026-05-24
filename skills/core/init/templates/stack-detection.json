@@ -1,0 +1,111 @@
+{
+  "version": "0.1.0",
+  "description": "Stack-detection catalog used by /brain init (Milestone #2). Each entry's signals are evaluated against the user's cwd; if all signals match, the stack is reported as detected. The detected_skill field names the skill that will be auto-installed once Milestone #3 lands the skills/detected/* skills — for M#2, detected stacks are only reported, not installed.",
+  "stacks": [
+    {
+      "name": "nodejs",
+      "signals": [{ "file_exists": "package.json" }],
+      "detected_skill": "detected/nodejs"
+    },
+    {
+      "name": "typescript",
+      "signals": [{ "file_exists": "tsconfig.json" }],
+      "detected_skill": "detected/typescript"
+    },
+    {
+      "name": "react",
+      "signals": [{ "file_exists": "package.json", "contains": "\"react\"" }],
+      "detected_skill": "detected/react"
+    },
+    {
+      "name": "nextjs",
+      "signals": [{ "file_exists": "package.json", "contains": "\"next\"" }],
+      "detected_skill": "detected/nextjs"
+    },
+    {
+      "name": "vue",
+      "signals": [{ "file_exists": "package.json", "contains": "\"vue\"" }],
+      "detected_skill": "detected/vue"
+    },
+    {
+      "name": "python",
+      "signals": [{ "file_exists": "pyproject.toml" }],
+      "detected_skill": "detected/python"
+    },
+    {
+      "name": "python-legacy",
+      "signals": [{ "file_exists": "setup.py" }],
+      "detected_skill": "detected/python"
+    },
+    {
+      "name": "django",
+      "signals": [{ "file_exists": "manage.py" }],
+      "detected_skill": "detected/django"
+    },
+    {
+      "name": "fastapi",
+      "signals": [{ "file_exists": "pyproject.toml", "contains": "fastapi" }],
+      "detected_skill": "detected/fastapi"
+    },
+    {
+      "name": "go",
+      "signals": [{ "file_exists": "go.mod" }],
+      "detected_skill": "detected/go"
+    },
+    {
+      "name": "rust",
+      "signals": [{ "file_exists": "Cargo.toml" }],
+      "detected_skill": "detected/rust"
+    },
+    {
+      "name": "java-maven",
+      "signals": [{ "file_exists": "pom.xml" }],
+      "detected_skill": "detected/java"
+    },
+    {
+      "name": "java-gradle",
+      "signals": [{ "file_exists": "build.gradle" }],
+      "detected_skill": "detected/java"
+    },
+    {
+      "name": "kotlin",
+      "signals": [{ "file_exists": "build.gradle.kts" }],
+      "detected_skill": "detected/kotlin"
+    },
+    {
+      "name": "swift",
+      "signals": [{ "file_exists": "Package.swift" }],
+      "detected_skill": "detected/swift"
+    },
+    {
+      "name": "ruby",
+      "signals": [{ "file_exists": "Gemfile" }],
+      "detected_skill": "detected/ruby"
+    },
+    {
+      "name": "rails",
+      "signals": [{ "file_exists": "Gemfile", "contains": "rails" }],
+      "detected_skill": "detected/rails"
+    },
+    {
+      "name": "elixir",
+      "signals": [{ "file_exists": "mix.exs" }],
+      "detected_skill": "detected/elixir"
+    },
+    {
+      "name": "docker",
+      "signals": [{ "file_exists": "Dockerfile" }],
+      "detected_skill": "detected/docker"
+    },
+    {
+      "name": "k8s",
+      "signals": [{ "dir_exists": "k8s" }],
+      "detected_skill": "detected/kubernetes"
+    },
+    {
+      "name": "terraform",
+      "signals": [{ "glob": "*.tf" }],
+      "detected_skill": "detected/terraform"
+    }
+  ]
+}
