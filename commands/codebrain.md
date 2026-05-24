@@ -16,7 +16,7 @@ Alias for `/brain`. Body is identical so `/codebrain <verb>` behaves the same as
 | `init` | **implemented** | See "When `$ARGUMENTS` is `init`" section below for the full agent procedure |
 | `ingest <single-file-path>` | **implemented (M#3a)** | See "When `$ARGUMENTS` starts with `ingest <file>`" section below |
 | `ingest <folder/>` | **implemented (M#3b)** | See "When `$ARGUMENTS` starts with `ingest <folder>`" section below |
-| `ingest` (no args) | not implemented | `Milestone #3c (tiered auto-prioritize) — not yet implemented in v0.1. Pass a file or folder path for now: /codebrain ingest src/` |
+| `ingest` (no args) | **implemented (M#3c)** | See "When `$ARGUMENTS` is just `ingest`" section below |
 | `query` | not implemented | `Milestone #5 (Query helper) — not yet implemented in v0.1. See the Roadmap section of the codebrain README.` |
 | `lint` | not implemented | `Milestone #6 (Lint pass) — not yet implemented in v0.1. Will support \`--fix\` to batch re-ingest STALE pages.` |
 | `learn` | not implemented | `Milestone #7 (Continuous-learning observer) — not yet implemented in v0.1. Subverbs will be \`on\`, \`off\`, \`status\`.` |
@@ -432,3 +432,106 @@ WARNING: linker analyzed <M> of <N> requested files; concepts may be missing sou
 ```
 
 **Error recovery** (per linker Rules + PRD #26): Tier 1 retry once; Tier 2 structured blocked report; do not exceed `max_iterations: 5`.
+
+## When `$ARGUMENTS` is just `ingest`
+
+You are the codebrain **planner** (see `agents/brain/planner.md` for your full persona + Rules; orchestrate, do not write). The operator invoked `/brain ingest` with no path argument. Run this procedure exactly.
+
+**T0 — Argument parsing**:
+
+- If `$ARGUMENTS` is `ingest` (alone) or `ingest --yes`: proceed.
+- If `$ARGUMENTS` has any other token after `ingest`: this is not your case — return control to the dispatch table.
+
+**T1 — Preconditions**:
+
+- Verify `.brain/` exists; `.brain/.codebrain-version` is present. If not, error and tell the operator to run `npx codebrain init` first.
+- Verify `.brain/overview.md` exists. If it's missing or appears unpopulated (`status: UNENRICHED`), print:
+  ```
+  WARN: .brain/overview.md isn't populated. Stack detection results aren't cached.
+        Run /brain init first for better tier assignment. Proceeding with fresh detection.
+  ```
+  and continue.
+
+**T2 — Load stack detection**:
+
+- Read `.brain/overview.md`. Extract the "Detected stack:" line from the `## Active State` section.
+- If absent or empty, re-run stack detection: read `skills/core/init/templates/stack-detection.json` and evaluate each stack's signals against cwd (same logic M#2's init skill uses).
+- Record the detected stack list for the plan report.
+
+**T3 — Walk + filter** (re-uses M#3b Steps 2–3):
+
+- Try `git ls-files` first (respects `.gitignore`).
+- Fallback to manual recursive walk excluding the hardcoded blocklist (`node_modules .git .brain .claude dist build coverage .venv __pycache__ target .next .nuxt`).
+- Apply M#3a binary blocklist + M#3b lockfile + minified/generated exclusions.
+
+**T4 — Group files into 3 tiers** using generic glob heuristics (stack-aware overrides arrive in M#3d):
+
+- **Tier 1** (core): files matching `src/**`, `lib/**`, `app/**`, `pkg/**`, `cmd/**`
+- **Tier 2** (api / services / top-level): files matching `api/**`, `services/**`, `internal/**`, OR top-level source files (no parent directory match for any other tier)
+- **Tier 3** (tests / scripts / docs): files matching `tests/**`, `__tests__/**`, `spec/**`, `e2e/**`, `scripts/**`, `docs/**`, `examples/**`
+- **Uncategorized**: anything not matching the above. These files will NOT be ingested automatically — the operator must pass them individually via M#3a or place them under a recognized prefix.
+
+A file matches the FIRST tier whose glob set it satisfies (precedence: 1 → 2 → 3 → uncategorized).
+
+**T5 — Present plan**:
+
+```
+Codebrain tiered ingest plan (codebrain v<version>)
+  Detected stack: <comma-separated list>
+
+  Tier  Files  Cost(~)  Locations (top entries)
+  ----  -----  -------  ----------------------------------
+  1     <N>    $<X.XX>  <dir1> (<count>), <dir2> (<count>)
+  2     <N>    $<X.XX>  <dir1> (<count>), top-level (<count>)
+  3     <N>    $<X.XX>  <dir1> (<count>)
+  --
+  Total <N>    $<X.XX>
+  Uncategorized: <N> files (will NOT be ingested; pass them via /brain ingest <file>)
+
+Proceed tier-by-tier? Type `yes` to start with Tier 1, or `cancel` to stop.
+```
+
+If `$ARGUMENTS` contains `--yes`: skip the prompt; proceed directly to T6 with auto-confirmation enabled for all tiers.
+
+On `cancel`: jump to T7 with no ingestion performed.
+
+Cost-per-tier formula: `cost = count × $0.006` (per M#3b cost-gate heuristic).
+
+**T6 — Per-tier loop** (Tier 1, then 2, then 3):
+
+For each tier:
+
+- If `$ARGUMENTS` contains `--yes`: auto-confirm; skip prompt.
+- Otherwise print: `Tier <N>: <count> files (~$<cost>). Proceed? (yes/no/show-files)`
+  - On `no`: skip tier; record `skipped_tier_<N>`; continue to next tier.
+  - On `show-files`: print the file list; re-prompt with the same `yes/no/show-files`.
+  - On `yes`: continue.
+- Invoke the **M#3b folder-ingest procedure** (`## When $ARGUMENTS starts with ingest <folder>` Steps 0–7) treating this tier's file list as the input. The linker runs at M#3b Step 6 after this tier's files complete — incremental visibility per tier rather than once at end.
+- Record per-tier results: `ingested[]`, `skipped[]`, `failed[]`, linker counts.
+
+**T7 — Final report**:
+
+```
+/brain ingest (tiered) complete (codebrain v<version>)
+  Detected stack: <comma-separated list>
+
+  Tier 1: <ingested>/<filtered> ingested, <skipped> skipped (unchanged), <failed> failed
+          Linker: <N cross-refs wired, M concepts created/updated>
+  Tier 2: <...>
+  Tier 3: <...>
+  Uncategorized: <N> files NOT ingested
+
+  Logged: .brain/log.md
+Next: try `/brain query "..."` (Milestone #5 — not yet implemented).
+      For stack-aware page templates (React components, Python modules, etc.),
+      see Milestone #3d.
+```
+
+Append to `.brain/log.md` under `## Activity History` with the grep-parseable prefix:
+```
+## [YYYY-MM-DD] plan | tiered ingest: T1=<count>, T2=<count>, T3=<count>; operator declined: <none|T1|T2|T3>; ingested: <N> total
+```
+
+If the operator typed `cancel` or declined all three tiers, still write the plan log entry — the plan presentation itself is historical data.
+
+**Error recovery** (per planner Rules + PRD #26): Tier 1 retry once; Tier 2 structured blocked report; do not exceed `max_iterations: 5`.

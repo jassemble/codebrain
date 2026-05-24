@@ -36,13 +36,34 @@ After `init`, **restart Claude Code or open a new session** to load the new slas
 
 ## Quickstart
 
+Three-step onboarding:
+
+1. **Install codebrain into the repo** (run once per repo):
+   ```
+   npx codebrain init
+   ```
+   Scaffolds `.brain/`, copies `/brain` slash commands into `.claude/commands/`, merges hooks into `.claude/settings.local.json`.
+
+2. **Restart Claude Code or open a new session**, then populate the brain:
+   ```
+   /brain init
+   ```
+   Writes the full schema block into `CLAUDE.md`, populates `.brain/overview.md`, detects your tech stack.
+
+3. **Ingest source files** — three modes, pick what fits:
+   ```
+   /brain ingest src/api/auth.ts      # single file (Milestone #3a)
+   /brain ingest src/                  # whole folder + concept pages (Milestone #3b)
+   /brain ingest                       # tiered auto-prioritize across the codebase (Milestone #3c)
+   ```
+
+Then navigate the wiki in Obsidian (open the repo root as an Obsidian vault and explore `.brain/`) or query via Claude Code:
+
 ```
-/brain init                          # scaffold the brain (Milestone #2)
-/brain ingest src/                   # read source files → write LLM-authored wiki pages
-/brain query "how does auth work?"   # pointer-first lookup; auto-refreshes STALE pages
-/brain lint                          # health-check the wiki (read-only)
+/brain query "how does auth work?"   # pointer-first lookup (Milestone #5 — not yet implemented)
+/brain lint                          # health-check the wiki (Milestone #6 — not yet implemented)
 /brain lint --fix                    # batch re-ingest STALE pages
-/brain learn on                      # enable continuous-learning observer
+/brain learn on                      # enable continuous-learning observer (Milestone #7)
 /brain status                        # dashboard view
 ```
 

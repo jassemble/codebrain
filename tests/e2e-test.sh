@@ -641,6 +641,101 @@ echo "$pack_list" | grep -q 'skills/ingestion/concept-extraction/templates/conce
   && ok "T17: concept-page template in npm pack" \
   || nope "T17: concept-page template missing from npm pack"
 
+# === Test 18: M#3c — planner agent shape ====================================
+
+[ -f "$CODEBRAIN_ROOT/agents/brain/planner.md" ] \
+  && ok "T18: planner.md exists" \
+  || nope "T18: planner.md missing"
+
+head -1 "$CODEBRAIN_ROOT/agents/brain/planner.md" | grep -q '^---$' \
+  && ok "T18: planner.md starts with frontmatter" \
+  || nope "T18: planner.md missing frontmatter"
+
+for field in name description tools model pattern trigger_phrases max_iterations; do
+  grep -q "^${field}:" "$CODEBRAIN_ROOT/agents/brain/planner.md" \
+    && ok "T18: planner.md has '${field}' field" \
+    || nope "T18: planner.md missing '${field}' field"
+done
+
+grep -q "^pattern: Planner$" "$CODEBRAIN_ROOT/agents/brain/planner.md" \
+  && ok "T18: planner.md pattern is Planner" \
+  || nope "T18: planner.md wrong pattern"
+
+# Critical: planner is orchestration-only — must NOT have Edit or Write in tools
+grep -E "^tools:.*\b(Edit|Write|MultiEdit)\b" "$CODEBRAIN_ROOT/agents/brain/planner.md" >/dev/null \
+  && nope "T18: planner.md tools include Edit/Write/MultiEdit (orchestration-only violated)" \
+  || ok "T18: planner.md tools list excludes Edit/Write/MultiEdit (orchestration-only)"
+
+grep -q '^## Rules' "$CODEBRAIN_ROOT/agents/brain/planner.md" \
+  && ok "T18: planner.md has Rules section" \
+  || nope "T18: planner.md missing Rules section"
+
+grep -q 'Read the Prompt Defense Baseline' "$CODEBRAIN_ROOT/agents/brain/planner.md" \
+  && ok "T18: planner.md has prompt-defense reference" \
+  || nope "T18: planner.md missing prompt-defense reference"
+
+planner_rules=$(grep -cE '^- \*\*(NEVER|ALWAYS)' "$CODEBRAIN_ROOT/agents/brain/planner.md" || true)
+[ "$planner_rules" -ge 7 ] \
+  && ok "T18: planner.md has ≥7 self-enforcing rules ($planner_rules)" \
+  || nope "T18: planner.md only $planner_rules rules (need ≥7)"
+
+# === Test 19: M#3c — no-arg tiered ingest wiring ============================
+
+grep -qF '**implemented (M#3c)**' "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T19: brain.md no-arg ingest wired (M#3c)" \
+  || nope "T19: brain.md no-arg ingest not wired"
+
+grep -qF '## When `$ARGUMENTS` is just `ingest`' "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T19: brain.md has tiered-ingest procedure section" \
+  || nope "T19: brain.md missing tiered-ingest procedure"
+
+# Step headers T0–T7
+for step in 'T0 — Argument parsing' 'T1 — Preconditions' 'T2 — Load stack detection' 'T3 — Walk + filter' 'T4 — Group files into 3 tiers' 'T5 — Present plan' 'T6 — Per-tier loop' 'T7 — Final report'; do
+  grep -qF "$step" "$CODEBRAIN_ROOT/commands/brain.md" \
+    && ok "T19: brain.md tiered procedure has '$step'" \
+    || nope "T19: brain.md tiered procedure missing '$step'"
+done
+
+# Tier keywords + heuristics documented
+for needle in 'Tier 1' 'Tier 2' 'Tier 3' 'Uncategorized' 'src/**' 'tests/**' 'cost = count'; do
+  grep -qF "$needle" "$CODEBRAIN_ROOT/commands/brain.md" \
+    && ok "T19: brain.md tiered procedure mentions '$needle'" \
+    || nope "T19: brain.md tiered procedure missing '$needle'"
+done
+
+# Cancel + --yes paths documented
+grep -qF '`cancel`' "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T19: brain.md tiered procedure documents cancel path" \
+  || nope "T19: brain.md tiered procedure missing cancel path"
+
+grep -qF -- '--yes' "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T19: brain.md tiered procedure documents --yes path" \
+  || nope "T19: brain.md tiered procedure missing --yes path"
+
+# Alias parity (awk for cross-platform)
+brain_tiered=$(awk '/^## When `\$ARGUMENTS` is just `ingest`$/{flag=1} flag' "$CODEBRAIN_ROOT/commands/brain.md")
+cb_tiered=$(awk '/^## When `\$ARGUMENTS` is just `ingest`$/{flag=1} flag' "$CODEBRAIN_ROOT/commands/codebrain.md")
+if [ "$brain_tiered" = "$cb_tiered" ] && [ -n "$brain_tiered" ]; then
+  ok "T19: brain.md and codebrain.md tiered-ingest procedure byte-identical"
+else
+  nope "T19: alias drift in tiered-ingest procedure"
+fi
+
+# README onboarding updated (sweep finding C4)
+grep -q 'Three-step onboarding' "$CODEBRAIN_ROOT/README.md" \
+  && ok "T19: README has Three-step onboarding section" \
+  || nope "T19: README missing Three-step onboarding"
+
+grep -qE '/brain ingest[[:space:]]+# tiered' "$CODEBRAIN_ROOT/README.md" \
+  && ok "T19: README documents no-arg tiered ingest" \
+  || nope "T19: README missing no-arg tiered ingest documentation"
+
+# npm pack includes planner
+pack_list="$(cd "$CODEBRAIN_ROOT" && npm pack --dry-run 2>&1)"
+echo "$pack_list" | grep -q 'agents/brain/planner.md' \
+  && ok "T19: planner.md in npm pack" \
+  || nope "T19: planner.md missing from npm pack"
+
 # === Summary ==================================================================
 
 total=$((pass+fail))

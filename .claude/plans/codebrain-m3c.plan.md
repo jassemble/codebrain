@@ -1,114 +1,264 @@
-# Plan: codebrain — Milestone #3c (Tiered auto-prioritize + detected/* skills)
+# Plan: codebrain — Milestone #3c (Tiered auto-prioritize no-arg ingest)
 
 **Source PRD**: `.claude/prds/codebrain.prd.md`
-**Selected Milestone**: #3c — third and final sub-step of the 3-way split of original M#3
-**Complexity**: Large — biggest M#3 sub-milestone; ships 4+ new detected skills, the tiered ingest planner, and stack-aware templates
-**Status**: **DRAFT** — will be heavily refined after M#3a + M#3b ship. The detected/* skill content depends on what we learn from dogfooding on real React/Python/Go/TypeScript repos.
+**Selected Milestone**: #3c — third sub-step of the M#3 split
+**Complexity**: Medium — third writer agent (planner), no new skills (re-uses page-format + concept-extraction), reuses M#3b folder procedure per tier
+**Status**: **READY** — refined post-M#3b with scope reduced to just the tiered planner. The 4 detected/* skills + stack-aware templates split to a future M#3d so M#3c is shippable in one commit.
 
 ## Summary
 
-Final M#3 sub-milestone. Two big additions: (1) `/brain ingest` with no args invokes a **tiered auto-prioritize planner** that uses M#2's stack detection to propose a 3-tier ingest plan (e.g., Tier 1: `src/` core, Tier 2: `src/api/`, Tier 3: `tests/`), pauses between tiers for operator OK. (2) The **`detected/*` skills** finally ship — `detected/react`, `detected/python`, `detected/go`, `detected/typescript` — each providing stack-aware page templates (e.g., React component pages get a "Hooks" section; Python module pages get "Public API" + "Dunder methods"; Go pages get "Package + Exports" structure) that override the generic code-page template from M#3a.
+`/brain ingest` with no arguments invokes a new **planner agent** (Planner pattern) that reads M#2's stack detection from `.brain/overview.md` (or re-detects), groups the repo's files into 3 tiers using stack-aware heuristics, presents the plan, asks the operator to confirm each tier, then invokes M#3b's folder procedure once per confirmed tier (with the linker running after each tier per sweep finding C3 — incremental visibility). Uses the generic page-format template throughout; stack-aware templates are deferred to M#3d.
 
-This is also when M#2's stack detection actually starts installing things (M#2 only reported; M#3c acts).
+User flow after M#3c lands:
+```
+npx codebrain init      # M#1
+/brain init             # M#2
+/brain ingest src/      # M#3b — single folder
+/brain ingest           # M#3c — tiered, asks per tier
+/brain ingest src/x.ts  # M#3a — single file
+```
 
-## Patterns to Mirror (provisional — heavy refinement after M#3a/b)
+## Patterns to Mirror (from shipped M#3a + M#3b)
 
 | Category | Source | Pattern |
 |---|---|---|
-| Tiered procedure with operator gating | (no prior art; M#3c establishes this) | Print the tier plan as a table; ask operator `Proceed with Tier 1? (yes/no/show-plan)`; repeat per tier |
-| Stack detection consumption | `skills/core/init/templates/stack-detection.json` (M#2) | Read matched stacks; for each, install the corresponding `detected/<stack>/` skill if it ships |
-| Stack-aware template override | `skills/ingestion/page-format/templates/code-page.md` (M#3a base) | Per-stack template lives in `skills/detected/<stack>/templates/code-page-<stack>.md`; ingester picks the override when matching stack is installed AND source-file extension matches |
-| Per-stack ingestion conventions | `skills/ingestion/page-format/SKILL.md` (M#3a) | Each `detected/*/SKILL.md` describes the per-stack page structure rationale |
+| Agent file format | `agents/brain/{ingester,linker}.md` | Merged frontmatter; Rules section ≥9 NEVER/ALWAYS; prompt-defense reference; error recovery (Tier 1 retry / Tier 2 blocked-report) |
+| Procedure step shape | `commands/brain.md` ingest-folder + linker procedures | Numbered steps (M#3c uses T0–T7 for tiered + an inner per-tier call to M#3b); explicit confirmation prompts; structured report |
+| Cost gate format | M#3b Step 4 (folder ingest) | Per-tier cost estimate; auto-confirm threshold; operator gate `yes/no/show-files` |
+| Per-tier linker invocation | M#3b Step 6 + Linker procedure L1–L6 | Linker runs AFTER each tier (C3), not once at end — operator sees incremental concept-page growth |
+| Test shape | `tests/e2e-test.sh` T16/T17 | T18 (planner agent + tier-glob heuristics inline); T19 (no-arg wiring + alias parity for new tiered section) |
 
-## Files to Change (provisional)
+## Sweep Findings Folded In
+
+From the post-M#3b refresh of the M#3c draft:
+
+- **C1 — Tier-glob heuristics inlined in `commands/brain.md`** for M#3c. Stack-specific tier-globs (e.g., Python's `src/<package>/` Tier-1 default) were originally planned to live in `detected/<stack>/SKILL.md` frontmatter. Since detected skills are deferred to M#3d, M#3c inlines a single set of generalist tier-globs that work across stacks: Tier 1 = `src/`, `lib/`, `app/`, `pkg/`, `cmd/`; Tier 2 = `api/`, `services/`, `internal/`, top-level source files; Tier 3 = `tests/`, `__tests__/`, `spec/`, `scripts/`, `docs/`. Stack-aware overrides land with M#3d.
+- **C2 — Stack template inheritance**: deferred to M#3d entirely (out of M#3c scope).
+- **C3 — Linker runs after each tier** (not once at end). Cost is higher (linker runs N=3 times per ingest instead of 1) but operator sees concept-page growth between tiers and can abort cleanly.
+- **C4 — README onboarding update**: README's Quickstart now documents the full 3-step flow (`npx codebrain init` → `/brain init` → `/brain ingest`) with all three ingest variants (no-arg tiered, folder, single-file) called out.
+- **Q1 — Template discovery**: still inline-in-command-body for M#3c (no new templates needed — planner uses existing page-format). M#3d will force the real decision when 4 detected templates multiply the inline cost.
+- **Q2 — Runaway-ingest escape**: per-tier gates ARE the escape (operator answers `no` to a tier they don't want); mid-tier escape still requires Ctrl-C (documented limitation for v0.1).
+
+## Files to Change
 
 | File | Action | Why |
 |---|---|---|
-| `skills/detected/react/SKILL.md` | CREATE | React-aware page conventions: Hooks section, Props/State, Component hierarchy, Effects |
-| `skills/detected/react/templates/code-page-react.md` | CREATE | Verbatim template for `.tsx`/`.jsx` files when a React project is detected |
-| `skills/detected/python/SKILL.md` | CREATE | Python: Public API, Dunder methods, Decorators, Type hints |
-| `skills/detected/python/templates/code-page-python.md` | CREATE | Verbatim template for `.py` files |
-| `skills/detected/go/SKILL.md` | CREATE | Go: Package, Exports, Receivers, Interfaces, Init functions |
-| `skills/detected/go/templates/code-page-go.md` | CREATE | Verbatim template for `.go` files |
-| `skills/detected/typescript/SKILL.md` | CREATE | TypeScript: Types/Interfaces, Exports (named/default), Decorators, Module declarations |
-| `skills/detected/typescript/templates/code-page-typescript.md` | CREATE | Verbatim template for `.ts`/`.tsx` files |
-| `skills/registry.json` | UPDATE | Add entries for the 4 detected skills with their `detect:` rules (mirror what M#2's stack-detection.json already names) |
-| `commands/brain.md` | UPDATE | Replace M#3c stub on no-arg `ingest`. Procedure: detect → group source paths into 3 tiers (heuristic) → present plan → for each tier, ask operator OK → invoke M#3b folder-ingest on each tier scope |
-| `commands/codebrain.md` | UPDATE | Alias parity |
-| `tests/e2e-test.sh` | UPDATE | T18 (detected/* skill structural assertions); T19 (no-arg ingest wired; tiered plan output format); T20 (stack-aware template selection — verify the ingester picks the right template for a `.tsx` source in a React project — fixture-driven) |
-| `.claude/prds/codebrain.prd.md` | UPDATE | M#3c row → in-progress with link |
+| `agents/brain/planner.md` | CREATE | Third writer agent — Planner pattern. Reads stack detection, groups files into 3 tiers, presents plan, gates each tier, delegates to M#3b folder ingest per confirmed tier. Tools: `[Read, Glob, Bash]` (no Write — planner only orchestrates; the per-tier folder procedure does the writing). `max_iterations: 5`. |
+| `commands/brain.md` | UPDATE | Replace M#3c stub on no-arg `ingest`. New procedure section `## When $ARGUMENTS is just \`ingest\`` (no path). 8 steps: preconditions → load stack → group into tiers → present plan → per-tier confirm + invoke M#3b folder procedure + per-tier linker → final report. |
+| `commands/codebrain.md` | UPDATE | Mirror brain.md (alias parity) |
+| `tests/e2e-test.sh` | UPDATE | T18 (planner agent structural shape); T19 (no-arg wiring; tier-section present with T0–T7 step headers; tier-glob heuristics documented; alias parity using awk pattern from M#3b) |
+| `README.md` | UPDATE | Quickstart section updated for 3-step onboarding flow with all 3 ingest variants (per sweep finding C4) |
+| `.claude/prds/codebrain.prd.md` | UPDATE | M#3c row → `in-progress` with link to this plan |
 
-## Tasks (provisional)
+**Not in M#3c (deferred to M#3d):**
+- `skills/detected/react/SKILL.md` + template
+- `skills/detected/python/SKILL.md` + template
+- `skills/detected/go/SKILL.md` + template
+- `skills/detected/typescript/SKILL.md` + template
+- `skills/registry.json` updates with detect rules for the 4 detected skills
 
-1. **`skills/detected/react/SKILL.md` + template** — Describes when activated (React detected by M#2 stack-detection.json), what sections the React-aware code page must have (Component, Props, State, Hooks, Effects, Children), and how the ingester picks this over the generic template (extension match on `.tsx`/`.jsx`).
+## Tasks
 
-2. **`skills/detected/python/SKILL.md` + template** — Python-aware structure: module-level Public API, Classes (with Public methods / Dunder methods / Private), top-level Functions, Decorators used, Type hints summary.
+### Task 1: agents/brain/planner.md
 
-3. **`skills/detected/go/SKILL.md` + template** — Go-aware: Package declaration, Exports (uppercase symbols), Receivers, Interfaces satisfied, init() functions, build tags.
+Create with frontmatter:
+```yaml
+---
+name: planner
+description: Third writer agent — Planner pattern. Runs on no-arg /brain ingest. Reads stack detection from .brain/overview.md, groups the repo into 3 tiers using generic tier-glob heuristics, presents the plan, gates each tier, and delegates to the M#3b folder procedure per confirmed tier (with linker running after each tier per PRD design). Orchestrates only — does not write pages itself. Foreground.
+tools: [Read, Glob, Bash]
+model: sonnet
+pattern: Planner
+trigger_phrases:
+  - "ingest everything"
+  - "tier the codebase"
+  - "plan a brain ingest"
+  - "auto-prioritize"
+max_iterations: 5
+---
+```
 
-4. **`skills/detected/typescript/SKILL.md` + template** — TS-aware: Types vs Interfaces vs Classes, Exports (named/default/re-export), Module declarations, generics summary.
+Body: persona + prompt-defense reference + procedure pointer (`commands/brain.md` `## When $ARGUMENTS is just \`ingest\``) + `## Rules` (≥7):
 
-5. **`skills/registry.json` update** — Add 4 entries with `detect:` rules. Mirror what `skills/core/init/templates/stack-detection.json` (M#2) already names. This activates `/brain init`'s detection-then-install behavior (M#2 only reported; M#3c now installs).
+- **NEVER write pages directly** — Planner only orchestrates; delegates writing to ingester (per file, via M#3b folder procedure) and linker.
+- **NEVER skip the per-tier operator gate** — every tier requires explicit `yes`/`no`/`show-files`.
+- **NEVER include files outside the 3-tier heuristics** without flagging them as "uncategorized" in the plan presentation.
+- **NEVER auto-confirm** unless `$ARGUMENTS` contains `--yes`.
+- **ALWAYS present a cost estimate per tier** before asking for confirmation.
+- **ALWAYS read `.brain/overview.md` for cached stack detection** before re-running detection (faster + matches what `/brain init` told the operator).
+- **ALWAYS log the tier plan to `.brain/log.md`** even if the operator declines all tiers — the plan itself is valuable historical data.
+- Error recovery: Tier 1 retry / Tier 2 blocked-report; `max_iterations: 5`.
 
-6. **Update `commands/brain.md`** — Replace M#3c stub on no-arg `ingest`. Procedure:
-   - **Step 0**: read M#2 stack detection results from `.brain/overview.md` (or re-run detection)
-   - **Step 1**: read repo file tree (respect `.gitignore`)
-   - **Step 2**: heuristic tier assignment:
-     - Tier 1: source code in primary stack's conventional directories (`src/`, `lib/`, `app/`, `pkg/`)
-     - Tier 2: secondary code (`api/`, `services/`, top-level `*.ts`/`*.py`/`*.go`)
-     - Tier 3: tests, scripts, docs (`tests/`, `__tests__/`, `scripts/`, `docs/`)
-   - **Step 3**: print the tier plan as a 3-line summary with file counts per tier
-   - **Step 4–6**: for each tier, ask operator (`Proceed with Tier 1 (N files)? yes/skip/show-files`); if yes, invoke M#3b folder-ingest on the tier's paths; if skip, skip the tier; if show-files, print and re-prompt
-   - **Step 7**: final report — files ingested per tier; concept pages created; total token cost estimate
+### Task 2: Update commands/brain.md — no-arg tiered ingest
 
-7. **Update `commands/codebrain.md`** — alias parity for no-arg section.
+In the dispatch table, change the `ingest` (no args) row from stubbed to:
+```
+| `ingest` (no args) | **implemented (M#3c)** | See "When `$ARGUMENTS` is just `ingest`" section below |
+```
 
-8. **Update `tests/e2e-test.sh`** — T18 (4 detected/* skills + templates ship); T19 (no-arg verb wired; tier-plan output format matches spec); T20 (stack-aware template selection: a fixture repo with `package.json` + `react` dep + a `.tsx` file gets the React template when M#3b ingester runs).
+Add a new procedure section after the linker procedure: `## When $ARGUMENTS is just \`ingest\``. 8 steps:
 
-9. **PRD update** — M#3c row → in-progress with link.
+- **T0 — Argument parsing**: confirm `$ARGUMENTS` is exactly `ingest` (possibly with `--yes`). Anything else routes to the existing single-file or folder sections.
+- **T1 — Preconditions**: `.brain/` + `.brain/.codebrain-version` present; `.brain/overview.md` exists (warns if not — operator should run `/brain init` first for stack detection to be cached).
+- **T2 — Load stack detection**: read `.brain/overview.md`. Extract "Detected stack:" line from Active State section. If missing or unreadable, re-run M#2's stack-detection.json catalog against cwd (inline the same logic).
+- **T3 — Walk + filter** (re-use M#3b Steps 2–3): `git ls-files` (fallback to manual walk); apply binary/lockfile/generated blocklists.
+- **T4 — Group files into 3 tiers** using generic glob heuristics (no detected/* overrides in M#3c):
+  - **Tier 1** (core): files matching `src/**`, `lib/**`, `app/**`, `pkg/**`, `cmd/**`
+  - **Tier 2** (api/services/top-level): files matching `api/**`, `services/**`, `internal/**`, OR top-level source files (no parent directory match for Tier 1)
+  - **Tier 3** (tests/scripts/docs): files matching `tests/**`, `__tests__/**`, `spec/**`, `scripts/**`, `docs/**`
+  - **Uncategorized**: anything not matching the above; presented but not included in any tier by default
+- **T5 — Present plan**: print the 3-tier table with file counts + per-extension breakdown + cost estimate per tier:
+  ```
+  Codebrain tiered ingest plan (codebrain v<version>)
+    Detected stack: <from .brain/overview.md or fresh detection>
 
-## Sweep Findings (folded into Tasks above)
+    Tier  Files  Cost(~)  Locations
+    ----  -----  -------  ---------------------------------
+    1     34     $0.20    src/ (28), lib/ (6)
+    2     12     $0.07    api/ (8), internal/ (3), top-level (1)
+    3     19     $0.11    tests/ (15), scripts/ (4)
+    --
+    Total 65     $0.39
+    Uncategorized: 7 files (will NOT be ingested; pass them individually if desired)
 
-Four findings from the post-draft sweep + two architectural questions worth flagging before M#3a ships (because the answer may affect M#3a's design):
+  Proceed tier-by-tier? Type `yes` to start with Tier 1, or `cancel` to stop.
+  ```
+- **T6 — Per-tier loop**: for each tier 1 → 2 → 3:
+  - Print `Tier <N>: <count> files (~$<cost>). Proceed? (yes/no/show-files)`
+  - On `no`: skip tier; log skip; continue to next tier.
+  - On `show-files`: print file list; re-prompt.
+  - On `yes`: invoke the M#3b folder-ingest procedure (Steps 0–7) treating this tier's file list as the input. The linker runs at M#3b Step 6 after this tier's files complete (per C3 — incremental visibility).
+- **T7 — Final report**: structured summary across all tiers + grep-parseable log entry:
+  ```
+  /brain ingest (tiered) complete (codebrain v<version>)
+    Tier 1: <ingested>/<filtered> ingested, <skipped> skipped, <failed> failed; linker: <N wires, M concepts>
+    Tier 2: ...
+    Tier 3: ...
+    Uncategorized: 7 files NOT ingested
+    Logged: .brain/log.md
+  Next: try `/brain query "..."` (Milestone #5 — not yet implemented).
+        For stack-aware templates (React component sections, Python module structure, etc.), see Milestone #3d.
+  ```
 
-- **C1 — Per-stack tier-glob patterns live in each `detected/<stack>/SKILL.md`**: rather than baking heuristics into `commands/brain.md`, each detected skill declares its tier-globs in frontmatter (`tier_globs: { tier1: ["src/**"], tier2: ["api/**"], tier3: ["tests/**"] }`). The no-arg ingest procedure reads all installed detected skills and merges. Keeps `commands/brain.md` small + lets per-stack knowledge stay with the stack.
-- **C2 — Stack templates INHERIT the generic code-page template, don't duplicate**: each `detected/<stack>/templates/code-page-<stack>.md` declares ONLY the stack-specific sections (e.g., React's "Hooks", "Effects"); the ingester first renders the M#3a generic template, then appends the stack-specific sections from the matched detected template. Prevents template drift.
-- **C3 — Linker invocation strategy across tiers**: linker runs **after each tier** (not once at end), so the operator sees concept-page updates incrementally and can abort between tiers if results look wrong. Cost is higher (linker runs 3x instead of 1x) but the visibility win is large for a no-arg ingest the operator can't preview.
-- **C4 — README + CLAUDE.md need a 3-step onboarding update**: post-M#3c the operator flow is `npx codebrain init` → `/brain init` → `/brain ingest` (3 steps, two surfaces). Both README and the codebrain-internal CLAUDE.md need updating to make this explicit. Task to be added during M#3c implementation.
+If operator declines a tier or types `cancel`, still log the plan presentation to `.brain/log.md`.
 
-**Two architectural questions raised by sweep (may impact M#3a's design — worth answering BEFORE M#3a ships):**
+### Task 3: Update commands/codebrain.md (alias parity)
 
-- **Q1 — Template discovery from npm-installed location** (carried over from M#3a sweep): `commands/brain.md` can't read multiple `detected/<stack>/SKILL.md` files at runtime without knowing the install path. M#3a already chose to **inline the template content in the command body**. M#3c may need the same — inline a registry of detected-skill metadata into `commands/brain.md`, OR have `scripts/init.js` write a consolidated `.brain/.detected-skills.json` at npm install time. Lean: revisit after M#3a proves the inline-in-command-body pattern works.
-- **Q2 — Operator escape from too-expensive tiered ingest mid-tier**: currently Ctrl-C kills the session; nothing graceful. Per-tier gating is good but doesn't help mid-tier. Possible: detect operator input during long-running ingest and bail; or chunk per-tier into per-file with confirm after each (too noisy); or just document Ctrl-C as the escape. Lean: document Ctrl-C for v0.1; better cancellation post-MVP.
+Copy Task 2 changes verbatim. Update dispatch table identically. T19 confirms byte-identical via awk pattern.
 
-## Open Questions to Resolve After M#3a/b Ship
+### Task 4: Update tests/e2e-test.sh — T18 + T19
 
-- **Heuristic tier assignment**: covered by C1 above. Per-stack glob patterns in `detected/<stack>/SKILL.md` frontmatter.
-- **What if no stack is detected**: default to generic ingest of `src/` if it exists, else current directory's top-level. Or refuse + ask the operator to pass a path.
-- **Cost ceiling**: if Tier 1 alone is >50 files, do we sub-tier it? Lean: include a `Tier 1 has 78 files (estimated $X). Sub-divide? (yes/no)` prompt.
-- **Operator interrupt mid-tier**: if Ctrl-C during a tier, do we resume? Probably not — operator re-runs.
-- **Stack-aware template selection precedence**: if a `.ts` file is in a `tests/` dir, do we use the TS template or a "test file" template? Lean: TS template for now; specialized test-file template is post-MVP.
-- **Multi-stack repos** (e.g., a TS monorepo with a Python script): each file picks the template matching its extension; whole-folder ingest may apply multiple templates per file batch.
+**T18 — Planner agent shape:**
+- `agents/brain/planner.md` exists with frontmatter; all 7 merged fields; `pattern: Planner`; tools = `[Read, Glob, Bash]` (no Write — planner orchestrates only); ≥7 NEVER/ALWAYS rules; prompt-defense reference
+- `tools:` array does NOT include `Edit` or `Write` (orchestration-only guarantee)
+- npm pack includes the new agent
 
-## Risks (provisional)
+**T19 — No-arg ingest wiring:**
+- Dispatch table: `ingest` (no args) is `**implemented (M#3c)**`
+- `## When $ARGUMENTS is just \`ingest\`` section present in brain.md
+- Section contains: T0–T7 step headers; "Tier 1", "Tier 2", "Tier 3" + tier-glob keywords (`src/`, `lib/`, `app/`, `tests/`, etc.); cost-estimate language; per-tier confirmation prompt; reference to invoking M#3b folder procedure
+- Alias parity via awk pattern (same as M#3b T17)
+- Folder + single-file rows still present and correctly stubbed-or-implemented per their milestones
+
+### Task 5: Update README.md — 3-step onboarding (sweep finding C4)
+
+Update the Quickstart section to walk through all 3 ingest variants:
+
+```markdown
+## Quickstart
+
+Three-step onboarding:
+
+1. **Install codebrain into the repo** (run once per repo):
+   ```
+   npx codebrain init
+   ```
+   Scaffolds `.brain/`, copies `/brain` slash commands into `.claude/commands/`, merges hooks into `.claude/settings.local.json`.
+
+2. **Restart Claude Code or open a new session**, then populate the brain:
+   ```
+   /brain init
+   ```
+   Writes the full schema block into `CLAUDE.md`, populates `.brain/overview.md`, detects your tech stack.
+
+3. **Ingest source files** (three modes):
+   ```
+   /brain ingest src/api/auth.ts      # single file (Milestone #3a)
+   /brain ingest src/                  # whole folder + concept pages (Milestone #3b)
+   /brain ingest                       # auto-prioritize across the codebase in 3 tiers (Milestone #3c)
+   ```
+
+Then navigate the wiki in Obsidian (open `.brain/` as a vault) or query via Claude Code:
+```
+/brain query "how does auth work?"    # Milestone #5 — not yet implemented
+/brain lint                           # Milestone #6 — not yet implemented
+```
+```
+
+### Task 6: PRD update — M#3c → in-progress; add M#3d row
+
+Edit `.claude/prds/codebrain.prd.md`:
+- M#3c row: `pending` → `in-progress`; Plan → link to this plan
+- Update M#3c description to reflect scope reduction: "`/brain ingest` (no args) proposes a 3-tier plan based on **generic** tier-glob heuristics, pauses between tiers; stack-aware templates from detected/* skills deferred to M#3d"
+- ADD new M#3d row after M#3c: `3d | Stack-aware page templates (detected/* skills) | 4 detected/* skills (react, python, go, typescript) ship with per-stack code-page templates; ingester picks stack-specific template when matching detection signals are present | pending | — |`
+
+## Validation
+
+```bash
+# 1. E2E (M#1+M#2+M#3a+M#3b+M#3c surface)
+bash tests/e2e-test.sh
+# Expect: ~210 passes, 0 failures, <5s
+
+# 2. New file shape
+test -f agents/brain/planner.md
+head -1 agents/brain/planner.md | grep -q '^---$'
+grep -q '^pattern: Planner$' agents/brain/planner.md
+! grep -E '^tools:.*(Edit|Write)' agents/brain/planner.md  # planner has no Edit/Write
+
+# 3. Dispatch + procedure wiring
+grep -q '`ingest` (no args)` | \*\*implemented (M#3c)\*\*' commands/brain.md
+grep -qF '## When `$ARGUMENTS` is just `ingest`' commands/brain.md
+grep -qE 'T0|T7' commands/brain.md
+grep -qF 'Tier 1' commands/brain.md
+grep -qF 'Tier 3' commands/brain.md
+
+# 4. README Quickstart updated
+grep -q 'Three-step onboarding' README.md
+grep -q '/brain ingest$' README.md   # no-arg variant documented
+
+# 5. Alias parity for new section (awk for cross-platform)
+diff <(awk '/^## When `\$ARGUMENTS` is just `ingest`$/{flag=1} flag' commands/brain.md) \
+     <(awk '/^## When `\$ARGUMENTS` is just `ingest`$/{flag=1} flag' commands/codebrain.md)
+# Expect: empty
+
+# 6. npm pack ships planner
+npm pack --dry-run | grep -q 'agents/brain/planner.md'
+
+# 7. Manual smoke test (post-commit, on a real repo):
+#   In a Claude Code session inside a repo where `/brain init` has run:
+#     /brain ingest                  → presents tier table; asks per-tier; ingests tier by tier
+#     /brain ingest --yes            → bypasses gates; useful for CI/cron
+#     /brain ingest (with cancel)    → logs the plan, no files ingested
+```
+
+## Risks
 
 | Risk | Likelihood | Mitigation |
 |---|---|---|
-| Tiered planner's heuristic is wrong for unconventional repos | High | Operator can `show-files` per tier and skip if wrong; `--explicit-tiers <tier1-glob>,<tier2-glob>,<tier3-glob>` flag for power users (post-MVP) |
-| Token cost of no-arg ingest is alarming | High | Per-tier confirmation gate; cost estimate printed before each tier; SKIP-on-unchanged-source from M#3a keeps re-runs cheap |
-| Detected/* skill content is shallow / generic in v0.1 (skill descriptions written without deep stack expertise) | Med | Skill content is markdown — easy to revise; community PRs can extend; the skills are scaffolds, not specs |
-| Stack-aware template selection picks wrong template (e.g., a `.ts` config file in a non-React project gets the React template because `.tsx` shares the parser) | Low | Each `detected/<stack>/SKILL.md` declares extension+context matchers; the ingester picks the most-specific match |
-| The 3-tier model is too coarse for very large repos | Med | Post-MVP: configurable tier count or `--max-tier <N>` flag; default 3 is enough for repos <500 files |
-| Stack detection from M#2 gets out of sync with M#3c's installed skills | Low | Both read `skills/registry.json` as the source of truth; M#3c's update to that file ensures `/brain init` (M#2) sees the new detected/* skills automatically |
+| Generic tier-globs misclassify files in unusual repos | Med | Operator can `show-files` per tier and `no` if wrong; uncategorized list shows what got skipped; M#3d's stack-aware globs are the real fix |
+| Cost ballooning on whole-repo ingest | High | Per-tier gates; cost estimate per tier; operator sees cost BEFORE confirming each tier; can abort cleanly between tiers |
+| Linker running 3 times (once per tier) is expensive | Med | Each linker run is incremental (only re-processes pages from this tier + spots cross-tier concepts); B2 idempotency means concept pages get updated not duplicated |
+| Operator interrupts mid-tier; partial state | Low | M#3b's per-file atomic writes preserve state; re-run `/brain ingest` shows the partially-ingested tier; SKIPs on unchanged sources make resume cheap |
+| Planner agent's `tools: [Read, Glob, Bash]` doesn't allow writing log entries | Resolved | Log writes happen in the M#3b folder procedure (which has Edit/Write) and in the brain.md command body itself; planner orchestrates but the per-tier delegation does the actual writing |
+| Alias drift between brain.md and codebrain.md tiered section | Low | T19 awk-based byte-identical check |
+| Brain.md size growth | Low | M#3c adds ~120 lines (one new procedure section + 6 lines to dispatch table). After M#3c brain.md is ~600 lines. M#3d's per-stack templates is when the size question matters. |
 
-## Acceptance Criteria (provisional)
+## Acceptance
 
-- All 9 tasks complete
-- 4 detected/* skills ship, each with their own SKILL.md + per-stack template
-- `/brain ingest` (no args) prints a 3-tier plan and gates between tiers
-- E2E tests pass (~120 total after T18–T20)
-- Manual smoke test: `/brain ingest` on 3 dogfood repos (a Next.js app, a Python FastAPI project, a Go service) produces stack-appropriate code pages without operator intervention beyond tier confirmation
-
----
-
-**This plan is a sketch — heaviest refinement after M#3a + M#3b ship.** The detected/* skill content in particular will be revised once we've ingested at least one repo per stack and see what page sections matter most. The tier-assignment heuristic is best-guess until we have dogfood evidence.
+- [ ] All 6 tasks complete
+- [ ] Validation §1 (e2e ~210) passes; <5s
+- [ ] Validation §2–§6 pass
+- [ ] PRD M#3c row → in-progress; M#3d row added as pending
+- [ ] Patterns mirrored from M#3a + M#3b — no re-implementation
+- [ ] No regression: 179 prior tests still pass; total ~210 after T18+T19 added (≈30 new)
+- [ ] (Optional) Manual smoke test on dogfood repo
