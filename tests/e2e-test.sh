@@ -1333,6 +1333,88 @@ else
   nope "T29: alias drift in lint procedure"
 fi
 
+# === Test 30: M#8 — dogfood scripts + validation framework ==================
+
+# Dogfood scripts
+[ -x "$CODEBRAIN_ROOT/scripts/dogfood/install-validate.sh" ] \
+  && ok "T30: install-validate.sh exists + executable" \
+  || nope "T30: install-validate.sh missing or not executable"
+
+[ -x "$CODEBRAIN_ROOT/scripts/dogfood/static-baseline.sh" ] \
+  && ok "T30: static-baseline.sh exists + executable" \
+  || nope "T30: static-baseline.sh missing or not executable"
+
+head -1 "$CODEBRAIN_ROOT/scripts/dogfood/install-validate.sh" | grep -q '^#!/usr/bin/env bash$' \
+  && ok "T30: install-validate.sh has bash shebang" \
+  || nope "T30: install-validate.sh missing shebang"
+
+head -1 "$CODEBRAIN_ROOT/scripts/dogfood/static-baseline.sh" | grep -q '^#!/usr/bin/env bash$' \
+  && ok "T30: static-baseline.sh has bash shebang" \
+  || nope "T30: static-baseline.sh missing shebang"
+
+# MANUAL-MEASUREMENTS.md with M1-M5 sections
+[ -f "$CODEBRAIN_ROOT/scripts/dogfood/MANUAL-MEASUREMENTS.md" ] \
+  && ok "T30: MANUAL-MEASUREMENTS.md exists" \
+  || nope "T30: MANUAL-MEASUREMENTS.md missing"
+
+for section in M1 M2 M3 M4 M5; do
+  grep -qE "^## ${section} " "$CODEBRAIN_ROOT/scripts/dogfood/MANUAL-MEASUREMENTS.md" \
+    && ok "T30: MANUAL-MEASUREMENTS.md has $section section" \
+    || nope "T30: MANUAL-MEASUREMENTS.md missing $section section"
+done
+
+# Validation report template
+[ -f "$CODEBRAIN_ROOT/.claude/validation/v0.1-baseline.md" ] \
+  && ok "T30: .claude/validation/v0.1-baseline.md template exists" \
+  || nope "T30: validation report template missing"
+
+# Required metric sections in the report template
+for metric in 'Token reduction' 'Stale-page detection' 'Wiki freshness' 'Time-to-first-value' 'Wikilink precision' 'Continuous-learning lift'; do
+  grep -qF "$metric" "$CODEBRAIN_ROOT/.claude/validation/v0.1-baseline.md" \
+    && ok "T30: validation report has '$metric' section" \
+    || nope "T30: validation report missing '$metric' section"
+done
+
+# README mentions dogfood section
+grep -qF 'Dogfood + validate' "$CODEBRAIN_ROOT/README.md" \
+  && ok "T30: README has Dogfood + validate section" \
+  || nope "T30: README missing Dogfood + validate section"
+
+# === Test 31: M#8 — install-validate.sh runs successfully ===================
+
+if bash "$CODEBRAIN_ROOT/scripts/dogfood/install-validate.sh" >/dev/null 2>&1; then
+  ok "T31: install-validate.sh runs successfully (exit 0)"
+else
+  nope "T31: install-validate.sh failed"
+fi
+
+# === Test 32: M#8 — static-baseline.sh runs successfully ====================
+
+if CODEBRAIN_BASELINE_NESTED=1 bash "$CODEBRAIN_ROOT/scripts/dogfood/static-baseline.sh" >/dev/null 2>&1; then
+  ok "T32: static-baseline.sh runs successfully (exit 0; nested-guard active)"
+else
+  nope "T32: static-baseline.sh failed"
+fi
+
+# Output file created with key sections
+[ -f "$CODEBRAIN_ROOT/.claude/validation/v0.1-static-baseline.md" ] \
+  && ok "T32: static baseline output file created" \
+  || nope "T32: static baseline output missing"
+
+for section in 'Shipped source files' 'Agents' 'Skills' 'Templates' 'npm package' 'Hooks' 'Slash-command surface' 'Test coverage'; do
+  grep -qF "$section" "$CODEBRAIN_ROOT/.claude/validation/v0.1-static-baseline.md" \
+    && ok "T32: static baseline has '$section' section" \
+    || nope "T32: static baseline missing '$section' section"
+done
+
+# npm pack includes dogfood scripts
+pack_list="$(cd "$CODEBRAIN_ROOT" && npm pack --dry-run 2>&1)"
+for f in install-validate.sh static-baseline.sh MANUAL-MEASUREMENTS.md; do
+  echo "$pack_list" | grep -q "scripts/dogfood/$f" \
+    && ok "T32: scripts/dogfood/$f in npm pack" \
+    || nope "T32: scripts/dogfood/$f missing from npm pack"
+done
+
 # === Summary ==================================================================
 
 total=$((pass+fail))

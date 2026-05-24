@@ -94,6 +94,29 @@ The architectural lineage: [LLM Wiki pattern reference](reference/llm-wiki.md).
 
 See [the PRD](.claude/prds/codebrain.prd.md) for the full spec, 33 locked design decisions, success metrics, and risk register.
 
+## Dogfood + validate
+
+Codebrain ships with a validation harness for measuring whether the wiki delivers on its claims.
+
+**Static checks** (automated, run anytime):
+
+```bash
+bash scripts/dogfood/install-validate.sh   # validates clean install scaffold
+bash scripts/dogfood/static-baseline.sh    # gathers shipped-artifact metrics → .claude/validation/v0.1-static-baseline.md
+```
+
+**LLM-driven measurements** (operator procedure, requires real Claude Code sessions):
+
+See [`scripts/dogfood/MANUAL-MEASUREMENTS.md`](scripts/dogfood/MANUAL-MEASUREMENTS.md) for the step-by-step:
+
+- **M1** Token-reduction A/B (10 questions × 3 repos)
+- **M2** Freshness drift (7-day measurement window)
+- **M3** Wikilink precision (sampled manual review)
+- **M4** Time-to-first-value (wall-clock)
+- **M5** Continuous-learning lift (deferred pending Milestone #7)
+
+Results land in [`.claude/validation/v0.1-baseline.md`](.claude/validation/v0.1-baseline.md) — a living report you fill as evidence accumulates.
+
 ## Credits
 
 codebrain is the synthesis of three OSS projects:
