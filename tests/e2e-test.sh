@@ -473,6 +473,174 @@ echo "$pack_list" | grep -q 'skills/ingestion/page-format/templates/code-page.md
   && ok "T15: code-page template in npm pack" \
   || nope "T15: code-page template missing from npm pack"
 
+# === Test 16: M#3b — linker agent + concept-extraction skill + template =====
+
+for f in \
+  "$CODEBRAIN_ROOT/agents/brain/linker.md" \
+  "$CODEBRAIN_ROOT/skills/ingestion/concept-extraction/SKILL.md" \
+  "$CODEBRAIN_ROOT/skills/ingestion/concept-extraction/templates/concept-page.md"
+do
+  [ -f "$f" ] && ok "T16: $(basename "$f") exists" || nope "T16: $(basename "$f") missing"
+done
+
+# Linker agent frontmatter
+head -1 "$CODEBRAIN_ROOT/agents/brain/linker.md" | grep -q '^---$' \
+  && ok "T16: linker.md starts with frontmatter" \
+  || nope "T16: linker.md missing frontmatter"
+
+for field in name description tools model pattern trigger_phrases max_iterations; do
+  grep -q "^${field}:" "$CODEBRAIN_ROOT/agents/brain/linker.md" \
+    && ok "T16: linker.md has '${field}' field" \
+    || nope "T16: linker.md missing '${field}' field"
+done
+
+grep -q "^pattern: Reviewer$" "$CODEBRAIN_ROOT/agents/brain/linker.md" \
+  && ok "T16: linker.md pattern is Reviewer" \
+  || nope "T16: linker.md wrong pattern"
+
+grep -E "^max_iterations: [0-9]+$" "$CODEBRAIN_ROOT/agents/brain/linker.md" >/dev/null \
+  && ok "T16: linker.md max_iterations is integer" \
+  || nope "T16: linker.md max_iterations not integer"
+
+grep -q '^## Rules' "$CODEBRAIN_ROOT/agents/brain/linker.md" \
+  && ok "T16: linker.md has Rules section" \
+  || nope "T16: linker.md missing Rules section"
+
+grep -q 'Read the Prompt Defense Baseline' "$CODEBRAIN_ROOT/agents/brain/linker.md" \
+  && ok "T16: linker.md has prompt-defense reference" \
+  || nope "T16: linker.md missing prompt-defense reference"
+
+linker_rules=$(grep -cE '^- \*\*(NEVER|ALWAYS)' "$CODEBRAIN_ROOT/agents/brain/linker.md" || true)
+[ "$linker_rules" -ge 9 ] \
+  && ok "T16: linker.md has ≥9 self-enforcing rules ($linker_rules)" \
+  || nope "T16: linker.md only $linker_rules rules (need ≥9)"
+
+# concept-extraction SKILL frontmatter
+head -1 "$CODEBRAIN_ROOT/skills/ingestion/concept-extraction/SKILL.md" | grep -q '^---$' \
+  && ok "T16: concept-extraction SKILL.md starts with frontmatter" \
+  || nope "T16: concept-extraction SKILL.md missing frontmatter"
+
+for field in name description origin version tier pattern related_skills; do
+  grep -q "^${field}:" "$CODEBRAIN_ROOT/skills/ingestion/concept-extraction/SKILL.md" \
+    && ok "T16: concept-extraction SKILL.md has '${field}' field" \
+    || nope "T16: concept-extraction SKILL.md missing '${field}' field"
+done
+
+grep -q "^tier: ingestion$" "$CODEBRAIN_ROOT/skills/ingestion/concept-extraction/SKILL.md" \
+  && ok "T16: concept-extraction is tier:ingestion" \
+  || nope "T16: concept-extraction wrong tier"
+
+grep -q "behavioral/codebrain" "$CODEBRAIN_ROOT/skills/ingestion/concept-extraction/SKILL.md" \
+  && grep -q "ingestion/page-format" "$CODEBRAIN_ROOT/skills/ingestion/concept-extraction/SKILL.md" \
+  && ok "T16: concept-extraction related_skills lists both expected siblings" \
+  || nope "T16: concept-extraction related_skills missing expected entries"
+
+# Concept-extraction body sections (DO extract, DO NOT extract, defer, contract, examples)
+for section in 'DO extract' 'DO NOT extract' 'When uncertain' 'Concept-page contract' 'Examples'; do
+  grep -qF "$section" "$CODEBRAIN_ROOT/skills/ingestion/concept-extraction/SKILL.md" \
+    && ok "T16: concept-extraction has '$section' section" \
+    || nope "T16: concept-extraction missing '$section' section"
+done
+
+# Concept-page template structure
+head -1 "$CODEBRAIN_ROOT/skills/ingestion/concept-extraction/templates/concept-page.md" | grep -q '^---$' \
+  && ok "T16: concept-page template starts with frontmatter" \
+  || nope "T16: concept-page template missing frontmatter"
+
+for section in '## Definition' '## Spans' '## Examples' '## Related'; do
+  grep -qF "$section" "$CODEBRAIN_ROOT/skills/ingestion/concept-extraction/templates/concept-page.md" \
+    && ok "T16: concept-page template has '$section' section" \
+    || nope "T16: concept-page template missing '$section' section"
+done
+
+concept_directives=$(grep -c 'AGENT:' "$CODEBRAIN_ROOT/skills/ingestion/concept-extraction/templates/concept-page.md" || true)
+[ "$concept_directives" -ge 8 ] \
+  && ok "T16: concept-page template has ≥8 AGENT directives ($concept_directives)" \
+  || nope "T16: concept-page template only $concept_directives AGENT directives (need ≥8)"
+
+# Per-source-hash format (B6): sources example shows {path, hash:git:...}
+grep -qE 'hash:[[:space:]]*git:' "$CODEBRAIN_ROOT/skills/ingestion/concept-extraction/templates/concept-page.md" \
+  && ok "T16: concept-page template documents per-source-hash format" \
+  || nope "T16: concept-page template missing per-source-hash format"
+
+# === Test 17: M#3b — folder + linker procedure wiring =======================
+
+grep -q 'ingest <folder/>` | \*\*implemented (M#3b)\*\*' "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T17: brain.md folder dispatch wired (M#3b)" \
+  || nope "T17: brain.md folder dispatch not wired"
+
+grep -q 'Milestone #3c (tiered auto-prioritize' "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T17: brain.md no-arg ingest still M#3c stub" \
+  || nope "T17: brain.md no-arg pointer missing"
+
+# Folder procedure section
+grep -qF '## When `$ARGUMENTS` starts with `ingest <folder>`' "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T17: brain.md has folder-ingest procedure section" \
+  || nope "T17: brain.md missing folder-ingest procedure"
+
+# Critical folder procedure elements
+for needle in \
+  'git ls-files' \
+  'Out-of-repo guard' \
+  'Cost gate' \
+  'auto-confirm threshold' \
+  'Skip-and-report'
+do
+  grep -qF "$needle" "$CODEBRAIN_ROOT/commands/brain.md" \
+    && ok "T17: brain.md folder procedure mentions '$needle'" \
+    || nope "T17: brain.md folder procedure missing '$needle'"
+done
+
+# Linker procedure section
+grep -qF '## Linker procedure (invoked after folder ingest)' "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T17: brain.md has linker procedure section" \
+  || nope "T17: brain.md missing linker procedure"
+
+# Linker procedure L1-L6
+for step in 'L1 — Load inputs' 'L2 — Wire bidirectional' 'L3 — Discover concept' 'L4 — Materialize concept' 'L5 — Update derived files' 'L6 — Linker report'; do
+  grep -qF "$step" "$CODEBRAIN_ROOT/commands/brain.md" \
+    && ok "T17: brain.md linker procedure has '$step'" \
+    || nope "T17: brain.md linker procedure missing '$step'"
+done
+
+# Inlined concept-page template + per-source-hash
+grep -qF 'kind: concept' "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T17: brain.md linker procedure inlines concept template (kind: concept)" \
+  || nope "T17: brain.md linker procedure missing inlined concept template"
+
+# Alias parity: folder section (cross-platform — awk handles the boundary cleanly;
+# macOS BSD head rejects `head -n -1`, GNU-only feature)
+brain_folder=$(awk '/^## When `\$ARGUMENTS` starts with `ingest <folder>`$/{flag=1; print; next} /^## Linker procedure/{flag=0} flag' "$CODEBRAIN_ROOT/commands/brain.md")
+cb_folder=$(awk '/^## When `\$ARGUMENTS` starts with `ingest <folder>`$/{flag=1; print; next} /^## Linker procedure/{flag=0} flag' "$CODEBRAIN_ROOT/commands/codebrain.md")
+if [ "$brain_folder" = "$cb_folder" ] && [ -n "$brain_folder" ]; then
+  ok "T17: brain.md and codebrain.md folder-ingest procedure byte-identical"
+else
+  nope "T17: alias drift in folder-ingest procedure"
+fi
+
+# Alias parity: linker section
+brain_linker=$(sed -n '/^## Linker procedure (invoked after folder ingest)$/,$p' "$CODEBRAIN_ROOT/commands/brain.md")
+cb_linker=$(sed -n '/^## Linker procedure (invoked after folder ingest)$/,$p' "$CODEBRAIN_ROOT/commands/codebrain.md")
+if [ "$brain_linker" = "$cb_linker" ] && [ -n "$brain_linker" ]; then
+  ok "T17: brain.md and codebrain.md linker procedure byte-identical"
+else
+  nope "T17: alias drift in linker procedure"
+fi
+
+# npm pack includes new files
+pack_list="$(cd "$CODEBRAIN_ROOT" && npm pack --dry-run 2>&1)"
+echo "$pack_list" | grep -q 'agents/brain/linker.md' \
+  && ok "T17: linker.md in npm pack" \
+  || nope "T17: linker.md missing from npm pack"
+
+echo "$pack_list" | grep -q 'skills/ingestion/concept-extraction/SKILL.md' \
+  && ok "T17: concept-extraction SKILL.md in npm pack" \
+  || nope "T17: concept-extraction SKILL.md missing from npm pack"
+
+echo "$pack_list" | grep -q 'skills/ingestion/concept-extraction/templates/concept-page.md' \
+  && ok "T17: concept-page template in npm pack" \
+  || nope "T17: concept-page template missing from npm pack"
+
 # === Summary ==================================================================
 
 total=$((pass+fail))

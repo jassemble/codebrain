@@ -15,8 +15,8 @@ Alias for `/brain`. Body is identical so `/codebrain <verb>` behaves the same as
 |---|---|---|
 | `init` | **implemented** | See "When `$ARGUMENTS` is `init`" section below for the full agent procedure |
 | `ingest <single-file-path>` | **implemented (M#3a)** | See "When `$ARGUMENTS` starts with `ingest <file>`" section below |
-| `ingest <folder/>` | not implemented | `Milestone #3b (folder ingest + concept pages) — not yet implemented in v0.1. Pass a single file path for now: /codebrain ingest src/auth.ts` |
-| `ingest` (no args) | not implemented | `Milestone #3c (tiered auto-prioritize) — not yet implemented in v0.1. Pass a single file path for now: /codebrain ingest src/auth.ts` |
+| `ingest <folder/>` | **implemented (M#3b)** | See "When `$ARGUMENTS` starts with `ingest <folder>`" section below |
+| `ingest` (no args) | not implemented | `Milestone #3c (tiered auto-prioritize) — not yet implemented in v0.1. Pass a file or folder path for now: /codebrain ingest src/` |
 | `query` | not implemented | `Milestone #5 (Query helper) — not yet implemented in v0.1. See the Roadmap section of the codebrain README.` |
 | `lint` | not implemented | `Milestone #6 (Lint pass) — not yet implemented in v0.1. Will support \`--fix\` to batch re-ingest STALE pages.` |
 | `learn` | not implemented | `Milestone #7 (Continuous-learning observer) — not yet implemented in v0.1. Subverbs will be \`on\`, \`off\`, \`status\`.` |
@@ -262,3 +262,173 @@ Next: ingest more files individually for now.
 If you encountered any failures during the procedure, replace the success report with `FAILED at Step <N>: <reason>` and exit. Do not partially complete and report success.
 
 **Error recovery** (per the ingester agent's Rules, PRD Design Decision #26): if a step fails for a transient reason (e.g., a Read returned partial content), retry that step ONCE with fresh context. If it fails again, emit a `blocked: ...` report and stop. Do not exceed `max_iterations: 5` total retries across the procedure.
+
+## When `$ARGUMENTS` starts with `ingest <folder>`
+
+You are orchestrating a folder ingest. Run the M#3a ingester per file, then invoke the linker. Follow the procedure exactly.
+
+**Step 0 — Argument parsing + path guards**:
+
+- Extract the folder arg from `$ARGUMENTS`.
+- **Out-of-repo guard**: compute the absolute path. If it does NOT start with cwd, print `error: refused — <path> resolves outside the project root` and stop.
+- If the resolved path is a file (not a directory), print `error: <path> is a file, not a folder. Use /brain ingest <file-path> for single-file ingest.` and stop.
+- If the resolved path does not exist, print `error: folder not found: <path>` and stop.
+
+**Step 1 — Preconditions**:
+
+- Verify `.brain/` exists in cwd. If not, print the same `npx codebrain init` first message as M#3a Step 1.
+- Read `.brain/.codebrain-version` to confirm M#1's scaffold is present.
+
+**Step 2 — Walk the folder**:
+
+- Try `git ls-files <folder>` via Bash first (respects `.gitignore` automatically).
+- If git is unavailable or the directory isn't tracked, fall back to a manual recursive walk excluding the hardcoded blocklist: `node_modules`, `.git`, `.brain`, `.claude`, `dist`, `build`, `coverage`, `.venv`, `__pycache__`, `target`, `.next`, `.nuxt`.
+
+**Step 3 — Filter**:
+
+- Apply the M#3a binary blocklist (`.png, .jpg, .jpeg, .gif, .webp, .pdf, .exe, .bin, .so, .dylib, .o, .a, .zip, .tar, .tgz, .gz, .mp4, .mp3, .wav, .ico, .ttf, .woff, .woff2`).
+- Exclude lockfiles (`package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `poetry.lock`, `Cargo.lock`, `go.sum`, `composer.lock`, `Pipfile.lock`).
+- Exclude minified/generated artifacts (`*.min.js`, `*.min.css`, `*.bundle.js`, `*.map`).
+- Print the surviving file count and a per-extension breakdown: `Found 23 files: 14 .ts, 5 .tsx, 3 .json, 1 .md`.
+
+**Step 4 — Cost gate**:
+
+- Estimate `cost ≈ count × $0.006` (rough heuristic: ~2000 tokens per file × $0.003/1k input tokens, doubled for output).
+- If count > 50 AND `$ARGUMENTS` does NOT contain `--yes`: print `Will ingest <count> files (~$<cost> estimated). This exceeds the 50-file auto-confirm threshold. Re-run with --yes to proceed.` and stop.
+- If count is 20–50 AND `$ARGUMENTS` does NOT contain `--yes`: print `Will ingest <count> files (~$<cost> estimated). Proceed? (yes/no/show-files)` and wait for operator. On `yes`: continue. On `no`: stop. On `show-files`: print the list, then re-prompt.
+- If count < 20: proceed without prompting.
+
+**Step 5 — Per-file ingest loop**:
+
+- For each filtered file, invoke the **M#3a single-file procedure** (Steps 0–7 of `## When $ARGUMENTS starts with ingest <file>`). Treat each file as if the operator typed `/brain ingest <file>`.
+- Collect results: `ingested[]`, `skipped[]` (source unchanged), `failed[]` (with reason).
+- On any per-file FAIL, log the reason and continue. **Skip-and-report** behavior — do not abort the folder.
+
+**Step 6 — Invoke the linker procedure**:
+
+- After the per-file loop completes, jump to the `## Linker procedure (invoked after folder ingest)` section below. Pass the list of ingested code-page paths.
+
+**Step 7 — Final report**:
+
+```
+/brain ingest <folder> complete (codebrain v<version>)
+  Files found:    <total before filter>
+  Files filtered: <count after filter>
+  Ingested:       <ingested.length> ([<one path per line>])
+  Skipped:        <skipped.length>  (sources unchanged)
+  Failed:         <failed.length>   ([<path: reason> per line])
+  Linker result:  <wired N code-page cross-references, M concept pages created/updated>
+  Logged:         .brain/log.md
+Next: try `/brain query "..."` (Milestone #5 — not yet implemented).
+      For tiered no-arg ingest, see Milestone #3c.
+```
+
+If linker emitted partial-completion warning (because per-file failures), include it before the `Next:` line.
+
+## Linker procedure (invoked after folder ingest)
+
+You are the codebrain **linker** (see `agents/brain/linker.md` for your full persona + Rules; the Rules apply throughout). This procedure runs at Step 6 of the folder-ingest procedure, with the list of ingested code-page paths.
+
+**L1 — Load inputs**:
+
+- Read all `.brain/code/**/*.md` pages (the just-ingested set + any prior pages — they may participate in cross-references).
+- Read all existing `.brain/concepts/**/*.md` pages (for idempotency: update rather than duplicate).
+- The concept-extraction criteria are inlined in this body (see L3); the standalone documentation lives at `skills/ingestion/concept-extraction/SKILL.md`.
+
+**L2 — Wire bidirectional Cross-references between code pages**:
+
+- For each code page, scan its `## Imports` section. For every imported module that resolves to another `.brain/code/<path>.md` page:
+  - Verify the target page EXISTS in `.brain/code/` before writing the wikilink (per linker Rule on dangling wikilinks).
+  - Add `- [[code/<target-path>]] — <one-line why imported>` under the importing page's `## Cross-references` section.
+  - Add the reverse link on the target page: `- [[code/<importing-path>]] — imported by`.
+- Dedupe: if a `[[code/<path>]]` link is already present, skip rather than duplicate.
+
+**L3 — Discover concept candidates**:
+
+Apply the concept-extraction criteria:
+
+DO promote when:
+- A named idea is referenced across ≥2 code pages (domain entity, integration boundary, convention, glossary term)
+- A single code page explicitly declares architectural significance (top-level docstring labelling itself a boundary; README excerpt; ADR reference)
+
+DO NOT promote when:
+- Utility functions, single-use helpers, one-off implementations
+- Type aliases used only in their defining file
+- Wrappers around standard library
+- A name that already has a code page (don't double up `auth.ts` with `concepts/auth`)
+
+When uncertain: defer. M#6 lint surfaces "concept mentioned but lacking page" as a hint.
+
+Produce a candidate list: `[{ name, sources: [{path, hash}], evidence: "..." }]`. Discard candidates with <2 sources unless evidence is strong (top-level architectural declaration).
+
+**L4 — Materialize concept pages**:
+
+For each surviving candidate:
+
+- If a concept page with that name already exists at `.brain/concepts/<name>.md`:
+  - **UPDATE**: extend the `sources:` frontmatter array with any new entries (per-source-hash format below); refresh the Spans and Examples sections; bump `status: RESYNCED`; update `last_ingested`.
+- If new:
+  - **WRITE** using this verbatim template:
+
+```markdown
+---
+kind: concept
+status: FRESH
+name: <kebab-case name>
+last_ingested: <today YYYY-MM-DD>
+ingested_by: <your model id>
+tokens: <best estimate>
+sources:
+  - path: <source path 1>
+    hash: <git:<hash> or sha256:<hash>>
+  - path: <source path 2>
+    hash: <git:<hash> or sha256:<hash>>
+---
+
+# <Human-readable concept name>
+
+## Definition
+<1-3 sentences in domain terms; explain the idea, not the implementation>
+
+## Spans
+- [[code/<source path 1>]] — <role this file plays in the concept>
+- [[code/<source path 2>]] — <role this file plays in the concept>
+
+## Examples
+1. **<short heading>** ([[code/<path>]]):
+   <1-2 sentence explanation; optional snippet <5 lines>
+
+## Related
+- [[concepts/<name>]] — <one-line relation>
+<or `_(none yet)_` if no related concepts exist>
+```
+
+Per-source-hash format (PRD Design Decision #32): for each source, compute `git hash-object <path>` (→ `hash: git:<hash>`) or `shasum -a 256 <path>` (→ `hash: sha256:<hash>`). The M#4 staleness hook iterates `sources:` and checks each `hash` to flip the concept page to STALE when any source drifts.
+
+Page-size cap: concept pages 6k soft warn / 12k hard error (per PRD Design Decision #7). If a concept exceeds 12k, split into multiple narrower concepts.
+
+**L5 — Update derived files**:
+
+- `.brain/index.md`: append under `## Concept pages`. If the section does not exist, CREATE it as your first edit (mirror M#3a's `## Code pages` pattern). Entry format: `- [[concepts/<name>]] — <one-line summary from Definition section>`. Dedupe by `[[concepts/<name>]]` link.
+- `.brain/status.md`: append/update a row for each concept page: `| concepts/<name>.md | FRESH | <ISO date> | <count> sources |`.
+- `.brain/log.md`: append under `## Activity History` with the grep-parseable prefix: `## [YYYY-MM-DD] link | <folder>: <N code pages wired, M concept pages>`.
+
+**L6 — Linker report**:
+
+Produce a structured summary the folder-ingest Step 7 includes in its final report:
+
+```
+Linker:
+  Cross-references wired: <count> (bidirectional)
+  Concepts created:       <count> ([<concept-name per line>])
+  Concepts updated:       <count> ([<concept-name per line>])
+  Dangling wikilinks:     <count> (downgraded to plain mentions)
+```
+
+If any per-file ingest failed (passed in from Step 5's `failed[]`), prepend:
+
+```
+WARNING: linker analyzed <M> of <N> requested files; concepts may be missing sources. Re-run after addressing failed files.
+```
+
+**Error recovery** (per linker Rules + PRD #26): Tier 1 retry once; Tier 2 structured blocked report; do not exceed `max_iterations: 5`.
