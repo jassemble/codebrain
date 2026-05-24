@@ -217,11 +217,38 @@ function appendClaudeMdManagedRegion(cwd, opts) {
 
 function mergeHooks(targetDir, opts) {
   // PRD Design Decision #32: partition existing entries; replace own; preserve others.
-  // Milestone #1 ships an EMPTY codebrain hooks set — Milestone #4 fills these in.
+  // Milestone #4 populated this with the two hook entries below; entries are keyed
+  // by their `id:` field — codebrain owns only ids starting `codebrain:`.
   const target = path.join(targetDir, 'settings.local.json');
   const codebrainOwnedHooks = {
-    // Milestone #4 will populate this: e.g.,
-    //   PreToolUse: [{ matcher: 'Edit|Write|MultiEdit', hooks: [...], id: 'codebrain:pre:edit-write:stale-detect', description: '...' }]
+    PreToolUse: [
+      {
+        matcher: 'Edit|Write|MultiEdit',
+        hooks: [
+          {
+            type: 'command',
+            command: 'npx codebrain hook verified-guard',
+            timeout: 5,
+          },
+        ],
+        id: 'codebrain:pre:verified-guard',
+        description: 'Block writes to .brain/ pages with status: VERIFIED unless --force is passed',
+      },
+    ],
+    PostToolUse: [
+      {
+        matcher: 'Edit|Write|MultiEdit',
+        hooks: [
+          {
+            type: 'command',
+            command: 'npx codebrain hook stale-detect',
+            timeout: 10,
+          },
+        ],
+        id: 'codebrain:post:stale-detect',
+        description: 'Mark .brain/ pages STALE when their source file is edited (4-tier staleness model tier 1)',
+      },
+    ],
   };
 
   let existing;

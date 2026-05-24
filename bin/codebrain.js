@@ -30,11 +30,36 @@ Usage:
       [Deferred to v0.2] Remove .brain/, codebrain entries from .claude/commands/
       and .claude/settings.local.json. For now, see the message printed below.
 
+  codebrain hook <subcommand>
+      Internal hook entry point invoked by .claude/settings.local.json
+      (PreToolUse/PostToolUse). Subcommands:
+        stale-detect    — PostToolUse: mark .brain/ pages STALE on source edit
+        verified-guard  — PreToolUse: block writes to VERIFIED .brain/ pages
+      Not intended for direct operator use.
+
   codebrain help
       Print this message.
 
 After \`codebrain init\`, restart Claude Code (or open a new session) and use
 \`/brain init\` to begin. See https://github.com/jassemble/codebrain for more.`);
+}
+
+const HOOK_SUBCOMMANDS = ['stale-detect', 'verified-guard'];
+
+function dispatchHook(args) {
+  const sub = args[0];
+  if (!sub) {
+    console.error('codebrain hook: missing subcommand. Available:');
+    for (const s of HOOK_SUBCOMMANDS) console.error(`  ${s}`);
+    process.exit(1);
+  }
+  if (!HOOK_SUBCOMMANDS.includes(sub)) {
+    console.error(`codebrain hook: unknown subcommand '${sub}'. Available:`);
+    for (const s of HOOK_SUBCOMMANDS) console.error(`  ${s}`);
+    process.exit(1);
+  }
+  // Delegate to the hook script (it runs side-effects + exits itself)
+  require(path.join(__dirname, '..', 'scripts', 'hooks', sub + '.js'));
 }
 
 function main() {
@@ -71,6 +96,12 @@ function main() {
         `\`<!-- codebrain:end -->\` block from \`CLAUDE.md\`.`
       );
       process.exit(0);
+
+    case 'hook':
+      // Internal — invoked by .claude/settings.local.json entries.
+      // The hook script handles its own exit code.
+      dispatchHook(ARGS);
+      return; // dispatched script will exit; safety return if it doesn't
 
     case undefined:
     case 'help':

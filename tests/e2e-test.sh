@@ -736,6 +736,255 @@ echo "$pack_list" | grep -q 'agents/brain/planner.md' \
   && ok "T19: planner.md in npm pack" \
   || nope "T19: planner.md missing from npm pack"
 
+# === Test 20: M#4 — hook scripts exist + CLI verb dispatches =================
+
+for f in \
+  "$CODEBRAIN_ROOT/scripts/hooks/stale-detect.js" \
+  "$CODEBRAIN_ROOT/scripts/hooks/verified-guard.js" \
+  "$CODEBRAIN_ROOT/scripts/hooks/lib/page-io.js"
+do
+  [ -f "$f" ] && ok "T20: $(basename "$f") exists" || nope "T20: $(basename "$f") missing"
+done
+
+# Shebangs on the hook entry scripts (lib is a library — no shebang needed)
+head -1 "$CODEBRAIN_ROOT/scripts/hooks/stale-detect.js" | grep -q '^#!/usr/bin/env node$' \
+  && ok "T20: stale-detect.js has Node shebang" \
+  || nope "T20: stale-detect.js missing/wrong shebang"
+
+head -1 "$CODEBRAIN_ROOT/scripts/hooks/verified-guard.js" | grep -q '^#!/usr/bin/env node$' \
+  && ok "T20: verified-guard.js has Node shebang" \
+  || nope "T20: verified-guard.js missing/wrong shebang"
+
+# bin/codebrain.js hook verb dispatches
+hook_help="$(node "$CB" hook 2>&1)"
+echo "$hook_help" | grep -q 'stale-detect' \
+  && ok "T20: 'codebrain hook' help lists stale-detect" \
+  || nope "T20: 'codebrain hook' help missing stale-detect"
+
+echo "$hook_help" | grep -q 'verified-guard' \
+  && ok "T20: 'codebrain hook' help lists verified-guard" \
+  || nope "T20: 'codebrain hook' help missing verified-guard"
+
+bogus_rc=$( ( node "$CB" hook bogus-name </dev/null >/dev/null 2>&1 ); echo $? )
+[ "$bogus_rc" -eq 1 ] && ok "T20: 'codebrain hook bogus-name' exits 1" || nope "T20: bogus subcommand exit was $bogus_rc"
+
+# Sanity: stale-detect in an empty dir with no .brain/ exits 0 silently
+empty_dir="$(mktemp -d)"
+rc=$( ( cd "$empty_dir" && echo '{"tool_input":{"file_path":"foo.ts"}}' | node "$CB" hook stale-detect >/dev/null 2>&1 ); echo $? )
+[ "$rc" -eq 0 ] && ok "T20: stale-detect in non-codebrain dir exits 0 silently" || nope "T20: stale-detect non-codebrain dir exit was $rc"
+
+# Help text mentions hook
+help_out="$(node "$CB" help 2>&1)"
+echo "$help_out" | grep -q 'codebrain hook' \
+  && ok "T20: 'codebrain help' mentions hook verb" \
+  || nope "T20: help missing hook verb"
+
+# === Test 21: M#4 — init.js writes the codebrain hook entries ================
+
+# Run init in a tmpdir + verify settings.local.json gets the two codebrain entries
+T21_REPO="$(setup_user_repo)"
+( cd "$T21_REPO" && HOME="$HOME" node "$CB" init >/dev/null 2>&1 )
+
+# PreToolUse: codebrain:pre:verified-guard
+node -e "
+  const j = require('$T21_REPO/.claude/settings.local.json');
+  const pre = (j.hooks && j.hooks.PreToolUse) || [];
+  const guard = pre.find(e => e && e.id === 'codebrain:pre:verified-guard');
+  if (!guard) { console.error('verified-guard entry missing'); process.exit(1); }
+  if (!guard.hooks || !guard.hooks[0] || !guard.hooks[0].command.includes('codebrain hook verified-guard')) {
+    console.error('verified-guard command wrong:', JSON.stringify(guard.hooks)); process.exit(1);
+  }
+  if (guard.matcher !== 'Edit|Write|MultiEdit') { console.error('verified-guard matcher wrong'); process.exit(1); }
+  process.exit(0);
+" 2>/dev/null && ok "T21: settings.local.json has codebrain:pre:verified-guard with correct shape" || nope "T21: verified-guard entry incorrect"
+
+# PostToolUse: codebrain:post:stale-detect
+node -e "
+  const j = require('$T21_REPO/.claude/settings.local.json');
+  const post = (j.hooks && j.hooks.PostToolUse) || [];
+  const stale = post.find(e => e && e.id === 'codebrain:post:stale-detect');
+  if (!stale) { console.error('stale-detect entry missing'); process.exit(1); }
+  if (!stale.hooks[0].command.includes('codebrain hook stale-detect')) {
+    console.error('stale-detect command wrong'); process.exit(1);
+  }
+  process.exit(0);
+" 2>/dev/null && ok "T21: settings.local.json has codebrain:post:stale-detect with correct shape" || nope "T21: stale-detect entry incorrect"
+
+# Re-init: no duplication of codebrain hooks
+( cd "$T21_REPO" && HOME="$HOME" node "$CB" init >/dev/null 2>&1 )
+codebrain_hook_count=$(node -e "
+  const j = require('$T21_REPO/.claude/settings.local.json');
+  const all = Object.values(j.hooks || {}).flat();
+  console.log(all.filter(e => e && typeof e.id === 'string' && e.id.startsWith('codebrain:')).length);
+" 2>/dev/null)
+[ "$codebrain_hook_count" = "2" ] && ok "T21: re-init keeps exactly 2 codebrain hooks (no duplication)" || nope "T21: codebrain hook count after re-init was $codebrain_hook_count (expected 2)"
+
+# Pre-existing non-codebrain hook + stale codebrain entry → init preserves non-codebrain + cleans codebrain
+T21B_REPO="$(setup_user_repo)"
+mkdir -p "$T21B_REPO/.claude"
+cat > "$T21B_REPO/.claude/settings.local.json" <<'JSON'
+{
+  "hooks": {
+    "PreToolUse": [
+      { "matcher": "Bash", "hooks": [{ "type": "command", "command": "echo user" }], "id": "user:my-hook" },
+      { "matcher": "Edit", "hooks": [], "id": "codebrain:stale-from-old-version" }
+    ]
+  }
+}
+JSON
+( cd "$T21B_REPO" && HOME="$HOME" node "$CB" init >/dev/null 2>&1 )
+node -e "
+  const j = require('$T21B_REPO/.claude/settings.local.json');
+  const pre = (j.hooks && j.hooks.PreToolUse) || [];
+  const user = pre.find(e => e.id === 'user:my-hook');
+  const stale = pre.find(e => e.id === 'codebrain:stale-from-old-version');
+  const guard = pre.find(e => e.id === 'codebrain:pre:verified-guard');
+  if (!user) { console.error('user:my-hook lost'); process.exit(1); }
+  if (stale) { console.error('codebrain:stale-from-old-version not removed'); process.exit(1); }
+  if (!guard) { console.error('codebrain:pre:verified-guard not added'); process.exit(1); }
+  process.exit(0);
+" 2>/dev/null && ok "T21: init preserves user hooks + removes stale codebrain entries + adds current" || nope "T21: id-prefix ownership broken"
+
+# === Test 22: M#4 — hook script behavior on fixture .brain/ ==================
+
+# Fixture: a fake brain with one code page and one concept page referencing the source
+T22_DIR="$(mktemp -d)"
+mkdir -p "$T22_DIR/.brain/code/src" "$T22_DIR/.brain/concepts" "$T22_DIR/src"
+echo '0.1.0' > "$T22_DIR/.brain/.codebrain-version"
+echo 'export function foo() {}' > "$T22_DIR/src/auth.ts"
+
+# Fake code page (FRESH)
+cat > "$T22_DIR/.brain/code/src/auth.ts.md" <<'EOF'
+---
+kind: code
+status: FRESH
+source: src/auth.ts
+source_hash: git:abc1234
+last_ingested: 2026-05-24
+ingested_by: claude-test
+tokens: 100
+---
+
+# src/auth.ts
+
+## Purpose
+Test fixture.
+EOF
+
+# Fake concept page with wikilink to the code page
+cat > "$T22_DIR/.brain/concepts/auth-flow.md" <<'EOF'
+---
+kind: concept
+status: FRESH
+name: auth-flow
+last_ingested: 2026-05-24
+ingested_by: claude-test
+tokens: 80
+sources:
+  - path: src/auth.ts
+    hash: git:abc1234
+---
+
+# Auth flow
+
+## Definition
+A concept referencing [[code/src/auth.ts]] via wikilink AND via sources frontmatter.
+
+## Spans
+- [[code/src/auth.ts]] — the auth module
+
+## Examples
+_(none)_
+
+## Related
+_(none yet)_
+EOF
+
+# (a) stale-detect: flip both pages on edit of src/auth.ts
+( cd "$T22_DIR" && echo '{"tool_input":{"file_path":"src/auth.ts"}}' | node "$CB" hook stale-detect >/dev/null 2>&1 )
+grep -q '^status: STALE$' "$T22_DIR/.brain/code/src/auth.ts.md" \
+  && ok "T22: stale-detect flipped code page to STALE on source edit" \
+  || nope "T22: stale-detect didn't flip code page"
+
+grep -q '^status: STALE$' "$T22_DIR/.brain/concepts/auth-flow.md" \
+  && ok "T22: stale-detect flipped concept page to STALE (referenced source)" \
+  || nope "T22: stale-detect didn't flip concept page via wikilink/sources"
+
+# (b) stale-detect: untracked source → no changes
+T22B_DIR="$(mktemp -d)"
+mkdir -p "$T22B_DIR/.brain/code"
+echo '0.1.0' > "$T22B_DIR/.brain/.codebrain-version"
+rc=$( ( cd "$T22B_DIR" && echo '{"tool_input":{"file_path":"src/other.ts"}}' | node "$CB" hook stale-detect >/dev/null 2>&1 ); echo $? )
+[ "$rc" -eq 0 ] && ok "T22: stale-detect on untracked source exits 0" || nope "T22: stale-detect untracked exit was $rc"
+
+# (c) verified-guard: VERIFIED page, no --force → exit 2
+T22C_DIR="$(mktemp -d)"
+mkdir -p "$T22C_DIR/.brain/code/src"
+echo '0.1.0' > "$T22C_DIR/.brain/.codebrain-version"
+cat > "$T22C_DIR/.brain/code/src/locked.ts.md" <<'EOF'
+---
+kind: code
+status: VERIFIED
+source: src/locked.ts
+source_hash: git:xxxxx
+last_ingested: 2026-05-24
+ingested_by: claude-test
+tokens: 50
+---
+
+# src/locked.ts
+
+## Purpose
+Protected.
+EOF
+rc=$( ( cd "$T22C_DIR" && echo '{"tool_input":{"file_path":".brain/code/src/locked.ts.md"}}' | node "$CB" hook verified-guard 2>/dev/null ); echo $? )
+[ "$rc" -eq 2 ] && ok "T22: verified-guard blocks VERIFIED page without --force (exit 2)" || nope "T22: verified-guard exit was $rc (expected 2)"
+
+# (d) verified-guard: same page with --force → exit 0
+rc=$( ( cd "$T22C_DIR" && echo '{"tool_input":{"file_path":".brain/code/src/locked.ts.md","args":"--force"}}' | node "$CB" hook verified-guard 2>/dev/null ); echo $? )
+[ "$rc" -eq 0 ] && ok "T22: verified-guard allows VERIFIED page when --force in payload" || nope "T22: verified-guard --force not honored (exit $rc)"
+
+# (e) verified-guard: target outside .brain/ → exit 0
+rc=$( ( cd "$T22C_DIR" && echo '{"tool_input":{"file_path":"src/locked.ts"}}' | node "$CB" hook verified-guard 2>/dev/null ); echo $? )
+[ "$rc" -eq 0 ] && ok "T22: verified-guard ignores files outside .brain/" || nope "T22: verified-guard wrongly cared about non-.brain/ path"
+
+# (f) verified-guard: FRESH page → exit 0
+T22F_DIR="$(mktemp -d)"
+mkdir -p "$T22F_DIR/.brain/code/src"
+echo '0.1.0' > "$T22F_DIR/.brain/.codebrain-version"
+cat > "$T22F_DIR/.brain/code/src/free.ts.md" <<'EOF'
+---
+kind: code
+status: FRESH
+source: src/free.ts
+source_hash: git:yyyyy
+last_ingested: 2026-05-24
+ingested_by: claude-test
+tokens: 50
+---
+
+# src/free.ts
+
+## Purpose
+Open.
+EOF
+rc=$( ( cd "$T22F_DIR" && echo '{"tool_input":{"file_path":".brain/code/src/free.ts.md"}}' | node "$CB" hook verified-guard 2>/dev/null ); echo $? )
+[ "$rc" -eq 0 ] && ok "T22: verified-guard allows non-VERIFIED .brain/ pages" || nope "T22: verified-guard wrongly blocked FRESH page"
+
+# (g) npm pack includes new files
+pack_list="$(cd "$CODEBRAIN_ROOT" && npm pack --dry-run 2>&1)"
+echo "$pack_list" | grep -q 'scripts/hooks/stale-detect.js' \
+  && ok "T22: stale-detect.js in npm pack" \
+  || nope "T22: stale-detect.js missing from npm pack"
+
+echo "$pack_list" | grep -q 'scripts/hooks/verified-guard.js' \
+  && ok "T22: verified-guard.js in npm pack" \
+  || nope "T22: verified-guard.js missing from npm pack"
+
+echo "$pack_list" | grep -q 'scripts/hooks/lib/page-io.js' \
+  && ok "T22: lib/page-io.js in npm pack" \
+  || nope "T22: lib/page-io.js missing from npm pack"
+
 # === Summary ==================================================================
 
 total=$((pass+fail))
