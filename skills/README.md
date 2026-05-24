@@ -23,10 +23,14 @@ description: <one-liner>            # used by the harness for selection
 origin: codebrain                   # provenance — useful when skills are mixed across plugins
 version: 0.1.0                      # semver of this individual skill
 tier: behavioral | ingestion | core | detected | available
-pattern: Meta | Generator | Reviewer | Pipeline | Observer | ...
+pattern: Meta | Generator | Reviewer | Pipeline | Observer | Planner | ...
 related_skills: [<other-skill-names>]
 detect:                             # required for tier: detected; omit otherwise
   - { file_exists: "package.json", contains: "react" }
+applies_to_extensions: [".tsx", ".jsx"]   # required for tier: detected — gates which
+                                          # source-file extensions trigger this stack's
+                                          # page-template extras at /brain ingest time
+                                          # (M#3d adds this field; older tiers omit it)
 ---
 ```
 

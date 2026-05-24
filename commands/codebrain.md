@@ -223,6 +223,135 @@ tokens: <your best estimate of page token count; informational, ±20% is fine>
 - Aim for <4k tokens (soft warn). If the rendered page approaches 4k, summarize more aggressively.
 - If approaching 8k (hard error per PRD #7), emit `blocked: ingester couldn't fit page for <source-path> under the 8k cap. Reason: source file is too large for a single page. Operator action: split the source into smaller modules, then re-ingest.` and stop.
 
+**Step 4b — Stack-aware extras** (M#3d):
+
+After writing the generic 5 sections above, check whether any installed `detected/*` skills apply to this source file. A skill applies when BOTH:
+
+1. **Project signal matches**: the project's detected stack list (read from `.brain/overview.md` Active State; fall back to a fresh `skills/registry.json` detect-rule evaluation if cache is missing) includes the skill's stack name (`react`, `typescript`, `python`, `go`).
+2. **File signal matches**: the source file's extension is in the skill's `applies_to_extensions` list (e.g., `.tsx` matches React's `[".tsx", ".jsx"]`).
+
+For each matching skill, APPEND its extra sections to the page AFTER `## Cross-references`. Never replace the generic 5 sections.
+
+When multiple skills apply (e.g., a `.tsx` file in a React + TypeScript project), append in **registry order** from `skills/registry.json`. The current registry order is: TypeScript first, React second, Python third, Go fourth. So a `.tsx` page reads: generic 5 → TypeScript extras → React extras.
+
+The verbatim extras for each detected stack are inlined below. The standalone template files at `skills/detected/<stack>/templates/code-page-<stack>-extras.md` are documentation copies — these inlined versions are the load-bearing contract.
+
+#### detected/react extras (matches `.tsx`, `.jsx` in React projects)
+
+```
+## Component
+<!-- AGENT: if this file exports a React component, describe it in 1-3 sentences:
+     - functional vs class component
+     - what the component renders (high-level)
+     - any HOC or render-prop pattern, if applicable
+     If no component export: write `_(no component export)_`. -->
+
+## Props
+<!-- AGENT: bullet list of props. For typed components, capture the prop type.
+     Format: `- propName: type — purpose`.
+     If no props or no component: `_(none)_`. -->
+
+## State
+<!-- AGENT: bullet list of internal state (useState, useReducer, class state).
+     Format: `- stateName: type — what it represents`.
+     If stateless: `_(stateless)_`. -->
+
+## Hooks
+<!-- AGENT: bullet list of hooks used. Distinguish built-in vs custom:
+     - useState, useEffect, useCallback (built-in)
+     - useAuth (custom — from src/hooks/use-auth.ts)
+     If no hooks: `_(none)_`. -->
+
+## Effects
+<!-- AGENT: bullet list of side effects (useEffect bodies). Format:
+     - on mount: <what happens>
+     - on prop change: <what triggers + what runs>
+     - on unmount: <cleanup>
+     If no effects: `_(none)_`. -->
+```
+
+#### detected/typescript extras (matches `.ts`, `.tsx` in TypeScript projects)
+
+```
+## Types & Interfaces
+<!-- AGENT: bullet list of types and interfaces declared in this file.
+     Format: `- TypeName: <object | union | intersection | utility> — purpose`.
+     If none (runtime-only file): `_(none)_`. -->
+
+## Module declarations
+<!-- AGENT: any `declare module`, `namespace`, or `declare global` blocks.
+     If none: `_(none)_`. -->
+
+## Exports (named/default/re-export)
+<!-- AGENT: organize exports by kind:
+     - Named: foo, bar, Baz
+     - Default: <symbol name>
+     - Re-exports: from `./other`
+     If file has no exports: `_(none)_`. -->
+
+## Generics
+<!-- AGENT: brief summary of generic usage. Are there exported generic
+     types/functions? Constrained generics? Default type parameters?
+     `_(none)_` if not generic-heavy. -->
+```
+
+#### detected/python extras (matches `.py` in Python projects)
+
+```
+## Public API
+<!-- AGENT: bullet list of public symbols (no leading underscore).
+     Format: `- name: <function | class | constant> — purpose`.
+     If `__all__` is defined, use it as the source of truth. -->
+
+## Dunder methods
+<!-- AGENT: bullet list of dunder methods defined in classes in this file.
+     Format: `- ClassName.__init__: <one-line note>`.
+     If none defined: `_(none)_`. -->
+
+## Decorators
+<!-- AGENT: decorators used or defined in this file.
+     Format: `- @decorator_name (from <module>) — applied to <symbols>`.
+     Examples: @dataclass, @property, @classmethod, @pytest.fixture, custom.
+     If none: `_(none)_`. -->
+
+## Type hints
+<!-- AGENT: brief assessment: fully typed, partially typed, untyped.
+     Note any TypedDict, Protocol, Literal, Generic[T] usage.
+     One-line summary; if untyped: `_(untyped)_`. -->
+```
+
+#### detected/go extras (matches `.go` in Go projects)
+
+```
+## Package
+<!-- AGENT: package declaration + brief role of this file in the package.
+     Examples:
+       "main package — CLI entry point"
+       "package auth — middleware for JWT validation"
+     Note related files in the same package if known. -->
+
+## Receivers
+<!-- AGENT: bullet list of methods grouped by receiver type.
+     Format: `- (s *Server) Method(...) — purpose`.
+     If no methods: `_(none)_`. -->
+
+## Interfaces satisfied
+<!-- AGENT: bullet list of interfaces this file's types satisfy.
+     Format: `- TypeName satisfies io.Reader, fmt.Stringer`.
+     Inferred from method sets; if uncertain: `_(none observed)_`. -->
+
+## init() functions
+<!-- AGENT: any init() functions in this file. Describe what they do
+     (registration, env-var loading, etc.).
+     If none: `_(none)_`. -->
+
+## Build tags
+<!-- AGENT: any `//go:build` or legacy `// +build` tags at the top of the file.
+     If none: `_(none)_`. -->
+```
+
+Skip Step 4b entirely if no detected/* skill matches this source file. The generic 5 sections always apply.
+
 **Step 5 — Write the page**:
 
 - Ensure `.brain/code/<dir-of-source>/` exists (create directories as needed).

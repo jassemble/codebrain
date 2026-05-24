@@ -985,6 +985,113 @@ echo "$pack_list" | grep -q 'scripts/hooks/lib/page-io.js' \
   && ok "T22: lib/page-io.js in npm pack" \
   || nope "T22: lib/page-io.js missing from npm pack"
 
+# === Test 23: M#3d — 4 detected/* skills + 4 templates =======================
+
+for stack in react python go typescript; do
+  skill_file="$CODEBRAIN_ROOT/skills/detected/${stack}/SKILL.md"
+  template_file="$CODEBRAIN_ROOT/skills/detected/${stack}/templates/code-page-${stack}-extras.md"
+
+  [ -f "$skill_file" ] && ok "T23: detected/${stack}/SKILL.md exists" || nope "T23: detected/${stack}/SKILL.md missing"
+  [ -f "$template_file" ] && ok "T23: detected/${stack}/templates/code-page-${stack}-extras.md exists" || nope "T23: detected/${stack} template missing"
+
+  # Frontmatter shape
+  head -1 "$skill_file" | grep -q '^---$' \
+    && ok "T23: detected/${stack} SKILL.md starts with frontmatter" \
+    || nope "T23: detected/${stack} SKILL.md missing frontmatter"
+
+  # All 7 base fields + detect + applies_to_extensions
+  for field in name description origin version tier pattern related_skills detect applies_to_extensions; do
+    grep -q "^${field}:" "$skill_file" \
+      && ok "T23: detected/${stack} SKILL.md has '${field}' field" \
+      || nope "T23: detected/${stack} SKILL.md missing '${field}' field"
+  done
+
+  grep -q "^tier: detected$" "$skill_file" \
+    && ok "T23: detected/${stack} is tier:detected" \
+    || nope "T23: detected/${stack} wrong tier"
+
+  # Template has ≥4 AGENT directives
+  directives=$(grep -c 'AGENT:' "$template_file" || true)
+  [ "$directives" -ge 4 ] \
+    && ok "T23: detected/${stack} template has ≥4 AGENT directives ($directives)" \
+    || nope "T23: detected/${stack} template only $directives AGENT directives (need ≥4)"
+done
+
+# npm pack includes all 8 new files
+pack_list="$(cd "$CODEBRAIN_ROOT" && npm pack --dry-run 2>&1)"
+for stack in react python go typescript; do
+  echo "$pack_list" | grep -q "skills/detected/${stack}/SKILL.md" \
+    && ok "T23: detected/${stack} SKILL.md in npm pack" \
+    || nope "T23: detected/${stack} SKILL.md missing from npm pack"
+
+  echo "$pack_list" | grep -q "skills/detected/${stack}/templates/code-page-${stack}-extras.md" \
+    && ok "T23: detected/${stack} template in npm pack" \
+    || nope "T23: detected/${stack} template missing from npm pack"
+done
+
+# === Test 24: M#3d — registry.json populated ================================
+
+node -e "
+  const r = require('$CODEBRAIN_ROOT/skills/registry.json');
+  const expected = ['detected/react', 'detected/typescript', 'detected/python', 'detected/go'];
+  for (const k of expected) {
+    if (!r.skills[k]) { console.error('missing skill:', k); process.exit(1); }
+    if (r.skills[k].tier !== 'detected') { console.error('wrong tier:', k); process.exit(1); }
+    if (!Array.isArray(r.skills[k].detect)) { console.error('detect not array:', k); process.exit(1); }
+    if (!Array.isArray(r.skills[k].applies_to_extensions)) { console.error('applies_to_extensions not array:', k); process.exit(1); }
+    if (r.skills[k].applies_to_extensions.length === 0) { console.error('applies_to_extensions empty:', k); process.exit(1); }
+  }
+  process.exit(0);
+" 2>/dev/null \
+  && ok "T24: registry.json has 4 detected entries with correct shape" \
+  || nope "T24: registry.json detected entries malformed or missing"
+
+# Specific applies_to_extensions assertions
+node -e "
+  const r = require('$CODEBRAIN_ROOT/skills/registry.json');
+  if (!r.skills['detected/react'].applies_to_extensions.includes('.tsx')) { console.error('react missing .tsx'); process.exit(1); }
+  if (!r.skills['detected/typescript'].applies_to_extensions.includes('.tsx')) { console.error('typescript missing .tsx'); process.exit(1); }
+  if (!r.skills['detected/python'].applies_to_extensions.includes('.py')) { console.error('python missing .py'); process.exit(1); }
+  if (!r.skills['detected/go'].applies_to_extensions.includes('.go')) { console.error('go missing .go'); process.exit(1); }
+  process.exit(0);
+" 2>/dev/null \
+  && ok "T24: registry.json applies_to_extensions are correct per stack" \
+  || nope "T24: applies_to_extensions assignments wrong"
+
+# README.md documents applies_to_extensions
+grep -qF 'applies_to_extensions' "$CODEBRAIN_ROOT/skills/README.md" \
+  && ok "T24: skills/README.md documents applies_to_extensions field" \
+  || nope "T24: skills/README.md missing applies_to_extensions docs"
+
+# === Test 25: M#3d — brain.md Step 4b + alias parity ========================
+
+grep -qF 'Step 4b — Stack-aware extras' "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T25: brain.md has Step 4b (Stack-aware extras)" \
+  || nope "T25: brain.md missing Step 4b"
+
+# All 4 detected sub-sections present
+for stack in react typescript python go; do
+  grep -qF "detected/${stack} extras" "$CODEBRAIN_ROOT/commands/brain.md" \
+    && ok "T25: brain.md Step 4b has detected/${stack} sub-section" \
+    || nope "T25: brain.md Step 4b missing detected/${stack} sub-section"
+done
+
+# Critical sections per stack present in the inlined block
+for section in 'Component' 'Hooks' 'Effects' 'Public API' 'Dunder methods' 'Receivers' 'Build tags' 'Types & Interfaces' 'Generics'; do
+  grep -qF "$section" "$CODEBRAIN_ROOT/commands/brain.md" \
+    && ok "T25: brain.md Step 4b inlines '$section' section" \
+    || nope "T25: brain.md Step 4b missing '$section' section"
+done
+
+# Alias parity — Step 4b through end of Step 5 boundary
+brain_4b=$(awk '/^\*\*Step 4b — Stack-aware extras\*\*/{flag=1} /^\*\*Step 5 — Write the page\*\*/{flag=0} flag' "$CODEBRAIN_ROOT/commands/brain.md")
+cb_4b=$(awk '/^\*\*Step 4b — Stack-aware extras\*\*/{flag=1} /^\*\*Step 5 — Write the page\*\*/{flag=0} flag' "$CODEBRAIN_ROOT/commands/codebrain.md")
+if [ "$brain_4b" = "$cb_4b" ] && [ -n "$brain_4b" ]; then
+  ok "T25: brain.md and codebrain.md Step 4b byte-identical"
+else
+  nope "T25: alias drift in Step 4b"
+fi
+
 # === Summary ==================================================================
 
 total=$((pass+fail))

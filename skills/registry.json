@@ -1,4 +1,37 @@
 {
   "version": "0.1.0",
-  "skills": {}
+  "skills": {
+    "detected/typescript": {
+      "tier": "detected",
+      "version": "0.1.0",
+      "detect": [
+        { "file_exists": "tsconfig.json" }
+      ],
+      "applies_to_extensions": [".ts", ".tsx"]
+    },
+    "detected/react": {
+      "tier": "detected",
+      "version": "0.1.0",
+      "detect": [
+        { "file_exists": "package.json", "contains": "\"react\"" }
+      ],
+      "applies_to_extensions": [".tsx", ".jsx"]
+    },
+    "detected/python": {
+      "tier": "detected",
+      "version": "0.1.0",
+      "detect": [
+        { "file_exists": "pyproject.toml" }
+      ],
+      "applies_to_extensions": [".py"]
+    },
+    "detected/go": {
+      "tier": "detected",
+      "version": "0.1.0",
+      "detect": [
+        { "file_exists": "go.mod" }
+      ],
+      "applies_to_extensions": [".go"]
+    }
+  }
 }
