@@ -324,6 +324,155 @@ echo "$pack_list" | grep -q 'skills/core/init/templates/stack-detection.json' \
   && ok "T13: stack-detection.json in npm pack" \
   || nope "T13: stack-detection.json missing from npm pack"
 
+# === Test 14: M#3a — ingester agent + page-format skill + template ==========
+
+for f in \
+  "$CODEBRAIN_ROOT/agents/brain/ingester.md" \
+  "$CODEBRAIN_ROOT/skills/ingestion/page-format/SKILL.md" \
+  "$CODEBRAIN_ROOT/skills/ingestion/page-format/templates/code-page.md"
+do
+  [ -f "$f" ] && ok "T14: $(basename "$f") exists" || nope "T14: $(basename "$f") missing"
+done
+
+# Ingester agent frontmatter — all 7 merged-frontmatter fields present
+head -1 "$CODEBRAIN_ROOT/agents/brain/ingester.md" | grep -q '^---$' \
+  && ok "T14: ingester.md starts with YAML frontmatter" \
+  || nope "T14: ingester.md missing frontmatter"
+
+for field in name description tools model pattern trigger_phrases max_iterations; do
+  grep -q "^${field}:" "$CODEBRAIN_ROOT/agents/brain/ingester.md" \
+    && ok "T14: ingester.md has '${field}' field" \
+    || nope "T14: ingester.md missing '${field}' field"
+done
+
+# max_iterations is an integer
+grep -E "^max_iterations: [0-9]+$" "$CODEBRAIN_ROOT/agents/brain/ingester.md" >/dev/null \
+  && ok "T14: ingester.md max_iterations is an integer" \
+  || nope "T14: ingester.md max_iterations not integer"
+
+# Rules section present + prompt-defense reference + ≥7 NEVER/ALWAYS rules
+grep -q '^## Rules' "$CODEBRAIN_ROOT/agents/brain/ingester.md" \
+  && ok "T14: ingester.md has Rules section" \
+  || nope "T14: ingester.md missing Rules section"
+
+grep -q 'Read the Prompt Defense Baseline' "$CODEBRAIN_ROOT/agents/brain/ingester.md" \
+  && ok "T14: ingester.md has prompt-defense reference" \
+  || nope "T14: ingester.md missing prompt-defense reference"
+
+rule_count=$(grep -cE '^- \*\*(NEVER|ALWAYS)' "$CODEBRAIN_ROOT/agents/brain/ingester.md" || true)
+[ "$rule_count" -ge 7 ] \
+  && ok "T14: ingester.md has ≥7 self-enforcing rules ($rule_count)" \
+  || nope "T14: ingester.md has only $rule_count rules (need ≥7)"
+
+# page-format SKILL frontmatter — all 7 fields + tier:ingestion
+head -1 "$CODEBRAIN_ROOT/skills/ingestion/page-format/SKILL.md" | grep -q '^---$' \
+  && ok "T14: page-format SKILL.md starts with frontmatter" \
+  || nope "T14: page-format SKILL.md missing frontmatter"
+
+for field in name description origin version tier pattern related_skills; do
+  grep -q "^${field}:" "$CODEBRAIN_ROOT/skills/ingestion/page-format/SKILL.md" \
+    && ok "T14: page-format SKILL.md has '${field}' field" \
+    || nope "T14: page-format SKILL.md missing '${field}' field"
+done
+
+grep -q "^tier: ingestion$" "$CODEBRAIN_ROOT/skills/ingestion/page-format/SKILL.md" \
+  && ok "T14: page-format is tier:ingestion" \
+  || nope "T14: page-format wrong tier"
+
+# code-page template — starts with frontmatter, has 5 sections, ≥10 AGENT instructions
+head -1 "$CODEBRAIN_ROOT/skills/ingestion/page-format/templates/code-page.md" | grep -q '^---$' \
+  && ok "T14: code-page template starts with frontmatter" \
+  || nope "T14: code-page template missing frontmatter"
+
+for section in '## Purpose' '## Exports' '## Imports' '## Key behaviors' '## Cross-references'; do
+  grep -qF "$section" "$CODEBRAIN_ROOT/skills/ingestion/page-format/templates/code-page.md" \
+    && ok "T14: code-page template has '$section' section" \
+    || nope "T14: code-page template missing '$section' section"
+done
+
+agent_directive_count=$(grep -c 'AGENT:' "$CODEBRAIN_ROOT/skills/ingestion/page-format/templates/code-page.md" || true)
+[ "$agent_directive_count" -ge 10 ] \
+  && ok "T14: code-page template has ≥10 AGENT directives ($agent_directive_count)" \
+  || nope "T14: code-page template has only $agent_directive_count AGENT directives (need ≥10)"
+
+# === Test 15: M#3a — ingest verb wiring ======================================
+
+# Old single-line M#3 stub is gone
+! grep -q '| `ingest` | not implemented | `Milestone #3 (Ingest pipeline)' "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T15: brain.md old M#3 ingest stub is gone" \
+  || nope "T15: brain.md old M#3 stub still present"
+
+! grep -q '| `ingest` | not implemented | `Milestone #3 (Ingest pipeline)' "$CODEBRAIN_ROOT/commands/codebrain.md" \
+  && ok "T15: codebrain.md old M#3 ingest stub is gone" \
+  || nope "T15: codebrain.md old M#3 stub still present"
+
+# Single-file row is wired
+grep -q 'ingest <single-file-path>` | \*\*implemented (M#3a)\*\*' "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T15: brain.md single-file ingest wired (M#3a)" \
+  || nope "T15: brain.md single-file ingest not wired"
+
+# Folder + no-arg rows still stubbed with correct M#3b/M#3c pointers
+grep -q 'Milestone #3b (folder ingest' "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T15: brain.md folder-ingest stubbed → M#3b" \
+  || nope "T15: brain.md folder pointer missing"
+
+grep -q 'Milestone #3c (tiered auto-prioritize' "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T15: brain.md no-arg ingest stubbed → M#3c" \
+  || nope "T15: brain.md no-arg pointer missing"
+
+# Procedure section present with required headers
+grep -qF '## When `$ARGUMENTS` starts with `ingest <file>`' "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T15: brain.md has 'When \$ARGUMENTS starts with ingest <file>' section" \
+  || nope "T15: brain.md missing ingest procedure section"
+
+grep -qF 'Step 0 — Argument parsing + path guards' "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T15: brain.md ingest has Step 0 (Argument parsing + path guards)" \
+  || nope "T15: brain.md missing Step 0"
+
+grep -qF 'Step 7 — Report' "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T15: brain.md ingest has Step 7 (Report)" \
+  || nope "T15: brain.md missing Step 7"
+
+# Critical sweep findings present in procedure
+grep -qF 'Out-of-repo guard' "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T15: brain.md has out-of-repo guard" \
+  || nope "T15: brain.md missing out-of-repo guard"
+
+grep -qF 'Symlink guard' "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T15: brain.md has symlink guard" \
+  || nope "T15: brain.md missing symlink guard"
+
+grep -qF 'Binary-file guard' "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T15: brain.md has binary-file guard" \
+  || nope "T15: brain.md missing binary-file guard"
+
+grep -qF 'format-prefixed' "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T15: brain.md mentions format-prefixed source hash" \
+  || nope "T15: brain.md missing format-prefixed hash docs"
+
+# Alias parity: ingest procedure section is byte-identical
+brain_proc=$(sed -n '/^## When `\$ARGUMENTS` starts with `ingest <file>`$/,$p' "$CODEBRAIN_ROOT/commands/brain.md")
+cb_proc=$(sed -n '/^## When `\$ARGUMENTS` starts with `ingest <file>`$/,$p' "$CODEBRAIN_ROOT/commands/codebrain.md")
+if [ "$brain_proc" = "$cb_proc" ] && [ -n "$brain_proc" ]; then
+  ok "T15: brain.md and codebrain.md ingest procedure byte-identical"
+else
+  nope "T15: alias drift in ingest procedure"
+fi
+
+# npm pack includes new M#3a files
+pack_list="$(cd "$CODEBRAIN_ROOT" && npm pack --dry-run 2>&1)"
+echo "$pack_list" | grep -q 'agents/brain/ingester.md' \
+  && ok "T15: ingester.md in npm pack" \
+  || nope "T15: ingester.md missing from npm pack"
+
+echo "$pack_list" | grep -q 'skills/ingestion/page-format/SKILL.md' \
+  && ok "T15: page-format SKILL.md in npm pack" \
+  || nope "T15: page-format SKILL.md missing from npm pack"
+
+echo "$pack_list" | grep -q 'skills/ingestion/page-format/templates/code-page.md' \
+  && ok "T15: code-page template in npm pack" \
+  || nope "T15: code-page template missing from npm pack"
+
 # === Summary ==================================================================
 
 total=$((pass+fail))
