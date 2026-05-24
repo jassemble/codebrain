@@ -1,0 +1,15 @@
+# Keep the published tarball small. The `files` whitelist in package.json is
+# the primary control; this file is a backstop.
+.claude/
+tests/
+CLAUDE.md
+*.bak
+coverage/
+node_modules/
+.git/
+.github/
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db

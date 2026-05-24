@@ -1,0 +1,28 @@
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+dist/
+*.tgz
+
+# Test + coverage
+coverage/
+*.bak
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+.cursor/
+
+# DO NOT gitignore .brain/ — codebrain commits the brain by default (PRD Design Decision #3).
+# The wiki's compounding-artifact property requires version history + team sharing.
+# If a contributor wants the brain gitignored, that's a deliberate `codebrain init --private`
+# decision, not a default.
