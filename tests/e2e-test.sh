@@ -1213,6 +1213,126 @@ else
   nope "T27: alias drift in query procedure"
 fi
 
+# === Test 28: M#6 — verifier agent + core/lint skill ========================
+
+[ -f "$CODEBRAIN_ROOT/agents/brain/verifier.md" ] \
+  && ok "T28: verifier.md agent exists" \
+  || nope "T28: verifier.md missing"
+
+head -1 "$CODEBRAIN_ROOT/agents/brain/verifier.md" | grep -q '^---$' \
+  && ok "T28: verifier.md starts with frontmatter" \
+  || nope "T28: verifier.md missing frontmatter"
+
+for field in name description tools model pattern trigger_phrases max_iterations; do
+  grep -q "^${field}:" "$CODEBRAIN_ROOT/agents/brain/verifier.md" \
+    && ok "T28: verifier.md has '${field}' field" \
+    || nope "T28: verifier.md missing '${field}' field"
+done
+
+grep -q "^pattern: Verifier$" "$CODEBRAIN_ROOT/agents/brain/verifier.md" \
+  && ok "T28: verifier.md pattern is Verifier" \
+  || nope "T28: verifier.md wrong pattern"
+
+# Read-only: NO Edit/Write/MultiEdit
+grep -E "^tools:.*\b(Edit|Write|MultiEdit)\b" "$CODEBRAIN_ROOT/agents/brain/verifier.md" >/dev/null \
+  && nope "T28: verifier.md tools include Edit/Write/MultiEdit (read-only violated)" \
+  || ok "T28: verifier.md tools list excludes Edit/Write/MultiEdit (read-only enforced)"
+
+grep -q '^## Rules' "$CODEBRAIN_ROOT/agents/brain/verifier.md" \
+  && ok "T28: verifier.md has Rules section" \
+  || nope "T28: verifier.md missing Rules section"
+
+grep -q 'Read the Prompt Defense Baseline' "$CODEBRAIN_ROOT/agents/brain/verifier.md" \
+  && ok "T28: verifier.md has prompt-defense reference" \
+  || nope "T28: verifier.md missing prompt-defense reference"
+
+verifier_rules=$(grep -cE '^- \*\*(NEVER|ALWAYS)' "$CODEBRAIN_ROOT/agents/brain/verifier.md" || true)
+[ "$verifier_rules" -ge 9 ] \
+  && ok "T28: verifier.md has ≥9 self-enforcing rules ($verifier_rules)" \
+  || nope "T28: verifier.md only $verifier_rules rules (need ≥9)"
+
+# lint SKILL
+[ -f "$CODEBRAIN_ROOT/skills/core/lint/SKILL.md" ] \
+  && ok "T28: core/lint SKILL.md exists" \
+  || nope "T28: core/lint SKILL.md missing"
+
+head -1 "$CODEBRAIN_ROOT/skills/core/lint/SKILL.md" | grep -q '^---$' \
+  && ok "T28: core/lint SKILL.md starts with frontmatter" \
+  || nope "T28: core/lint SKILL.md missing frontmatter"
+
+for field in name description origin version tier pattern related_skills; do
+  grep -q "^${field}:" "$CODEBRAIN_ROOT/skills/core/lint/SKILL.md" \
+    && ok "T28: core/lint SKILL.md has '${field}' field" \
+    || nope "T28: core/lint SKILL.md missing '${field}' field"
+done
+
+grep -q "^tier: core$" "$CODEBRAIN_ROOT/skills/core/lint/SKILL.md" \
+  && ok "T28: core/lint is tier:core" \
+  || nope "T28: core/lint wrong tier"
+
+# Required body sections
+for section in 'When to Activate' 'The 4 Categories' 'Flag Matrix' 'Output Contract' 'Confirmation Flow' 'Cost-Gate' 'Exit Behavior' 'Examples'; do
+  grep -qF "$section" "$CODEBRAIN_ROOT/skills/core/lint/SKILL.md" \
+    && ok "T28: core/lint SKILL.md has '$section' section" \
+    || nope "T28: core/lint SKILL.md missing '$section' section"
+done
+
+# npm pack inclusion
+pack_list="$(cd "$CODEBRAIN_ROOT" && npm pack --dry-run 2>&1)"
+echo "$pack_list" | grep -q 'agents/brain/verifier.md' \
+  && ok "T28: verifier.md in npm pack" \
+  || nope "T28: verifier.md missing from npm pack"
+
+echo "$pack_list" | grep -q 'skills/core/lint/SKILL.md' \
+  && ok "T28: core/lint SKILL.md in npm pack" \
+  || nope "T28: core/lint SKILL.md missing from npm pack"
+
+# === Test 29: M#6 — lint procedure wiring ===================================
+
+grep -qF '**implemented (M#6)**' "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T29: brain.md lint wired (M#6)" \
+  || nope "T29: brain.md lint not wired"
+
+grep -qF '## When `$ARGUMENTS` starts with `lint`' "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T29: brain.md has lint procedure section" \
+  || nope "T29: brain.md missing lint procedure"
+
+# Step headers L0-L7 + L6b
+for l in 'L0 — Argument parsing' 'L1 — Preconditions' 'L2 — Inventory' 'L3 — Defects' 'L4 — Gaps' 'L5 — Contradictions' 'L6 — Suggested questions' 'L6b' 'L7 — Output'; do
+  grep -qF "$l" "$CODEBRAIN_ROOT/commands/brain.md" \
+    && ok "T29: brain.md lint procedure has '$l'" \
+    || nope "T29: brain.md lint procedure missing '$l'"
+done
+
+# Critical keywords
+for needle in 'hash compare' 'schema' 'wikilink' 'orphan' 'stub' 'contradiction' 'false-positive'; do
+  grep -qF "$needle" "$CODEBRAIN_ROOT/commands/brain.md" \
+    && ok "T29: brain.md lint procedure mentions '$needle'" \
+    || nope "T29: brain.md lint procedure missing '$needle'"
+done
+
+# Flags documented
+for flag in -- '--fix' '--yes' '--include-contradictions'; do
+  if [ "$flag" = "--" ]; then continue; fi
+  grep -qF -- "$flag" "$CODEBRAIN_ROOT/commands/brain.md" \
+    && ok "T29: brain.md lint procedure documents $flag" \
+    || nope "T29: brain.md lint procedure missing $flag"
+done
+
+# Log prefix
+grep -qF '[YYYY-MM-DD] lint |' "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T29: brain.md lint procedure documents grep-parseable log prefix" \
+  || nope "T29: brain.md lint procedure missing log prefix"
+
+# Alias parity
+brain_lint=$(awk '/^## When `\$ARGUMENTS` starts with `lint`$/{flag=1} flag' "$CODEBRAIN_ROOT/commands/brain.md")
+cb_lint=$(awk '/^## When `\$ARGUMENTS` starts with `lint`$/{flag=1} flag' "$CODEBRAIN_ROOT/commands/codebrain.md")
+if [ "$brain_lint" = "$cb_lint" ] && [ -n "$brain_lint" ]; then
+  ok "T29: brain.md and codebrain.md lint procedure byte-identical"
+else
+  nope "T29: alias drift in lint procedure"
+fi
+
 # === Summary ==================================================================
 
 total=$((pass+fail))
