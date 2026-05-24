@@ -1092,6 +1092,127 @@ else
   nope "T25: alias drift in Step 4b"
 fi
 
+# === Test 26: M#5 — query agent + core/query skill ==========================
+
+[ -f "$CODEBRAIN_ROOT/agents/brain/query.md" ] \
+  && ok "T26: query.md agent exists" \
+  || nope "T26: query.md agent missing"
+
+head -1 "$CODEBRAIN_ROOT/agents/brain/query.md" | grep -q '^---$' \
+  && ok "T26: query.md starts with frontmatter" \
+  || nope "T26: query.md missing frontmatter"
+
+for field in name description tools model pattern trigger_phrases max_iterations; do
+  grep -q "^${field}:" "$CODEBRAIN_ROOT/agents/brain/query.md" \
+    && ok "T26: query.md has '${field}' field" \
+    || nope "T26: query.md missing '${field}' field"
+done
+
+grep -q "^pattern: Researcher$" "$CODEBRAIN_ROOT/agents/brain/query.md" \
+  && ok "T26: query.md pattern is Researcher" \
+  || nope "T26: query.md wrong pattern"
+
+# Critical: query has NO write tools (Edit/Write/MultiEdit) — delegates to ingester
+grep -E "^tools:.*\b(Edit|Write|MultiEdit)\b" "$CODEBRAIN_ROOT/agents/brain/query.md" >/dev/null \
+  && nope "T26: query.md tools include Edit/Write/MultiEdit (delegate-to-ingester violated)" \
+  || ok "T26: query.md tools list excludes Edit/Write/MultiEdit (delegate-to-ingester)"
+
+grep -q '^## Rules' "$CODEBRAIN_ROOT/agents/brain/query.md" \
+  && ok "T26: query.md has Rules section" \
+  || nope "T26: query.md missing Rules section"
+
+grep -q 'Read the Prompt Defense Baseline' "$CODEBRAIN_ROOT/agents/brain/query.md" \
+  && ok "T26: query.md has prompt-defense reference" \
+  || nope "T26: query.md missing prompt-defense reference"
+
+query_rules=$(grep -cE '^- \*\*(NEVER|ALWAYS)' "$CODEBRAIN_ROOT/agents/brain/query.md" || true)
+[ "$query_rules" -ge 9 ] \
+  && ok "T26: query.md has ≥9 self-enforcing rules ($query_rules)" \
+  || nope "T26: query.md only $query_rules rules (need ≥9)"
+
+# query SKILL
+[ -f "$CODEBRAIN_ROOT/skills/core/query/SKILL.md" ] \
+  && ok "T26: core/query SKILL.md exists" \
+  || nope "T26: core/query SKILL.md missing"
+
+head -1 "$CODEBRAIN_ROOT/skills/core/query/SKILL.md" | grep -q '^---$' \
+  && ok "T26: core/query SKILL.md starts with frontmatter" \
+  || nope "T26: core/query SKILL.md missing frontmatter"
+
+for field in name description origin version tier pattern related_skills; do
+  grep -q "^${field}:" "$CODEBRAIN_ROOT/skills/core/query/SKILL.md" \
+    && ok "T26: core/query SKILL.md has '${field}' field" \
+    || nope "T26: core/query SKILL.md missing '${field}' field"
+done
+
+grep -q "^tier: core$" "$CODEBRAIN_ROOT/skills/core/query/SKILL.md" \
+  && ok "T26: core/query is tier:core" \
+  || nope "T26: core/query wrong tier"
+
+# Required body sections
+for section in 'When to Activate' 'Output Contract' 'Candidate-Selection Criteria' 'Freshness Model' 'Citation Format' 'Page-Cap Discipline' 'Examples'; do
+  grep -qF "$section" "$CODEBRAIN_ROOT/skills/core/query/SKILL.md" \
+    && ok "T26: core/query SKILL.md has '$section' section" \
+    || nope "T26: core/query SKILL.md missing '$section' section"
+done
+
+# npm pack inclusion
+pack_list="$(cd "$CODEBRAIN_ROOT" && npm pack --dry-run 2>&1)"
+echo "$pack_list" | grep -q 'agents/brain/query.md' \
+  && ok "T26: query.md in npm pack" \
+  || nope "T26: query.md missing from npm pack"
+
+echo "$pack_list" | grep -q 'skills/core/query/SKILL.md' \
+  && ok "T26: core/query SKILL.md in npm pack" \
+  || nope "T26: core/query SKILL.md missing from npm pack"
+
+# === Test 27: M#5 — query procedure wiring ==================================
+
+grep -qF '**implemented (M#5)**' "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T27: brain.md query wired (M#5)" \
+  || nope "T27: brain.md query not wired"
+
+grep -qF '## When `$ARGUMENTS` starts with `query`' "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T27: brain.md has query procedure section" \
+  || nope "T27: brain.md missing query procedure"
+
+# Step headers Q0-Q7
+for q in 'Q0 — Argument parsing' 'Q1 — Preconditions' 'Q2 — Read the index' 'Q3 — Select 1' 'Q4 — Freshness check' 'Q5 — Refresh STALE' 'Q6 — Read the candidate' 'Q7 — Output'; do
+  grep -qF "$q" "$CODEBRAIN_ROOT/commands/brain.md" \
+    && ok "T27: brain.md query procedure has '$q'" \
+    || nope "T27: brain.md query procedure missing '$q'"
+done
+
+# Critical keywords/concepts
+for needle in 'pointer-first' 'hash compare' 'promote' '[[code/' 'src/api/auth.ts:42' 'NEVER fabricate'; do
+  grep -qF "$needle" "$CODEBRAIN_ROOT/commands/brain.md" \
+    && ok "T27: brain.md query procedure mentions '$needle'" \
+    || nope "T27: brain.md query procedure missing '$needle'"
+done
+
+# Flags documented
+grep -qF -- '--thorough' "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T27: brain.md query procedure documents --thorough" \
+  || nope "T27: brain.md query procedure missing --thorough"
+
+grep -qF -- '--no-refresh' "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T27: brain.md query procedure documents --no-refresh" \
+  || nope "T27: brain.md query procedure missing --no-refresh"
+
+# Log prefix
+grep -qF '[YYYY-MM-DD] query |' "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T27: brain.md query procedure documents grep-parseable log prefix" \
+  || nope "T27: brain.md query procedure missing log prefix"
+
+# Alias parity for query section
+brain_query=$(awk '/^## When `\$ARGUMENTS` starts with `query`$/{flag=1} flag' "$CODEBRAIN_ROOT/commands/brain.md")
+cb_query=$(awk '/^## When `\$ARGUMENTS` starts with `query`$/{flag=1} flag' "$CODEBRAIN_ROOT/commands/codebrain.md")
+if [ "$brain_query" = "$cb_query" ] && [ -n "$brain_query" ]; then
+  ok "T27: brain.md and codebrain.md query procedure byte-identical"
+else
+  nope "T27: alias drift in query procedure"
+fi
+
 # === Summary ==================================================================
 
 total=$((pass+fail))
