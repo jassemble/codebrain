@@ -19,8 +19,8 @@ Alias for `/brain`. Body is identical so `/codebrain <verb>` behaves the same as
 | `ingest` (no args) | **implemented (M#3c)** | See "When `$ARGUMENTS` is just `ingest`" section below |
 | `query "<question>" [--thorough] [--no-refresh]` | **implemented (M#5)** | See "When `$ARGUMENTS` starts with `query`" section below |
 | `lint [--fix] [--yes] [--include-contradictions]` | **implemented (M#6)** | See "When `$ARGUMENTS` starts with `lint`" section below |
-| `learn` | not implemented | `Milestone #7 (Continuous-learning observer) — not yet implemented in v0.1. Subverbs will be \`on\`, \`off\`, \`status\`.` |
-| `status` | not implemented | `Milestone #7 — not yet implemented in v0.1. Will show dashboard of total pages, % stale, recent log entries, top instincts.` |
+| `learn {on\|off\|status\|consolidate}` | **implemented (M#7)** | See "When `$ARGUMENTS` starts with `learn`" section below |
+| `status` | **implemented (M#7)** | See "When `$ARGUMENTS` is just `status`" section below |
 
 ## No argument (just `/codebrain`)
 
@@ -926,3 +926,173 @@ Reason: <one-sentence why>.
 Operator action: <what to do — e.g., "verify .brain/ exists with npx codebrain init", "install git for hash compare", "narrow scope by skipping --include-contradictions">.
 ```
 and stop. Do not exceed `max_iterations: 5`.
+
+## When `$ARGUMENTS` starts with `learn`
+
+You are operating the continuous-learning subsystem (see `agents/observers/observer.md` for the consolidator agent; see `skills/core/learn/SKILL.md` for the full contract — observation format, instinct format, privacy stance). Run the procedure exactly for the requested subcommand.
+
+**Le0 — Argument parsing**:
+
+- Extract the subcommand from `$ARGUMENTS`: `on`, `off`, `status`, `consolidate`. Any other token → print `error: /brain learn requires a subcommand: on | off | status | consolidate` and stop.
+
+**Le1 — Preconditions**:
+
+- Verify `.brain/` exists in cwd. If not, print the same npx-init message as M#3a Step 1 and stop.
+- Verify `.brain/.codebrain-version` is present.
+
+**Le2 — Dispatch**:
+
+- `on` → proceed to Le3 (toggle on)
+- `off` → proceed to Le4 (toggle off)
+- `status` → proceed to Le5 (status report)
+- `consolidate` → proceed to Le6 (consolidator agent)
+
+---
+
+**Le3 — `learn on` (toggle on)**:
+
+1. Print the privacy notice EXACTLY (verbatim — operators rely on this):
+   ```
+   [Privacy notice — codebrain v<version>]
+   Codebrain will now collect minimal observations of your tool use in this repo:
+     - Captured fields: timestamp, tool name, relative path (if applicable), status
+     - NOT captured: tool outputs, prompts, file contents, stderr, stdout
+     - Storage: <XDG_DATA_HOME or ~/.local/share>/codebrain/projects/<git-hash>/observations.jsonl
+     - Disable anytime: /brain learn off
+   ```
+2. Atomic-write `.brain/.codebrain-learn-state` with content `on\n` (use `Bash: printf "on\n" > .brain/.codebrain-learn-state`).
+3. Append to `.brain/log.md`:
+   ```
+   ## [YYYY-MM-DD] learn | toggled on
+   ```
+4. Print: `Toggle written: .brain/.codebrain-learn-state = on`
+
+---
+
+**Le4 — `learn off` (toggle off)**:
+
+1. Atomic-write `.brain/.codebrain-learn-state` with content `off\n`.
+2. Append to `.brain/log.md`:
+   ```
+   ## [YYYY-MM-DD] learn | toggled off
+   ```
+3. Print:
+   ```
+   Toggle written: .brain/.codebrain-learn-state = off
+   Existing observations and instincts in ~/.local/share/codebrain/projects/<hash>/ are preserved.
+   To purge them, manually delete that directory.
+   ```
+
+---
+
+**Le5 — `learn status` (per-project learn dashboard)**:
+
+1. Read toggle state (`on`/`off`/`missing`).
+2. Read `<XDG>/projects/<git-hash>/observations.jsonl` via `Bash: cat ~/.local/share/codebrain/projects/$(... project hash computation ...)/observations.jsonl 2>/dev/null` — count lines (= observation count).
+3. Read `<XDG>/projects/<git-hash>/instincts.jsonl` similarly — count lines (= instinct count).
+4. Compute top 5 patterns from instincts (sort by frequency desc; take 5).
+5. Print:
+   ```
+   /brain learn status (codebrain v<version>)
+     Toggle:             <on | off | missing (default off)>
+     Observations:       <count> (since <oldest ts as YYYY-MM-DD>)
+     Instincts:          <count>
+     Top 5 patterns:
+       <pattern>          <freq> (<pct>%)
+       ...
+     XDG store:          <path>
+     Last consolidation: <YYYY-MM-DD from .brain/log.md "consolidate" entry, or "never">
+   ```
+
+---
+
+**Le6 — `learn consolidate` (observer agent)**:
+
+You are now acting as the observer agent. Follow the observer's procedure exactly:
+
+1. **Toggle check**: read `.brain/.codebrain-learn-state`. If NOT `on`: print `error: cannot consolidate while toggle is off or missing. Run /brain learn on first.` and stop.
+
+2. **Read observations**: load `<XDG>/projects/<git-hash>/observations.jsonl` via `Bash` + a small Node one-liner that uses `scripts/hooks/lib/observations.readObservations(cwd)`. Get an array of records.
+
+3. **Count patterns**: group by `(tool, path-prefix-up-to-second-segment)`:
+   - For `path: "src/api/auth.ts"`, the prefix-up-to-second-segment is `src/api`
+   - For `path: "package.json"` (single segment), the prefix is `package.json` itself (or `.` for null path)
+   - Build a map: `{ "Edit:src/api": { freq: 17, first_seen: ..., last_seen: ... }, ... }`
+
+4. **Promote to instincts**: any pattern with `frequency >= 3` becomes an instinct. Compute `id = SHA-256(pattern).slice(0, 12)`. Total observations = sum of all pattern frequencies; per-instinct `confidence = frequency / total`.
+
+5. **Merge with existing**: read `instincts.jsonl`; build an existing-id set. For each new instinct: if `id` already exists, update the existing record's `frequency`/`confidence`/`last_seen` (sum frequencies; recompute confidence; max last_seen). If new, append.
+
+6. **Atomic write**: rewrite the entire instincts.jsonl with the merged set (use temp+rename pattern via Bash, or call `lib/observations.appendInstinct` for each new/updated). Acceptable for v0.1 to rewrite the whole file each consolidation; file is small.
+
+7. **Log**: append to `.brain/log.md`:
+   ```
+   ## [YYYY-MM-DD] consolidate | <N> observations → <M> new instincts + <K> updated; toggle: on
+   ```
+
+**Le7 — Report**:
+
+For `consolidate`, print:
+```
+/brain learn consolidate complete
+  Observations read:    <N>
+  Patterns found:       <M total patterns, including those below threshold>
+  Instincts new:        <K>
+  Instincts updated:    <U>
+  Threshold (v0.1):     frequency ≥ 3
+  Logged:               .brain/log.md
+  Storage:              <XDG>/projects/<git-hash>/
+```
+
+For other subcommands, the report is the toggle-confirmation or status output from Le3-Le5.
+
+**Error recovery** (per observer Rules + PRD #26): Tier 1 retry once; Tier 2 emit:
+```
+blocked: learn <subcommand> couldn't complete.
+Reason: <one-sentence why>.
+Operator action: <what — e.g., "run /brain learn on first" or "check XDG_DATA_HOME permissions">.
+```
+
+## When `$ARGUMENTS` is just `status`
+
+The project dashboard. Read-only.
+
+**S0 — Preconditions**: `.brain/` exists; `.brain/.codebrain-version` present. (If not: same npx-init message.)
+
+**S1 — Gather**:
+
+- Page counts per kind: walk `.brain/code/`, `.brain/concepts/`, `.brain/decisions/`; count `.md` files.
+- Hooks installed: read `.claude/settings.local.json`; count entries with `id` starting `codebrain:`.
+- Last 5 log entries: `tail -5 .brain/log.md | grep "^## \["` (grep-parseable per PRD #15).
+- Learn state: read `.brain/.codebrain-learn-state` (default `missing` → display as `off (default)`).
+- Observation count + instinct count: only if learn state is `on`, query the XDG paths (use `wc -l` via Bash, gracefully no-op if files don't exist).
+
+**S2 — Format the dashboard**:
+
+```
+codebrain status (v<version>)
+
+Vault:
+  Code pages:        <count>
+  Concept pages:     <count>
+  Decision pages:    <count>
+  Total:             <sum>
+
+Hooks installed:     <count> [codebrain:pre:verified-guard, codebrain:pre:observe, codebrain:post:stale-detect]
+
+Learn:
+  Toggle:            <on | off | missing>
+  Observations:      <count or "n/a — learn off">
+  Instincts:         <count or "n/a — learn off">
+
+Recent activity (last 5 entries from .brain/log.md):
+  <entry 1>
+  <entry 2>
+  ...
+
+Next: /brain query "..."  or  /brain lint  or  /brain learn status
+```
+
+**S3 — Output**: print the dashboard. No log entry (status is a query, not an event).
+
+**Error recovery**: same Tier 1/2 pattern; `max_iterations: 5`.

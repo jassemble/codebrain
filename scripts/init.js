@@ -234,6 +234,19 @@ function mergeHooks(targetDir, opts) {
         id: 'codebrain:pre:verified-guard',
         description: 'Block writes to .brain/ pages with status: VERIFIED unless --force is passed',
       },
+      {
+        matcher: '*',
+        hooks: [
+          {
+            type: 'command',
+            command: 'npx codebrain hook observe',
+            async: true,
+            timeout: 10,
+          },
+        ],
+        id: 'codebrain:pre:observe',
+        description: 'Continuous-learning observer: append minimal tool-use observations to XDG store when /brain learn is on (opt-in per-project; privacy by design — captures only tool name + path + timestamp, never content)',
+      },
     ],
     PostToolUse: [
       {

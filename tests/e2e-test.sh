@@ -817,7 +817,8 @@ codebrain_hook_count=$(node -e "
   const all = Object.values(j.hooks || {}).flat();
   console.log(all.filter(e => e && typeof e.id === 'string' && e.id.startsWith('codebrain:')).length);
 " 2>/dev/null)
-[ "$codebrain_hook_count" = "2" ] && ok "T21: re-init keeps exactly 2 codebrain hooks (no duplication)" || nope "T21: codebrain hook count after re-init was $codebrain_hook_count (expected 2)"
+# M#7 added a 3rd codebrain hook (codebrain:pre:observe), so post-M#7 count is 3
+[ "$codebrain_hook_count" = "3" ] && ok "T21: re-init keeps exactly 3 codebrain hooks (no duplication; M#7 added observe to M#4's 2)" || nope "T21: codebrain hook count after re-init was $codebrain_hook_count (expected 3)"
 
 # Pre-existing non-codebrain hook + stale codebrain entry → init preserves non-codebrain + cleans codebrain
 T21B_REPO="$(setup_user_repo)"
@@ -1414,6 +1415,214 @@ for f in install-validate.sh static-baseline.sh MANUAL-MEASUREMENTS.md; do
     && ok "T32: scripts/dogfood/$f in npm pack" \
     || nope "T32: scripts/dogfood/$f missing from npm pack"
 done
+
+# === Test 33: M#7 — observer agent + core/learn skill =======================
+
+[ -f "$CODEBRAIN_ROOT/agents/observers/observer.md" ] \
+  && ok "T33: observer.md agent exists" \
+  || nope "T33: observer.md missing"
+
+head -1 "$CODEBRAIN_ROOT/agents/observers/observer.md" | grep -q '^---$' \
+  && ok "T33: observer.md starts with frontmatter" \
+  || nope "T33: observer.md missing frontmatter"
+
+for field in name description tools model pattern trigger_phrases max_iterations; do
+  grep -q "^${field}:" "$CODEBRAIN_ROOT/agents/observers/observer.md" \
+    && ok "T33: observer.md has '${field}' field" \
+    || nope "T33: observer.md missing '${field}' field"
+done
+
+grep -q "^pattern: Observer$" "$CODEBRAIN_ROOT/agents/observers/observer.md" \
+  && ok "T33: observer.md pattern is Observer" \
+  || nope "T33: observer.md wrong pattern"
+
+# Read-only — NO Edit/Write/MultiEdit
+grep -E "^tools:.*\b(Edit|Write|MultiEdit)\b" "$CODEBRAIN_ROOT/agents/observers/observer.md" >/dev/null \
+  && nope "T33: observer.md tools include mutation (read-only violated)" \
+  || ok "T33: observer.md tools excludes Edit/Write/MultiEdit (read-only)"
+
+grep -q '^## Rules' "$CODEBRAIN_ROOT/agents/observers/observer.md" \
+  && ok "T33: observer.md has Rules section" \
+  || nope "T33: observer.md missing Rules section"
+
+grep -q '^## Privacy' "$CODEBRAIN_ROOT/agents/observers/observer.md" \
+  && ok "T33: observer.md has Privacy section" \
+  || nope "T33: observer.md missing Privacy section"
+
+grep -q 'Read the Prompt Defense Baseline' "$CODEBRAIN_ROOT/agents/observers/observer.md" \
+  && ok "T33: observer.md has prompt-defense reference" \
+  || nope "T33: observer.md missing prompt-defense reference"
+
+observer_rules=$(grep -cE '^- \*\*(NEVER|ALWAYS)' "$CODEBRAIN_ROOT/agents/observers/observer.md" || true)
+[ "$observer_rules" -ge 10 ] \
+  && ok "T33: observer.md has ≥10 self-enforcing rules ($observer_rules)" \
+  || nope "T33: observer.md only $observer_rules rules (need ≥10)"
+
+# learn SKILL
+[ -f "$CODEBRAIN_ROOT/skills/core/learn/SKILL.md" ] \
+  && ok "T33: core/learn SKILL.md exists" \
+  || nope "T33: core/learn SKILL.md missing"
+
+grep -q "^tier: core$" "$CODEBRAIN_ROOT/skills/core/learn/SKILL.md" \
+  && ok "T33: core/learn is tier:core" \
+  || nope "T33: core/learn wrong tier"
+
+for section in 'When to Activate' 'Observation format' 'Instinct format' 'Consolidation policy' 'Privacy' 'Toggle semantics' 'Storage location' 'Future work' 'Examples'; do
+  grep -qF "$section" "$CODEBRAIN_ROOT/skills/core/learn/SKILL.md" \
+    && ok "T33: core/learn SKILL.md has '$section' section" \
+    || nope "T33: core/learn SKILL.md missing '$section' section"
+done
+
+# npm pack
+pack_list="$(cd "$CODEBRAIN_ROOT" && npm pack --dry-run 2>&1)"
+echo "$pack_list" | grep -q 'agents/observers/observer.md' \
+  && ok "T33: observer.md in npm pack" \
+  || nope "T33: observer.md missing from npm pack"
+
+echo "$pack_list" | grep -q 'skills/core/learn/SKILL.md' \
+  && ok "T33: core/learn SKILL.md in npm pack" \
+  || nope "T33: core/learn SKILL.md missing from npm pack"
+
+# === Test 34: M#7 — init.js writes the observe hook entry ===================
+
+T34_REPO="$(setup_user_repo)"
+( cd "$T34_REPO" && HOME="$HOME" node "$CB" init >/dev/null 2>&1 )
+
+# observe entry present
+node -e "
+  const j = require('$T34_REPO/.claude/settings.local.json');
+  const pre = (j.hooks && j.hooks.PreToolUse) || [];
+  const observe = pre.find(e => e && e.id === 'codebrain:pre:observe');
+  if (!observe) { console.error('observe entry missing'); process.exit(1); }
+  if (observe.matcher !== '*') { console.error('observe matcher wrong:', observe.matcher); process.exit(1); }
+  if (!observe.hooks[0].async) { console.error('observe not async'); process.exit(1); }
+  if (!observe.hooks[0].command.includes('codebrain hook observe')) { console.error('observe command wrong'); process.exit(1); }
+  process.exit(0);
+" 2>/dev/null && ok "T34: settings.local.json has codebrain:pre:observe with correct shape" || nope "T34: observe entry incorrect"
+
+# Total codebrain hooks = 3 (verified-guard + stale-detect + observe)
+total_cb_hooks=$(node -e "
+  const j = require('$T34_REPO/.claude/settings.local.json');
+  const all = [...(j.hooks.PreToolUse||[]), ...(j.hooks.PostToolUse||[])];
+  console.log(all.filter(e => e && typeof e.id === 'string' && e.id.startsWith('codebrain:')).length);
+" 2>/dev/null)
+[ "$total_cb_hooks" = "3" ] && ok "T34: settings.local.json has exactly 3 codebrain hooks (verified-guard + stale-detect + observe)" || nope "T34: codebrain hook count was $total_cb_hooks (expected 3)"
+
+# Re-init: still 3 (no duplication)
+( cd "$T34_REPO" && HOME="$HOME" node "$CB" init >/dev/null 2>&1 )
+total_after=$(node -e "
+  const j = require('$T34_REPO/.claude/settings.local.json');
+  const all = [...(j.hooks.PreToolUse||[]), ...(j.hooks.PostToolUse||[])];
+  console.log(all.filter(e => e && typeof e.id === 'string' && e.id.startsWith('codebrain:')).length);
+" 2>/dev/null)
+[ "$total_after" = "3" ] && ok "T34: re-init keeps exactly 3 codebrain hooks (no duplication)" || nope "T34: re-init count was $total_after"
+
+# === Test 35: M#7 — observe hook + learn/status procedures =================
+
+[ -f "$CODEBRAIN_ROOT/scripts/hooks/observe.js" ] \
+  && ok "T35: observe.js hook exists" \
+  || nope "T35: observe.js missing"
+
+[ -f "$CODEBRAIN_ROOT/scripts/hooks/lib/observations.js" ] \
+  && ok "T35: lib/observations.js exists" \
+  || nope "T35: lib/observations.js missing"
+
+head -1 "$CODEBRAIN_ROOT/scripts/hooks/observe.js" | grep -q '^#!/usr/bin/env node$' \
+  && ok "T35: observe.js has Node shebang" \
+  || nope "T35: observe.js missing/wrong shebang"
+
+# CLI dispatches the new subcommand
+hook_help="$(node "$CB" hook 2>&1)"
+echo "$hook_help" | grep -q 'observe' \
+  && ok "T35: 'codebrain hook' help lists observe" \
+  || nope "T35: 'codebrain hook' help missing observe"
+
+# Fixture: observe is silent when toggle is off
+T35_DIR="$(mktemp -d)"
+mkdir -p "$T35_DIR/.brain"
+echo '0.1.0' > "$T35_DIR/.brain/.codebrain-version"
+# No toggle file → default off → observe should exit silently with no observations file
+rc=$( ( cd "$T35_DIR" && echo '{"tool_name":"Edit","tool_input":{"file_path":"src/test.ts"}}' | node "$CB" hook observe 2>/dev/null ); echo $? )
+[ "$rc" -eq 0 ] && ok "T35: observe exits 0 when toggle missing (default off)" || nope "T35: observe exit was $rc (expected 0)"
+
+# Fixture: observe is silent when toggle is "off"
+echo 'off' > "$T35_DIR/.brain/.codebrain-learn-state"
+rc=$( ( cd "$T35_DIR" && echo '{"tool_name":"Edit","tool_input":{"file_path":"src/test.ts"}}' | node "$CB" hook observe 2>/dev/null ); echo $? )
+[ "$rc" -eq 0 ] && ok "T35: observe exits 0 when toggle off" || nope "T35: observe off exit was $rc"
+
+# Fixture: observe records when toggle is "on"
+echo 'on' > "$T35_DIR/.brain/.codebrain-learn-state"
+( cd "$T35_DIR" && echo '{"tool_name":"Edit","tool_input":{"file_path":"src/test.ts"}}' | node "$CB" hook observe >/dev/null 2>&1 )
+( cd "$T35_DIR" && echo '{"tool_name":"Read","tool_input":{"file_path":"src/other.ts"}}' | node "$CB" hook observe >/dev/null 2>&1 )
+
+# Find the observations file via the same algorithm the hook uses
+obs_count=$(node -e "
+  process.chdir('$T35_DIR');
+  const lib = require('$CODEBRAIN_ROOT/scripts/hooks/lib/observations.js');
+  const records = lib.readObservations(process.cwd());
+  console.log(records.length);
+" 2>/dev/null)
+[ "$obs_count" = "2" ] && ok "T35: observe writes 2 records when toggle on (2 hook calls)" || nope "T35: expected 2 observations, got $obs_count"
+
+# Privacy: observations contain only {ts, tool, path, status}
+node -e "
+  process.chdir('$T35_DIR');
+  const lib = require('$CODEBRAIN_ROOT/scripts/hooks/lib/observations.js');
+  const recs = lib.readObservations(process.cwd());
+  for (const r of recs) {
+    const keys = Object.keys(r).sort().join(',');
+    if (keys !== 'path,status,toolwhere'.replace('toolwhere','tool') && keys !== 'path,status,tool,ts') {
+      console.error('unexpected keys:', keys); process.exit(1);
+    }
+  }
+" 2>/dev/null \
+  && ok "T35: observations have only whitelisted fields (ts, tool, path, status)" \
+  || nope "T35: observations include extra fields (privacy guard broken)"
+
+# Dispatch table updated — markdown escapes table-pipes with backslash, so match on the verb token alone
+grep -qE 'learn \{on\\?\|off\\?\|status\\?\|consolidate\}' "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T35: brain.md learn dispatch row updated" \
+  || nope "T35: brain.md learn dispatch not updated"
+
+grep -qE '\| ``?status``? \| \*\*implemented \(M#7\)\*\*' "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T35: brain.md status dispatch row updated" \
+  || nope "T35: brain.md status dispatch not updated"
+
+# Procedure sections
+grep -qF '## When `$ARGUMENTS` starts with `learn`' "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T35: brain.md has learn procedure section" \
+  || nope "T35: brain.md missing learn procedure"
+
+grep -qF '## When `$ARGUMENTS` is just `status`' "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T35: brain.md has status procedure section" \
+  || nope "T35: brain.md missing status procedure"
+
+# Step headers
+for s in 'Le0' 'Le3' 'Le6' 'Le7' 'S0' 'S1' 'S2' 'S3'; do
+  grep -qF "$s" "$CODEBRAIN_ROOT/commands/brain.md" \
+    && ok "T35: brain.md has $s step header" \
+    || nope "T35: brain.md missing $s"
+done
+
+# Critical keywords
+for needle in 'Privacy notice' 'XDG' 'consolidate' 'instinct' 'pattern' 'toggle' 'observations.jsonl'; do
+  grep -qF "$needle" "$CODEBRAIN_ROOT/commands/brain.md" \
+    && ok "T35: brain.md mentions '$needle'" \
+    || nope "T35: brain.md missing '$needle'"
+done
+
+# Alias parity for both new sections
+brain_learn=$(awk '/^## When `\$ARGUMENTS` starts with `learn`$/{flag=1} /^## When `\$ARGUMENTS` is just `status`$/{flag=0} flag' "$CODEBRAIN_ROOT/commands/brain.md")
+cb_learn=$(awk '/^## When `\$ARGUMENTS` starts with `learn`$/{flag=1} /^## When `\$ARGUMENTS` is just `status`$/{flag=0} flag' "$CODEBRAIN_ROOT/commands/codebrain.md")
+[ "$brain_learn" = "$cb_learn" ] && [ -n "$brain_learn" ] && ok "T35: brain.md / codebrain.md learn procedure byte-identical" || nope "T35: alias drift in learn procedure"
+
+brain_status=$(awk '/^## When `\$ARGUMENTS` is just `status`$/{flag=1} flag' "$CODEBRAIN_ROOT/commands/brain.md")
+cb_status=$(awk '/^## When `\$ARGUMENTS` is just `status`$/{flag=1} flag' "$CODEBRAIN_ROOT/commands/codebrain.md")
+[ "$brain_status" = "$cb_status" ] && [ -n "$brain_status" ] && ok "T35: brain.md / codebrain.md status procedure byte-identical" || nope "T35: alias drift in status procedure"
+
+# npm pack includes the new files
+echo "$pack_list" | grep -q 'scripts/hooks/observe.js' && ok "T35: observe.js in npm pack" || nope "T35: observe.js missing from npm pack"
+echo "$pack_list" | grep -q 'scripts/hooks/lib/observations.js' && ok "T35: lib/observations.js in npm pack" || nope "T35: lib/observations.js missing from npm pack"
 
 # === Summary ==================================================================
 

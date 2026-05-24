@@ -35,6 +35,8 @@ Usage:
       (PreToolUse/PostToolUse). Subcommands:
         stale-detect    — PostToolUse: mark .brain/ pages STALE on source edit
         verified-guard  — PreToolUse: block writes to VERIFIED .brain/ pages
+        observe         — PreToolUse: collect minimal tool-use observations
+                          (only fires when /brain learn on per-project)
       Not intended for direct operator use.
 
   codebrain help
@@ -44,7 +46,7 @@ After \`codebrain init\`, restart Claude Code (or open a new session) and use
 \`/brain init\` to begin. See https://github.com/jassemble/codebrain for more.`);
 }
 
-const HOOK_SUBCOMMANDS = ['stale-detect', 'verified-guard'];
+const HOOK_SUBCOMMANDS = ['stale-detect', 'verified-guard', 'observe'];
 
 function dispatchHook(args) {
   const sub = args[0];
