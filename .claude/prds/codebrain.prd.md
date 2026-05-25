@@ -222,4 +222,19 @@ All Q1–Q8 from the design pass resolved (see "Design Decisions"). Remaining ge
 | Committed `.brain/` produces noisy PRs | Med | Low | Hook keeps wiki edits in the same commit as code edits → reviewers see them together, not as a separate diff; CODEOWNERS pattern + auto-approve recipe documented |
 
 ---
-*Status: DESIGN-LOCKED — 8 open questions resolved; ready for `/plan .claude/prds/codebrain.prd.md` on Milestone #1.*
+
+## v0.2 Roadmap (post-feature-complete enhancements)
+
+v0.1 shipped 11 sub-milestones with codebrain feature-complete (commits 4f07b13 through 0a20551). v0.1.1 (commit 4566312) addressed **Gap A** from operator dogfood (framework-level detection + ECC bridge architecture). Two milestones remain on the post-MVP roadmap, both addressing additional operator-discovered gaps:
+
+| # | Milestone | Outcome | Status | Plan |
+|---|---|---|---|---|
+| 9 | Framework-detection + ECC-bridge full architecture (Gap B) | Beyond v0.1.1's preview: ship the runtime mechanism that ACTUALLY loads `expert_skills:` declared in `detected/*/SKILL.md` at ingest/query/lint time. Today the bridge is declarative (registry + slash-command body documents the contract); v0.2 makes it operative (probe the harness, load the ECC skill, apply its guidance throughout the session). Also: extend coverage to vue, rails, flask, koa, hapi + add `expert_skills:` bridges to the four M#3d skills (react, typescript, python, go). | pending | `.claude/plans/codebrain-m9.plan.md` |
+| 10 | Spec-first workflow + intent routing + discovery loop (Gap C) | New `/brain spec "<intent>"` verb that orchestrates ECC's `plan-prd` → `plan` → `santa-loop` convergence into a guided spec-then-plan-then-execute flow. Plus a behavioral-skill update: when operator's prompt expresses feature intent ("add", "build", "create", "implement"), the codebrain meta-skill instructs the agent to suggest `/brain spec` BEFORE jumping to code. Plus a built-in discovery-loop pattern that codifies the iterative sweep behavior we organically discovered during the v0.1 build session — every sweep produces 5–10 new findings that make the plan more robust. | pending | `.claude/plans/codebrain-m10.plan.md` |
+
+Both v0.2 milestones are documented in plan files; implementation is operator-scheduled. v0.1.1 ships standalone; the v0.2 roadmap is forward-looking.
+
+Operator-discovered gaps from M#8 dogfood (the empirical source of M#9 + M#10) are captured in `.claude/validation/v0.1-baseline.md` "Operator-discovered gaps" section.
+
+---
+*Status: DESIGN-LOCKED — 8 original open questions resolved; ready for `/plan .claude/prds/codebrain.prd.md` on Milestone #1. v0.1 feature-complete (commit 0a20551); v0.1.1 framework-detection patch shipped (commit 4566312); v0.2 roadmap defined.*
