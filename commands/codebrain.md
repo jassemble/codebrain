@@ -352,6 +352,29 @@ The verbatim extras for each detected stack are inlined below. The standalone te
 
 Skip Step 4b entirely if no detected/* skill matches this source file. The generic 5 sections always apply.
 
+**Step 4b.2 — Expert skill bridge** (v0.1.1):
+
+After resolving which `detected/*` skills apply for this source file, check each matched skill's `expert_skills:` field in `skills/registry.json`. For every named expert skill:
+
+1. **Probe availability**: check whether the named skill (e.g., `ecc:nestjs-patterns`, `ecc:django-patterns`, `ecc:springboot-patterns`) is available in the current harness. The ECC plugin ships many of these; codebrain does NOT vendor or re-implement them — it bridges to them.
+2. **If available**: load that expert skill and apply its code-writing / code-reviewing guidance throughout this ingest (and throughout any code-writing the agent does in this repo after ingest). The expert skill's patterns become the codebase's idiomatic conventions for the agent.
+3. **If unavailable**: proceed without that expert skill; the page still gets the codebrain-side extras above. The agent works without framework-expert guidance for this stack. Document in the report which `expert_skills:` were declared but unavailable.
+
+The bridge is the load-bearing v0.1.1 architectural contract: codebrain detects stacks + ships the page-format extras; ECC (or another expert-skill source) provides the code-writing expertise. No duplication.
+
+Currently shipped `detected/*` skills with `expert_skills:` declarations (post-v0.1.1):
+
+| detected/* skill | expert_skills bridge target(s) |
+|---|---|
+| `detected/nestjs` | `ecc:nestjs-patterns` |
+| `detected/nextjs` | `ecc:nextjs-turbopack` |
+| `detected/express` | `ecc:backend-patterns` |
+| `detected/django` | `ecc:django-patterns`, `ecc:django-security` |
+| `detected/fastapi` | `ecc:fastapi-patterns` |
+| `detected/springboot` | `ecc:springboot-patterns`, `ecc:springboot-security` |
+
+The four M#3d skills (`react`, `typescript`, `python`, `go`) do NOT yet declare `expert_skills:` — v0.2 may add them or leave them as page-format-only.
+
 **Step 5 — Write the page**:
 
 - Ensure `.brain/code/<dir-of-source>/` exists (create directories as needed).

@@ -32,6 +32,60 @@
         { "file_exists": "go.mod" }
       ],
       "applies_to_extensions": [".go"]
+    },
+    "detected/nestjs": {
+      "tier": "detected",
+      "version": "0.1.1",
+      "detect": [
+        { "file_exists": "package.json", "contains": "\"@nestjs/core\"" }
+      ],
+      "applies_to_extensions": [".ts"],
+      "expert_skills": ["ecc:nestjs-patterns"]
+    },
+    "detected/nextjs": {
+      "tier": "detected",
+      "version": "0.1.1",
+      "detect": [
+        { "file_exists": "package.json", "contains": "\"next\"" }
+      ],
+      "applies_to_extensions": [".tsx", ".jsx", ".ts", ".js"],
+      "expert_skills": ["ecc:nextjs-turbopack"]
+    },
+    "detected/express": {
+      "tier": "detected",
+      "version": "0.1.1",
+      "detect": [
+        { "file_exists": "package.json", "contains": "\"express\"" }
+      ],
+      "applies_to_extensions": [".ts", ".js"],
+      "expert_skills": ["ecc:backend-patterns"]
+    },
+    "detected/django": {
+      "tier": "detected",
+      "version": "0.1.1",
+      "detect": [
+        { "file_exists": "manage.py" }
+      ],
+      "applies_to_extensions": [".py"],
+      "expert_skills": ["ecc:django-patterns", "ecc:django-security"]
+    },
+    "detected/fastapi": {
+      "tier": "detected",
+      "version": "0.1.1",
+      "detect": [
+        { "file_exists": "pyproject.toml", "contains": "fastapi" }
+      ],
+      "applies_to_extensions": [".py"],
+      "expert_skills": ["ecc:fastapi-patterns"]
+    },
+    "detected/springboot": {
+      "tier": "detected",
+      "version": "0.1.1",
+      "detect": [
+        { "file_exists": "pom.xml", "contains": "spring-boot" }
+      ],
+      "applies_to_extensions": [".java", ".kt"],
+      "expert_skills": ["ecc:springboot-patterns", "ecc:springboot-security"]
     }
   }
 }

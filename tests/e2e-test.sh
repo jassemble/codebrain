@@ -1624,6 +1624,104 @@ cb_status=$(awk '/^## When `\$ARGUMENTS` is just `status`$/{flag=1} flag' "$CODE
 echo "$pack_list" | grep -q 'scripts/hooks/observe.js' && ok "T35: observe.js in npm pack" || nope "T35: observe.js missing from npm pack"
 echo "$pack_list" | grep -q 'scripts/hooks/lib/observations.js' && ok "T35: lib/observations.js in npm pack" || nope "T35: lib/observations.js missing from npm pack"
 
+# === Test 36: v0.1.1 — framework detection + ECC bridge ====================
+
+# 6 new detected/* SKILL.md files exist
+for stack in nestjs nextjs express django fastapi springboot; do
+  skill_file="$CODEBRAIN_ROOT/skills/detected/${stack}/SKILL.md"
+  [ -f "$skill_file" ] && ok "T36: detected/${stack}/SKILL.md exists" || nope "T36: detected/${stack}/SKILL.md missing"
+
+  head -1 "$skill_file" 2>/dev/null | grep -q '^---$' \
+    && ok "T36: detected/${stack} SKILL.md starts with frontmatter" \
+    || nope "T36: detected/${stack} SKILL.md missing frontmatter"
+
+  # All standard merged fields + the new expert_skills field
+  for field in name description origin version tier pattern related_skills detect applies_to_extensions expert_skills; do
+    grep -q "^${field}:" "$skill_file" 2>/dev/null \
+      && ok "T36: detected/${stack} SKILL.md has '${field}' field" \
+      || nope "T36: detected/${stack} SKILL.md missing '${field}' field"
+  done
+
+  grep -q "^tier: detected$" "$skill_file" 2>/dev/null \
+    && ok "T36: detected/${stack} is tier:detected" \
+    || nope "T36: detected/${stack} wrong tier"
+done
+
+# stack-detection.json includes nestjs, express, fastify, springboot
+for stack in nestjs express fastify springboot; do
+  node -e "
+    const j = require('$CODEBRAIN_ROOT/skills/core/init/templates/stack-detection.json');
+    const match = j.stacks.find(s => s.name === '${stack}' || s.name === '${stack}-maven' || s.name === '${stack}-gradle');
+    if (!match) { console.error('missing stack:', '${stack}'); process.exit(1); }
+    process.exit(0);
+  " 2>/dev/null \
+    && ok "T36: stack-detection.json has '${stack}' entry" \
+    || nope "T36: stack-detection.json missing '${stack}'"
+done
+
+# registry.json includes all 6 new detected entries with expert_skills
+node -e "
+  const r = require('$CODEBRAIN_ROOT/skills/registry.json');
+  const expected = ['detected/nestjs', 'detected/nextjs', 'detected/express', 'detected/django', 'detected/fastapi', 'detected/springboot'];
+  for (const k of expected) {
+    if (!r.skills[k]) { console.error('missing skill:', k); process.exit(1); }
+    if (r.skills[k].tier !== 'detected') { console.error('wrong tier:', k); process.exit(1); }
+    if (!Array.isArray(r.skills[k].expert_skills)) { console.error('expert_skills not array:', k); process.exit(1); }
+    if (r.skills[k].expert_skills.length === 0) { console.error('expert_skills empty:', k); process.exit(1); }
+  }
+  process.exit(0);
+" 2>/dev/null \
+  && ok "T36: registry.json has 6 new detected entries with expert_skills field" \
+  || nope "T36: registry.json detected entries malformed or missing"
+
+# Specific expert_skills targets per stack
+node -e "
+  const r = require('$CODEBRAIN_ROOT/skills/registry.json');
+  if (!r.skills['detected/nestjs'].expert_skills.includes('ecc:nestjs-patterns')) { console.error('nestjs missing ecc:nestjs-patterns'); process.exit(1); }
+  if (!r.skills['detected/django'].expert_skills.includes('ecc:django-patterns')) { console.error('django missing ecc:django-patterns'); process.exit(1); }
+  if (!r.skills['detected/django'].expert_skills.includes('ecc:django-security')) { console.error('django missing ecc:django-security'); process.exit(1); }
+  if (!r.skills['detected/fastapi'].expert_skills.includes('ecc:fastapi-patterns')) { console.error('fastapi missing ecc:fastapi-patterns'); process.exit(1); }
+  if (!r.skills['detected/springboot'].expert_skills.includes('ecc:springboot-patterns')) { console.error('springboot missing ecc:springboot-patterns'); process.exit(1); }
+  process.exit(0);
+" 2>/dev/null \
+  && ok "T36: registry.json expert_skills targets correct per stack" \
+  || nope "T36: expert_skills assignments wrong"
+
+# brain.md has Step 4b.2 — Expert skill bridge
+grep -qF 'Step 4b.2 — Expert skill bridge' "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T36: brain.md has Step 4b.2 (Expert skill bridge)" \
+  || nope "T36: brain.md missing Step 4b.2"
+
+# brain.md mentions all 6 bridge targets
+for target in 'ecc:nestjs-patterns' 'ecc:nextjs-turbopack' 'ecc:backend-patterns' 'ecc:django-patterns' 'ecc:fastapi-patterns' 'ecc:springboot-patterns'; do
+  grep -qF "$target" "$CODEBRAIN_ROOT/commands/brain.md" \
+    && ok "T36: brain.md Step 4b.2 mentions '$target'" \
+    || nope "T36: brain.md Step 4b.2 missing '$target'"
+done
+
+# Alias parity for Step 4b.2 — brain.md and codebrain.md byte-identical from
+# "**Step 4b.2 — Expert skill bridge**" through "**Step 5 — Write the page**"
+brain_4b2=$(awk '/^\*\*Step 4b\.2 — Expert skill bridge\*\*/{flag=1} /^\*\*Step 5 — Write the page\*\*/{flag=0} flag' "$CODEBRAIN_ROOT/commands/brain.md")
+cb_4b2=$(awk '/^\*\*Step 4b\.2 — Expert skill bridge\*\*/{flag=1} /^\*\*Step 5 — Write the page\*\*/{flag=0} flag' "$CODEBRAIN_ROOT/commands/codebrain.md")
+if [ "$brain_4b2" = "$cb_4b2" ] && [ -n "$brain_4b2" ]; then
+  ok "T36: brain.md and codebrain.md Step 4b.2 byte-identical"
+else
+  nope "T36: alias drift in Step 4b.2"
+fi
+
+# npm pack includes the 6 new SKILL.md files
+pack_list="$(cd "$CODEBRAIN_ROOT" && npm pack --dry-run 2>&1)"
+for stack in nestjs nextjs express django fastapi springboot; do
+  echo "$pack_list" | grep -q "skills/detected/${stack}/SKILL.md" \
+    && ok "T36: detected/${stack}/SKILL.md in npm pack" \
+    || nope "T36: detected/${stack}/SKILL.md missing from npm pack"
+done
+
+# Dogfood-gaps section was added to validation report
+grep -qF 'Operator-discovered gaps' "$CODEBRAIN_ROOT/.claude/validation/v0.1-baseline.md" \
+  && ok "T36: v0.1-baseline.md has Operator-discovered gaps section (M#8 evidence)" \
+  || nope "T36: v0.1-baseline.md missing Operator-discovered gaps section"
+
 # === Summary ==================================================================
 
 total=$((pass+fail))
