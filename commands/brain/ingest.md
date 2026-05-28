@@ -9,10 +9,10 @@ You are the graphbrain ingester (see `agents/brain/ingester.md` for your full pe
 **Step 0 — Argument parsing + path guards**:
 
 - Extract the path arg from `$ARGUMENTS` (the token after `ingest`).
-- If no path was given: print `Milestone #3c (tiered auto-prioritize, no-arg ingest) — not yet implemented in v0.1. Pass a single file path: /brain ingest src/auth.ts` and stop.
+- If no path was given: route to the no-arg tiered procedure in the `## When $ARGUMENTS is just \`ingest\`` section below.
 - **Out-of-repo guard**: compute the absolute path. If it does NOT start with cwd: print `error: refused — <path> resolves outside the project root` and stop.
-- **Symlink guard**: if the resolved path is a symlink (use `Bash: test -L <path>`), print `error: refused — symlinks not supported in v0.1; pass the target path directly` and stop.
-- If the resolved path is a directory: print `Milestone #3b (folder ingest) — not yet implemented in v0.1. Pass a single file path: /brain ingest src/auth.ts` and stop.
+- **Symlink guard**: if the resolved path is a symlink (use `Bash: test -L <path>`), print `error: refused — symlinks not supported; pass the target path directly` and stop.
+- If the resolved path is a directory: route to the folder procedure in the `## When $ARGUMENTS starts with \`ingest <folder>\`` section below.
 - If the resolved path does not exist: print `error: file not found: <path>` and stop.
 - **Binary-file guard**: check the file extension against the blocklist `[.png, .jpg, .jpeg, .gif, .webp, .pdf, .exe, .bin, .so, .dylib, .o, .a, .zip, .tar, .tgz, .gz, .mp4, .mp3, .wav, .ico, .ttf, .woff, .woff2]`. If matched, print `error: refused — <path> looks like a binary file (extension <ext>); graphbrain ingests text source files only` and stop. Additionally, read the first 1024 bytes; if a null byte is present, treat as binary and refuse with the same message.
 
@@ -85,7 +85,7 @@ tokens: <your best estimate of page token count; informational, ±20% is fine>
 
 ## Cross-references
 <!-- Wikilinks to other .brain/code/ pages: `- [[code/<path>]] — <why linked>`.
-     Milestone #3a single-file ingest: usually `_(none yet — see Milestone #3b for cross-page linking)_`. -->
+     Single-file ingest: usually `_(none yet — folder ingest wires cross-page links)_`. -->
 ```
 
 **Page-size self-check**:
@@ -311,7 +311,7 @@ Print exactly:
     loaded:      <comma-separated bridges_loaded, or "(none)" if all unavailable, or "(none declared)" if no detected/* matched>
     unavailable: <comma-separated bridges_unavailable, or "(none)">
 Next: ingest more files individually for now.
-      /brain ingest <folder/> is Milestone #3b; /brain ingest (no args) is Milestone #3c.
+      Folder ingest: /brain:ingest <folder/>. Tiered auto-prioritize: /brain:ingest (no args).
 ```
 
 The `Active bridges` block is the M#9-prereq runtime evidence — operators see at a glance which expert skills loaded during this ingest. If no `detected/*` skill matched the source (e.g., a Markdown file in a TypeScript repo), print `loaded: (none declared)` to distinguish from the case where bridges were declared but unavailable.
@@ -376,8 +376,8 @@ You are orchestrating a folder ingest. Run the M#3a ingester per file, then invo
   Failed:         <failed.length>   ([<path: reason> per line])
   Linker result:  <wired N code-page cross-references, M concept pages created/updated>
   Logged:         .brain/log.md
-Next: try `/brain query "..."` (Milestone #5 — not yet implemented).
-      For tiered no-arg ingest, see Milestone #3c.
+Next: `/brain:query "..."` to ask a question over the ingested pages, or
+      `/brain:ingest` (no args) to tier-prioritize across the rest of the codebase.
 ```
 
 If linker emitted partial-completion warning (because per-file failures), include it before the `Next:` line.
@@ -581,9 +581,10 @@ For each tier:
   Uncategorized: <N> files NOT ingested
 
   Logged: .brain/log.md
-Next: try `/brain query "..."` (Milestone #5 — not yet implemented).
-      For stack-aware page templates (React components, Python modules, etc.),
-      see Milestone #3d.
+Next: `/brain:query "..."` to ask a question over the ingested pages.
+      Stack-aware page-template extras (React components, Python modules,
+      NestJS controllers, etc.) are applied automatically per-file based on
+      the detected stack + the source's extension.
 ```
 
 Append to `.brain/log.md` under `## Activity History` with the grep-parseable prefix:

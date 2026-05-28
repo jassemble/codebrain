@@ -48,7 +48,7 @@ If you cannot locate these template files, ask the operator to run `npm root -g`
   - `{ "glob": "<pattern>" }` — match if at least one file matches the glob, relative to cwd
 - A stack matches only if **all** of its `signals` match (logical AND).
 - Collect the matched stack names. Dedupe (e.g., `python` and `python-legacy` both detect Python — report once as `python`).
-- This is reporting-only for Milestone #2. Do NOT install any `detected/*` skills — those don't exist yet (Milestone #3 ships them).
+- This step is reporting-only — `/brain:init` does NOT install `detected/*` skills. Those ship with the graphbrain npm package and are activated automatically by `/brain:ingest` Step 4b when the source file's extension + project signals match.
 
 **Step 5 — Populate overview.md**:
 
@@ -76,14 +76,16 @@ If you cannot locate these template files, ask the operator to run `npm root -g`
 Print exactly:
 
 ```
-/brain init complete (graphbrain v<version-from-.graphbrain-version>)
+/brain:init complete (graphbrain v<version-from-.graphbrain-version>)
   Schema block:   <refreshed | unchanged>
   overview.md:    <populated | unchanged>
   Detected stack: <comma-separated list, or "(none detected)">
-    Note: no `detected/` skills installed yet — coming in Milestone #3c.
   Logged:         .brain/log.md
-Next: try `/brain ingest src/auth.ts` (single file — Milestone #3a is implemented).
-      Folder ingest is Milestone #3b; no-arg tiered ingest is Milestone #3c.
+Next:
+  /brain:ingest <file>     single-file ingest
+  /brain:ingest <folder>   folder ingest + concept-page linking
+  /brain:ingest            tiered auto-prioritize across the whole codebase
+  /brain:query "..."       once pages exist, ask a question
 ```
 
 If you encountered any failures during the procedure, replace the success report with a `FAILED at Step <N>: <reason>` line and exit. Do not partially complete and report success.

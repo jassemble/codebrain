@@ -20,8 +20,8 @@ Graphbrain's primary slash command. After M#12 (slash-command namespacing), ever
 | `lint [--fix]` | `/brain:lint [--fix]` | Wiki health-check. Procedure in `commands/brain/lint.md`. |
 | `learn {on\|off\|status\|consolidate}` | `/brain:learn <subcommand>` | Continuous-learning toggle + consolidator. Procedure in `commands/brain/learn.md`. |
 | `status` | `/brain:status` | Brain dashboard. Procedure in `commands/brain/status.md`. |
-| `spec "<intent>"` | `/brain:spec "<intent>"` | Spec-orchestrate via ECC's plan-prd → plan → optional santa-loop. Procedure in `commands/brain/spec.md`. (Milestone #10a) |
-| `creds {list\|show\|add\|remove\|forget-all}` | `/brain:creds <sub-verb>` | Per-project credential registry at XDG plaintext store. Procedure in `commands/brain/creds.md`. (Milestone #11b) |
+| `spec "<intent>"` | `/brain:spec "<intent>"` | Spec-orchestrate via ECC's plan-prd → plan → optional santa-loop. Procedure in `commands/brain/spec.md`. |
+| `creds {list\|show\|add\|remove\|forget-all}` | `/brain:creds <sub-verb>` | Per-project credential registry at XDG plaintext store. Procedure in `commands/brain/creds.md`. |
 
 ## Legacy-dispatcher behavior (`/brain <verb>`)
 
@@ -40,14 +40,14 @@ Print this help block:
 ```
 /brain — graphbrain commands
 
-  /brain:init                  Scaffold .brain/ + CLAUDE.md schema block (Milestone #2)
-  /brain:ingest [path]         Read source files → write LLM-authored wiki pages (Milestone #3)
-  /brain:query "<question>"    Pointer-first lookup against the brain (Milestone #5)
-  /brain:lint [--fix]          Health-check the wiki; --fix batch-refreshes STALE pages (Milestone #6)
-  /brain:learn {on|off|status} Toggle the continuous-learning observer (Milestone #7)
-  /brain:status                Brain dashboard (Milestone #7)
-  /brain:spec "<intent>"       Spec-orchestrate a feature via ECC (Milestone #10a)
-  /brain:creds {list|show|add|remove|forget-all}  Credential registry (Milestone #11)
+  /brain:init                                     Populate .brain/overview.md + CLAUDE.md schema block; detect tech stack
+  /brain:ingest [path]                            Read source files → write LLM-authored wiki pages (file / folder / no-arg tiered)
+  /brain:query "<question>"                       Pointer-first lookup against the brain; auto-refreshes STALE pages
+  /brain:lint [--fix]                             Health-check the wiki; --fix batch-refreshes STALE pages
+  /brain:learn {on|off|status|consolidate}        Continuous-learning observer toggle + consolidator
+  /brain:status                                   Brain dashboard — page counts, hook + toggle state, recent activity
+  /brain:spec "<intent>"                          Spec-orchestrate a feature (ECC plan-prd → plan → optional sweep)
+  /brain:creds {list|show|add|remove|forget-all}  Per-project credential registry (XDG plaintext, refusal-pattern enforced)
 
 The legacy form /brain <verb> still works (muscle memory) — it dispatches to
 the same per-verb files. The namespaced form is more discoverable in Claude

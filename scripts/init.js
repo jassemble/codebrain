@@ -170,7 +170,7 @@ function scaffoldBrainDir(cwd, opts) {
   const today = new Date().toISOString().slice(0, 10);
   const files = {
     'index.md': frontmatter({ kind: 'index', status: 'UNENRICHED', created: today })
-      + '\n# Index\n\nPage catalog. Populated by Milestone #2 init skill and updated on every ingest.\n',
+      + '\n# Index\n\nPage catalog. Populated by `/brain:init` and updated on every `/brain:ingest`.\n',
     'log.md': frontmatter({ kind: 'log', status: 'UNENRICHED', created: today })
       + '\n# Log\n\n## Recent Patterns\n\n<!-- Promoted recurring patterns from activity history. -->\n\n## Activity History\n\n<!-- Append-only per-event entries. Format: ## [YYYY-MM-DD] <op> | <subject> -->\n\n'
       + `## [${today}] init | graphbrain v${CODEBRAIN_VERSION} scaffolded .brain/\n`,
@@ -182,7 +182,7 @@ function scaffoldBrainDir(cwd, opts) {
       + '\n# Status — Page Lifecycle Tracker\n\nDerived view; regenerated from per-page frontmatter.\n\n| Page | Status | Last Sync | Source Hash |\n|------|--------|-----------|-------------|\n',
     'CHANGELOG.md': frontmatter({ kind: 'changelog', status: 'UNENRICHED', created: today })
       + `\n# CHANGELOG — what the brain learned\n\n`
-      + `Append-only narrative of compound learning (M#10d). Reverse-chronological by month.\n`
+      + `Append-only narrative of compound learning. Reverse-chronological by month.\n`
       + `Each entry shape: \`- YYYY-MM-DD: <narrative summary of what changed and why>\`\n`
       + `\n`
       + `## ${today.slice(0, 7)}\n\n`
@@ -204,7 +204,7 @@ function scaffoldBrainDir(cwd, opts) {
       + `- [log.md](log.md) — Activity history + promoted recurring patterns\n`
       + `- [status.md](status.md) — Page lifecycle tracker (FRESH/STALE/RESYNCED)\n`
       + `- [decisions.md](decisions.md) — ADR index\n`
-      + `- [CHANGELOG.md](CHANGELOG.md) — Compound-learning narrative (M#10d): what the brain learned, when, why\n`
+      + `- [CHANGELOG.md](CHANGELOG.md) — Compound-learning narrative: what the brain learned, when, why\n`
       + `\n`
       + `## Code pages (0)\n`
       + `_(no pages yet — run \`/brain ingest <file>\` or \`/brain ingest <folder>\`)_\n`
@@ -238,7 +238,7 @@ function frontmatter(fields) {
 
 function appendClaudeMdManagedRegion(cwd, opts) {
   const target = path.join(cwd, 'CLAUDE.md');
-  const block = `${CLAUDE_MD_BEGIN}\n## graphbrain\n_placeholder schema block — populated by Milestone #2 init skill_\n${CLAUDE_MD_END}\n`;
+  const block = `${CLAUDE_MD_BEGIN}\n## graphbrain\n\n_This block is a placeholder. Run \`/brain:init\` inside Claude Code to populate it with the full graphbrain schema (~120 lines: what \`.brain/\` is, how to navigate it, what each \`/brain:<verb>\` does). The block is co-evolved by the operator and the agent; edits between the markers above are preserved across \`npx graphbrain init\` runs._\n${CLAUDE_MD_END}\n`;
 
   if (!fs.existsSync(target)) {
     atomicWrite(target, `# CLAUDE.md\n\n${block}`, opts);

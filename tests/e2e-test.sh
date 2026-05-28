@@ -286,16 +286,17 @@ grep -q "AGENT:" "$CODEBRAIN_ROOT/skills/core/init/templates/overview-starter.md
 
 # === Test 11: init verb no longer stubbed; other verbs still stubbed =========
 
-! grep -q 'init.*Milestone #2.*not yet implemented' "$CODEBRAIN_ROOT/commands/brain.md" \
-  && ok "T11: brain.md init verb no longer stubbed as 'Milestone #2 not yet implemented'" \
-  || nope "T11: brain.md init still stubbed"
+# Updated for v1.0.3 — internal "Milestone #N" milestone references have been
+# stripped from the user-facing dispatch table + help block. T11 now asserts
+# the help block describes each verb without leaning on internal version stubs.
+! grep -q 'Milestone #' "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T11: brain.md dispatch table + help block no longer mentions internal Milestone #N" \
+  || nope "T11: brain.md still contains internal Milestone #N references"
 
-
-# Other Milestone-N verbs ARE still stubbed
-for milestone in 3 5 6 7; do
-  grep -q "Milestone #${milestone}" "$CODEBRAIN_ROOT/commands/brain.md" \
-    && ok "T11: brain.md still has Milestone #${milestone} content (stubs preserved)" \
-    || nope "T11: brain.md missing Milestone #${milestone} stub"
+for verb in init ingest query lint learn status spec creds; do
+  grep -qF "/brain:$verb" "$CODEBRAIN_ROOT/commands/brain.md" \
+    && ok "T11: brain.md help block mentions /brain:$verb" \
+    || nope "T11: brain.md missing /brain:$verb in help"
 done
 
 # brain.md has the full When-init procedure
