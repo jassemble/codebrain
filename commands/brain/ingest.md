@@ -1,6 +1,5 @@
-<!-- graphbrain v1.0.0 -->
 ---
-description: codebrain — read source files → write LLM-authored wiki pages (single file, folder, or no-arg tiered)
+description: Read source files → write LLM-authored .brain/ wiki pages. Accepts a file path, a folder, or no args (tiered).
 ---
 
 ## When `$ARGUMENTS` starts with `ingest <file>`

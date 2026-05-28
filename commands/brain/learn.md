@@ -1,6 +1,5 @@
-<!-- graphbrain v1.0.0 -->
 ---
-description: codebrain — toggle continuous-learning observer (Milestone #7)
+description: Toggle the continuous-learning observer (on/off/status) + run the consolidator (consolidate).
 ---
 
 ## When `$ARGUMENTS` starts with `learn`

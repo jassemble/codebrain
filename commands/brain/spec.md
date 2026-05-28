@@ -1,6 +1,5 @@
-<!-- graphbrain v1.0.0 -->
 ---
-description: codebrain — spec-orchestrate an intent into a converged PRD + plan via ECC's plan-prd / plan / santa-loop (Milestone #10a)
+description: Spec-orchestrate a feature intent through ECC plan-prd → plan → optional santa-loop. Produces a PRD + plan.
 ---
 
 ## When `$ARGUMENTS` starts with `spec`

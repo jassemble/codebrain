@@ -55,22 +55,31 @@ grep -qF "$CB_VERSION" "$USER_REPO/.brain/.codebrain-version" 2>/dev/null \
   && ok "T1: .codebrain-version contains $CB_VERSION" \
   || nope "T1: .codebrain-version content wrong (expected $CB_VERSION)"
 
-# Slash-command templates with version marker (top-level dispatchers)
+# Slash-command templates exist (top-level dispatcher).
+# Note (v1.0.0): the leading <!-- graphbrain vX.Y.Z --> comment was REMOVED so
+# Claude Code reads the YAML frontmatter starting on line 1 for the command-
+# palette description. Version lives in package.json + .brain/.codebrain-version.
 for v in brain; do
   f="$USER_REPO/.claude/commands/$v.md"
   [ -f "$f" ] && ok "T1: .claude/commands/$v.md present" || nope "T1: .claude/commands/$v.md missing"
-  head -1 "$f" 2>/dev/null | grep -qF "graphbrain v$CB_VERSION" \
-    && ok "T1: $v.md has version marker" \
-    || nope "T1: $v.md missing version marker (expected codebrain v$CB_VERSION)"
+  head -1 "$f" 2>/dev/null | grep -qF -- '---' \
+    && ok "T1: $v.md starts with frontmatter (line 1 = ---)" \
+    || nope "T1: $v.md does not start with YAML frontmatter"
+  awk '/^---$/{c++} c==1 && /^description:/{print; exit}' "$f" | grep -q 'description:' \
+    && ok "T1: $v.md frontmatter has description (Claude Code palette display)" \
+    || nope "T1: $v.md frontmatter missing description"
 done
 
 # Per-verb namespaced files (M#12b — /brain:<verb> layout)
 for verb in init ingest query lint learn status spec creds; do
   f="$USER_REPO/.claude/commands/brain/$verb.md"
   [ -f "$f" ] && ok "T1: .claude/commands/brain/$verb.md scaffolded" || nope "T1: .claude/commands/brain/$verb.md missing"
-  head -1 "$f" 2>/dev/null | grep -qF "graphbrain v$CB_VERSION" \
-    && ok "T1: brain/$verb.md has version marker" \
-    || nope "T1: brain/$verb.md missing version marker"
+  head -1 "$f" 2>/dev/null | grep -qF -- '---' \
+    && ok "T1: brain/$verb.md starts with frontmatter (line 1 = ---)" \
+    || nope "T1: brain/$verb.md does not start with YAML frontmatter"
+  awk '/^---$/{c++} c==1 && /^description:/{print; exit}' "$f" | grep -q 'description:' \
+    && ok "T1: brain/$verb.md frontmatter has description" \
+    || nope "T1: brain/$verb.md frontmatter missing description"
 done
 
 # settings.local.json valid JSON

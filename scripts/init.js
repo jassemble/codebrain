@@ -422,7 +422,11 @@ function init(argv) {
 
   if (!opts.dryRun) {
     console.log(`\nDone. Restart Claude Code or open a new session to use /brain commands.`);
-    console.log(`Try \`/brain init\` to see Milestone #2 status.`);
+    console.log(`Try \`/brain:init\` to populate .brain/overview.md + the CLAUDE.md schema block.`);
+    console.log(`\nOr run non-interactively from the shell:`);
+    console.log(`  claude -p '/brain:init' --dangerously-skip-permissions`);
+    console.log(`(the --dangerously-skip-permissions flag auto-approves the file writes /brain:init needs;`);
+    console.log(` only use it for trusted commands like /brain:* and only in repos you control.)`);
   } else {
     console.log(`\nDry run — no files written.`);
   }

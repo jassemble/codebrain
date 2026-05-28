@@ -1,6 +1,5 @@
-<!-- graphbrain v1.0.0 -->
 ---
-description: codebrain — wiki health-check; --fix batch-refreshes STALE pages (Milestone #6)
+description: Health-check the wiki: defects, gaps, contradictions. --fix batch-re-ingests STALE pages.
 ---
 
 ## When `$ARGUMENTS` starts with `lint`

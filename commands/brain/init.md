@@ -1,6 +1,5 @@
-<!-- graphbrain v1.0.0 -->
 ---
-description: codebrain — scaffold .brain/ + CLAUDE.md schema block + stack detection (Milestone #2)
+description: Scaffold .brain/overview.md + the CLAUDE.md schema block. Detects your tech stack. Run once per repo.
 ---
 
 ## When `$ARGUMENTS` is `init`

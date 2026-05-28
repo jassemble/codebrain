@@ -1,6 +1,5 @@
-<!-- graphbrain v1.0.0 -->
 ---
-description: codebrain — agent-maintained codebase wiki. Dispatcher: routes to /brain:<verb> per-verb commands.
+description: graphbrain — agent-maintained codebase wiki. Dispatcher for the /brain:<verb> per-verb commands.
 ---
 
 # /brain

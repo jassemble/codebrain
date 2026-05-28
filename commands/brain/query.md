@@ -1,6 +1,5 @@
-<!-- graphbrain v1.0.0 -->
 ---
-description: codebrain — pointer-first lookup against the brain (Milestone #5)
+description: Pointer-first lookup against the brain. Auto-refreshes STALE pages; supports --thorough and --no-refresh.
 ---
 
 ## When `$ARGUMENTS` starts with `query`

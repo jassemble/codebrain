@@ -1,6 +1,5 @@
-<!-- graphbrain v1.0.0 -->
 ---
-description: codebrain — per-project credential registry; XDG plaintext store with refusal-pattern enforcement (Milestone #11b)
+description: Per-project credential registry (XDG plaintext, chmod 0600). list / show / add / remove / forget-all. Refuses production patterns.
 ---
 
 ## When `$ARGUMENTS` starts with `creds`

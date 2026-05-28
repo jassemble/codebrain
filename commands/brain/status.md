@@ -1,6 +1,5 @@
-<!-- graphbrain v1.0.0 -->
 ---
-description: codebrain — brain dashboard (Milestone #7)
+description: Brain dashboard — page counts, hook status, learn state, intent-routing state, recent activity.
 ---
 
 ## When `$ARGUMENTS` is just `status`
