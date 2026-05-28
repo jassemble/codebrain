@@ -5,6 +5,17 @@
 **Complexity**: Medium-to-Large — runtime mechanism for bridging to ECC; coverage extension to more frameworks; first cross-plugin skill-loading
 **Status**: DRAFT — not yet implementation-ready; refinement expected after operator's v0.1.1 dogfood produces evidence
 
+## Sub-split recommendation (added during v0.2 sweep, 2026-05-28)
+
+M#9 has two distinct halves with different urgency:
+
+- **M#9-prereq** — Tasks 1–3 below: harness-skill-probe mechanism + `Step 4b.3 — Active bridge probe + activation` in the slash-command body + Step 7 report extension. This is the **bridge runtime** — the load-bearing primitive that M#10's `/brain spec` invocation of `ecc:plan-prd`/`plan`/`santa-loop` depends on.
+- **M#9-coverage** — Tasks 4–5 below: 8 new `detected/*` skills (vue/rails/flask/koa/hapi/gin/echo/fiber) + `expert_skills:` bridges for the four M#3d skills (react/typescript/python/go). Independent of M#10; can ship any time after M#9-prereq.
+
+**v0.2 master ordering**: M#12 → **M#9-prereq** → M#10 → M#11 → **M#9-coverage**. M#9-prereq ships before M#10 because M#10's spec verb needs the runtime; M#9-coverage ships last because it's bulk-work with no downstream dependency.
+
+M#9 is "complete" when both halves ship; "M#9-prereq complete" is a partial-ship intermediate state that the PRD v0.2 Roadmap should be able to represent.
+
 ## Summary
 
 v0.1.1 shipped the **declarative** bridge: `detected/*/SKILL.md` files declare `expert_skills:` arrays; `commands/brain.md` Step 4b.2 documents the contract; `skills/registry.json` carries the bridge targets. But the bridge is documentation-only today — when an agent ingests a NestJS file, the slash-command body INSTRUCTS the agent to "load ecc:nestjs-patterns if available" but provides no runtime mechanism to actually probe + load.
