@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# codebrain E2E install test. Pure structural validation; no LLM calls; <5s runtime.
+# graphbrain E2E install test. Pure structural validation; no LLM calls; <5s runtime.
 # Covers PRD Design Decisions #28, #31, #32, #33.
 
 set -u
 set -o pipefail
 
-# Locate the codebrain source directory (the parent of tests/).
+# Locate the graphbrain source directory (the parent of tests/).
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CODEBRAIN_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 CB="$CODEBRAIN_ROOT/bin/graphbrain.js"
@@ -13,8 +13,8 @@ CB="$CODEBRAIN_ROOT/bin/graphbrain.js"
 pass=0
 fail=0
 
-# Source the current codebrain version from package.json once, so per-release
-# bumps don't require touching test assertions. Used by T1 (.codebrain-version
+# Source the current graphbrain version from package.json once, so per-release
+# bumps don't require touching test assertions. Used by T1 (.graphbrain-version
 # scaffold), T1 (slash-command version marker), and T8 (CLI version output).
 CB_VERSION="$(node -p "require('$CODEBRAIN_ROOT/package.json').version")"
 
@@ -49,16 +49,16 @@ for f in index.md log.md overview.md decisions.md status.md; do
     || nope "T1: .brain/$f missing frontmatter"
 done
 
-# .codebrain-version marker (PRD #33)
-[ -f "$USER_REPO/.brain/.codebrain-version" ] && ok "T1: .codebrain-version marker present" || nope "T1: .codebrain-version missing"
-grep -qF "$CB_VERSION" "$USER_REPO/.brain/.codebrain-version" 2>/dev/null \
-  && ok "T1: .codebrain-version contains $CB_VERSION" \
-  || nope "T1: .codebrain-version content wrong (expected $CB_VERSION)"
+# .graphbrain-version marker (PRD #33)
+[ -f "$USER_REPO/.brain/.graphbrain-version" ] && ok "T1: .graphbrain-version marker present" || nope "T1: .graphbrain-version missing"
+grep -qF "$CB_VERSION" "$USER_REPO/.brain/.graphbrain-version" 2>/dev/null \
+  && ok "T1: .graphbrain-version contains $CB_VERSION" \
+  || nope "T1: .graphbrain-version content wrong (expected $CB_VERSION)"
 
 # Slash-command templates exist (top-level dispatcher).
 # Note (v1.0.0): the leading <!-- graphbrain vX.Y.Z --> comment was REMOVED so
 # Claude Code reads the YAML frontmatter starting on line 1 for the command-
-# palette description. Version lives in package.json + .brain/.codebrain-version.
+# palette description. Version lives in package.json + .brain/.graphbrain-version.
 for v in brain; do
   f="$USER_REPO/.claude/commands/$v.md"
   [ -f "$f" ] && ok "T1: .claude/commands/$v.md present" || nope "T1: .claude/commands/$v.md missing"
@@ -90,10 +90,10 @@ node -e "require('$sj')" 2>/dev/null && ok "T1: settings.local.json parses as JS
 # CLAUDE.md managed region
 cm="$USER_REPO/CLAUDE.md"
 [ -f "$cm" ] && ok "T1: CLAUDE.md created" || nope "T1: CLAUDE.md missing"
-grep -q '<!-- codebrain:begin -->' "$cm" 2>/dev/null && ok "T1: CLAUDE.md has begin marker" || nope "T1: CLAUDE.md missing begin marker"
-grep -q '<!-- codebrain:end -->' "$cm" 2>/dev/null && ok "T1: CLAUDE.md has end marker" || nope "T1: CLAUDE.md missing end marker"
+grep -q '<!-- graphbrain:begin -->' "$cm" 2>/dev/null && ok "T1: CLAUDE.md has begin marker" || nope "T1: CLAUDE.md missing begin marker"
+grep -q '<!-- graphbrain:end -->' "$cm" 2>/dev/null && ok "T1: CLAUDE.md has end marker" || nope "T1: CLAUDE.md missing end marker"
 
-# === Test 2: hooks ownership — non-codebrain hooks preserved =================
+# === Test 2: hooks ownership — non-graphbrain hooks preserved =================
 
 USER_REPO2="$(setup_user_repo)"
 mkdir -p "$USER_REPO2/.claude"
@@ -114,11 +114,11 @@ node -e "
   const userHook = arr.find(e => e.id === 'user:pre:my-hook');
   if (!userHook) { console.error('user hook missing'); process.exit(1); }
   process.exit(0);
-" 2>/dev/null && ok "T2: non-codebrain user:pre:my-hook preserved after init" || nope "T2: user hook lost"
+" 2>/dev/null && ok "T2: non-graphbrain user:pre:my-hook preserved after init" || nope "T2: user hook lost"
 
 # === Test 3: re-init non-duplication (idempotency) ===========================
 
-# Count codebrain-owned entries before and after a second init.
+# Count graphbrain-owned entries before and after a second init.
 USER_REPO3="$(setup_user_repo)"
 ( cd "$USER_REPO3" && HOME="$HOME" node "$CB" init >/dev/null 2>&1 )
 count_before=$(node -e "
@@ -126,7 +126,7 @@ count_before=$(node -e "
   const hooks = j.hooks || {};
   let n = 0;
   for (const k of Object.keys(hooks)) {
-    n += (hooks[k] || []).filter(e => e && typeof e.id === 'string' && e.id.startsWith('codebrain:')).length;
+    n += (hooks[k] || []).filter(e => e && typeof e.id === 'string' && e.id.startsWith('graphbrain:')).length;
   }
   console.log(n);
 " 2>/dev/null)
@@ -137,12 +137,12 @@ count_after=$(node -e "
   const hooks = j.hooks || {};
   let n = 0;
   for (const k of Object.keys(hooks)) {
-    n += (hooks[k] || []).filter(e => e && typeof e.id === 'string' && e.id.startsWith('codebrain:')).length;
+    n += (hooks[k] || []).filter(e => e && typeof e.id === 'string' && e.id.startsWith('graphbrain:')).length;
   }
   console.log(n);
 " 2>/dev/null)
 
-[ "$count_before" = "$count_after" ] && ok "T3: re-init does not duplicate codebrain hooks ($count_before == $count_after)" || nope "T3: hook count drifted ($count_before -> $count_after)"
+[ "$count_before" = "$count_after" ] && ok "T3: re-init does not duplicate graphbrain hooks ($count_before == $count_after)" || nope "T3: hook count drifted ($count_before -> $count_after)"
 
 # Second init should emit SKIP lines for most files.
 second_run="$(cd "$USER_REPO3" && HOME="$HOME" node "$CB" init 2>&1)"
@@ -174,8 +174,8 @@ rc=$?
 echo "$out" | grep -q "WARN" && ok "T6: init emits WARN when ~/.claude missing" || nope "T6: missing WARN for absent ~/.claude"
 
 # === Test 7: backup is written when init actually modifies a file ============
-# Seed with a STALE codebrain entry that init must remove — guaranteed write.
-# (A file with only non-codebrain hooks would be a no-op under idempotency, no .bak.)
+# Seed with a STALE graphbrain entry that init must remove — guaranteed write.
+# (A file with only non-graphbrain hooks would be a no-op under idempotency, no .bak.)
 
 USER_REPO7="$(setup_user_repo)"
 mkdir -p "$USER_REPO7/.claude"
@@ -184,7 +184,7 @@ cat > "$USER_REPO7/.claude/settings.local.json" <<'JSON'
   "hooks": {
     "PreToolUse": [
       { "matcher": "X", "hooks": [], "id": "user:foo" },
-      { "matcher": "Edit", "hooks": [], "id": "codebrain:stale-from-old-version" }
+      { "matcher": "Edit", "hooks": [], "id": "graphbrain:stale-from-old-version" }
     ]
   }
 }
@@ -192,30 +192,30 @@ JSON
 ( cd "$USER_REPO7" && HOME="$HOME" node "$CB" init >/dev/null 2>&1 )
 [ -f "$USER_REPO7/.claude/settings.local.json.bak" ] && ok "T7: .bak written when settings.local.json is modified" || nope "T7: .bak missing"
 
-# And confirm the stale codebrain entry was removed but the user entry survived.
+# And confirm the stale graphbrain entry was removed but the user entry survived.
 node -e "
   const j = require('$USER_REPO7/.claude/settings.local.json');
   const arr = (j.hooks && j.hooks.PreToolUse) || [];
-  const stale = arr.find(e => e.id === 'codebrain:stale-from-old-version');
+  const stale = arr.find(e => e.id === 'graphbrain:stale-from-old-version');
   const user = arr.find(e => e.id === 'user:foo');
-  if (stale) { console.error('stale codebrain entry not removed'); process.exit(1); }
+  if (stale) { console.error('stale graphbrain entry not removed'); process.exit(1); }
   if (!user) { console.error('user entry lost'); process.exit(1); }
   process.exit(0);
-" 2>/dev/null && ok "T7: stale codebrain entry removed, user entry survived" || nope "T7: ownership swap incorrect"
+" 2>/dev/null && ok "T7: stale graphbrain entry removed, user entry survived" || nope "T7: ownership swap incorrect"
 
 # === Test 8: CLI verbs =======================================================
 
 vers="$(node "$CB" version 2>&1)"
-[ "$vers" = "$CB_VERSION" ] && ok "T8: 'codebrain version' prints $CB_VERSION" || nope "T8: version output was '$vers' (expected $CB_VERSION)"
+[ "$vers" = "$CB_VERSION" ] && ok "T8: 'graphbrain version' prints $CB_VERSION" || nope "T8: version output was '$vers' (expected $CB_VERSION)"
 
 help_out="$(node "$CB" help 2>&1)"
-echo "$help_out" | grep -q 'codebrain' && ok "T8: 'codebrain help' prints usage" || nope "T8: help missing"
+echo "$help_out" | grep -q 'graphbrain' && ok "T8: 'graphbrain help' prints usage" || nope "T8: help missing"
 
 update_out="$(node "$CB" update 2>&1)"
-echo "$update_out" | grep -q 'not yet implemented' && ok "T8: 'codebrain update' prints deferred message" || nope "T8: update stub missing"
+echo "$update_out" | grep -q 'not yet implemented' && ok "T8: 'graphbrain update' prints deferred message" || nope "T8: update stub missing"
 
 uninstall_out="$(node "$CB" uninstall 2>&1)"
-echo "$uninstall_out" | grep -q 'not yet implemented' && ok "T8: 'codebrain uninstall' prints deferred message" || nope "T8: uninstall stub missing"
+echo "$uninstall_out" | grep -q 'not yet implemented' && ok "T8: 'graphbrain uninstall' prints deferred message" || nope "T8: uninstall stub missing"
 
 bogus_rc=$( ( node "$CB" bogus-verb >/dev/null 2>&1 ); echo $? )
 [ "$bogus_rc" -eq 1 ] && ok "T8: unknown verb exits 1" || nope "T8: unknown verb exit was $bogus_rc"
@@ -311,7 +311,7 @@ grep -q "Step 7 — Report" "$CODEBRAIN_ROOT/commands/brain/init.md" \
   && ok "T11: brain.md has Step 7 (Report)" \
   || nope "T11: brain.md missing Step 7"
 
-# === Test 12: (removed in v0.2.0 — /codebrain alias was dropped) ============
+# === Test 12: (removed in v0.2.0 — /graphbrain alias was dropped) ============
 
 
 # === Test 13: npm pack includes new M#2 templates ============================
@@ -528,7 +528,7 @@ grep -q "^tier: ingestion$" "$CODEBRAIN_ROOT/skills/ingestion/concept-extraction
   && ok "T16: concept-extraction is tier:ingestion" \
   || nope "T16: concept-extraction wrong tier"
 
-grep -q "behavioral/codebrain" "$CODEBRAIN_ROOT/skills/ingestion/concept-extraction/SKILL.md" \
+grep -q "behavioral/graphbrain" "$CODEBRAIN_ROOT/skills/ingestion/concept-extraction/SKILL.md" \
   && grep -q "ingestion/page-format" "$CODEBRAIN_ROOT/skills/ingestion/concept-extraction/SKILL.md" \
   && ok "T16: concept-extraction related_skills lists both expected siblings" \
   || nope "T16: concept-extraction related_skills missing expected entries"
@@ -735,69 +735,69 @@ head -1 "$CODEBRAIN_ROOT/scripts/hooks/verified-guard.js" | grep -q '^#!/usr/bin
 # bin/graphbrain.js hook verb dispatches
 hook_help="$(node "$CB" hook 2>&1)"
 echo "$hook_help" | grep -q 'stale-detect' \
-  && ok "T20: 'codebrain hook' help lists stale-detect" \
-  || nope "T20: 'codebrain hook' help missing stale-detect"
+  && ok "T20: 'graphbrain hook' help lists stale-detect" \
+  || nope "T20: 'graphbrain hook' help missing stale-detect"
 
 echo "$hook_help" | grep -q 'verified-guard' \
-  && ok "T20: 'codebrain hook' help lists verified-guard" \
-  || nope "T20: 'codebrain hook' help missing verified-guard"
+  && ok "T20: 'graphbrain hook' help lists verified-guard" \
+  || nope "T20: 'graphbrain hook' help missing verified-guard"
 
 bogus_rc=$( ( node "$CB" hook bogus-name </dev/null >/dev/null 2>&1 ); echo $? )
-[ "$bogus_rc" -eq 1 ] && ok "T20: 'codebrain hook bogus-name' exits 1" || nope "T20: bogus subcommand exit was $bogus_rc"
+[ "$bogus_rc" -eq 1 ] && ok "T20: 'graphbrain hook bogus-name' exits 1" || nope "T20: bogus subcommand exit was $bogus_rc"
 
 # Sanity: stale-detect in an empty dir with no .brain/ exits 0 silently
 empty_dir="$(mktemp -d)"
 rc=$( ( cd "$empty_dir" && echo '{"tool_input":{"file_path":"foo.ts"}}' | node "$CB" hook stale-detect >/dev/null 2>&1 ); echo $? )
-[ "$rc" -eq 0 ] && ok "T20: stale-detect in non-codebrain dir exits 0 silently" || nope "T20: stale-detect non-codebrain dir exit was $rc"
+[ "$rc" -eq 0 ] && ok "T20: stale-detect in non-graphbrain dir exits 0 silently" || nope "T20: stale-detect non-graphbrain dir exit was $rc"
 
 # Help text mentions hook
 help_out="$(node "$CB" help 2>&1)"
-echo "$help_out" | grep -q 'codebrain hook' \
-  && ok "T20: 'codebrain help' mentions hook verb" \
+echo "$help_out" | grep -q 'graphbrain hook' \
+  && ok "T20: 'graphbrain help' mentions hook verb" \
   || nope "T20: help missing hook verb"
 
-# === Test 21: M#4 — init.js writes the codebrain hook entries ================
+# === Test 21: M#4 — init.js writes the graphbrain hook entries ================
 
-# Run init in a tmpdir + verify settings.local.json gets the two codebrain entries
+# Run init in a tmpdir + verify settings.local.json gets the two graphbrain entries
 T21_REPO="$(setup_user_repo)"
 ( cd "$T21_REPO" && HOME="$HOME" node "$CB" init >/dev/null 2>&1 )
 
-# PreToolUse: codebrain:pre:verified-guard
+# PreToolUse: graphbrain:pre:verified-guard
 node -e "
   const j = require('$T21_REPO/.claude/settings.local.json');
   const pre = (j.hooks && j.hooks.PreToolUse) || [];
-  const guard = pre.find(e => e && e.id === 'codebrain:pre:verified-guard');
+  const guard = pre.find(e => e && e.id === 'graphbrain:pre:verified-guard');
   if (!guard) { console.error('verified-guard entry missing'); process.exit(1); }
   if (!guard.hooks || !guard.hooks[0] || !guard.hooks[0].command.includes('graphbrain hook verified-guard')) {
     console.error('verified-guard command wrong:', JSON.stringify(guard.hooks)); process.exit(1);
   }
   if (guard.matcher !== 'Edit|Write|MultiEdit') { console.error('verified-guard matcher wrong'); process.exit(1); }
   process.exit(0);
-" 2>/dev/null && ok "T21: settings.local.json has codebrain:pre:verified-guard with correct shape" || nope "T21: verified-guard entry incorrect"
+" 2>/dev/null && ok "T21: settings.local.json has graphbrain:pre:verified-guard with correct shape" || nope "T21: verified-guard entry incorrect"
 
-# PostToolUse: codebrain:post:stale-detect
+# PostToolUse: graphbrain:post:stale-detect
 node -e "
   const j = require('$T21_REPO/.claude/settings.local.json');
   const post = (j.hooks && j.hooks.PostToolUse) || [];
-  const stale = post.find(e => e && e.id === 'codebrain:post:stale-detect');
+  const stale = post.find(e => e && e.id === 'graphbrain:post:stale-detect');
   if (!stale) { console.error('stale-detect entry missing'); process.exit(1); }
   if (!stale.hooks[0].command.includes('graphbrain hook stale-detect')) {
     console.error('stale-detect command wrong'); process.exit(1);
   }
   process.exit(0);
-" 2>/dev/null && ok "T21: settings.local.json has codebrain:post:stale-detect with correct shape" || nope "T21: stale-detect entry incorrect"
+" 2>/dev/null && ok "T21: settings.local.json has graphbrain:post:stale-detect with correct shape" || nope "T21: stale-detect entry incorrect"
 
-# Re-init: no duplication of codebrain hooks
+# Re-init: no duplication of graphbrain hooks
 ( cd "$T21_REPO" && HOME="$HOME" node "$CB" init >/dev/null 2>&1 )
 codebrain_hook_count=$(node -e "
   const j = require('$T21_REPO/.claude/settings.local.json');
   const all = Object.values(j.hooks || {}).flat();
-  console.log(all.filter(e => e && typeof e.id === 'string' && e.id.startsWith('codebrain:')).length);
+  console.log(all.filter(e => e && typeof e.id === 'string' && e.id.startsWith('graphbrain:')).length);
 " 2>/dev/null)
-# M#7 added a 3rd codebrain hook (codebrain:pre:observe), so post-M#7 count is 3
-[ "$codebrain_hook_count" = "3" ] && ok "T21: re-init keeps exactly 3 codebrain hooks (no duplication; M#7 added observe to M#4's 2)" || nope "T21: codebrain hook count after re-init was $codebrain_hook_count (expected 3)"
+# M#7 added a 3rd graphbrain hook (graphbrain:pre:observe), so post-M#7 count is 3
+[ "$codebrain_hook_count" = "3" ] && ok "T21: re-init keeps exactly 3 graphbrain hooks (no duplication; M#7 added observe to M#4's 2)" || nope "T21: graphbrain hook count after re-init was $codebrain_hook_count (expected 3)"
 
-# Pre-existing non-codebrain hook + stale codebrain entry → init preserves non-codebrain + cleans codebrain
+# Pre-existing non-graphbrain hook + stale graphbrain entry → init preserves non-graphbrain + cleans graphbrain
 T21B_REPO="$(setup_user_repo)"
 mkdir -p "$T21B_REPO/.claude"
 cat > "$T21B_REPO/.claude/settings.local.json" <<'JSON'
@@ -805,7 +805,7 @@ cat > "$T21B_REPO/.claude/settings.local.json" <<'JSON'
   "hooks": {
     "PreToolUse": [
       { "matcher": "Bash", "hooks": [{ "type": "command", "command": "echo user" }], "id": "user:my-hook" },
-      { "matcher": "Edit", "hooks": [], "id": "codebrain:stale-from-old-version" }
+      { "matcher": "Edit", "hooks": [], "id": "graphbrain:stale-from-old-version" }
     ]
   }
 }
@@ -815,20 +815,20 @@ node -e "
   const j = require('$T21B_REPO/.claude/settings.local.json');
   const pre = (j.hooks && j.hooks.PreToolUse) || [];
   const user = pre.find(e => e.id === 'user:my-hook');
-  const stale = pre.find(e => e.id === 'codebrain:stale-from-old-version');
-  const guard = pre.find(e => e.id === 'codebrain:pre:verified-guard');
+  const stale = pre.find(e => e.id === 'graphbrain:stale-from-old-version');
+  const guard = pre.find(e => e.id === 'graphbrain:pre:verified-guard');
   if (!user) { console.error('user:my-hook lost'); process.exit(1); }
-  if (stale) { console.error('codebrain:stale-from-old-version not removed'); process.exit(1); }
-  if (!guard) { console.error('codebrain:pre:verified-guard not added'); process.exit(1); }
+  if (stale) { console.error('graphbrain:stale-from-old-version not removed'); process.exit(1); }
+  if (!guard) { console.error('graphbrain:pre:verified-guard not added'); process.exit(1); }
   process.exit(0);
-" 2>/dev/null && ok "T21: init preserves user hooks + removes stale codebrain entries + adds current" || nope "T21: id-prefix ownership broken"
+" 2>/dev/null && ok "T21: init preserves user hooks + removes stale graphbrain entries + adds current" || nope "T21: id-prefix ownership broken"
 
 # === Test 22: M#4 — hook script behavior on fixture .brain/ ==================
 
 # Fixture: a fake brain with one code page and one concept page referencing the source
 T22_DIR="$(mktemp -d)"
 mkdir -p "$T22_DIR/.brain/code/src" "$T22_DIR/.brain/concepts" "$T22_DIR/src"
-echo '0.1.0' > "$T22_DIR/.brain/.codebrain-version"
+echo '0.1.0' > "$T22_DIR/.brain/.graphbrain-version"
 echo 'export function foo() {}' > "$T22_DIR/src/auth.ts"
 
 # Fake code page (FRESH)
@@ -891,14 +891,14 @@ grep -q '^status: STALE$' "$T22_DIR/.brain/concepts/auth-flow.md" \
 # (b) stale-detect: untracked source → no changes
 T22B_DIR="$(mktemp -d)"
 mkdir -p "$T22B_DIR/.brain/code"
-echo '0.1.0' > "$T22B_DIR/.brain/.codebrain-version"
+echo '0.1.0' > "$T22B_DIR/.brain/.graphbrain-version"
 rc=$( ( cd "$T22B_DIR" && echo '{"tool_input":{"file_path":"src/other.ts"}}' | node "$CB" hook stale-detect >/dev/null 2>&1 ); echo $? )
 [ "$rc" -eq 0 ] && ok "T22: stale-detect on untracked source exits 0" || nope "T22: stale-detect untracked exit was $rc"
 
 # (c) verified-guard: VERIFIED page, no --force → exit 2
 T22C_DIR="$(mktemp -d)"
 mkdir -p "$T22C_DIR/.brain/code/src"
-echo '0.1.0' > "$T22C_DIR/.brain/.codebrain-version"
+echo '0.1.0' > "$T22C_DIR/.brain/.graphbrain-version"
 cat > "$T22C_DIR/.brain/code/src/locked.ts.md" <<'EOF'
 ---
 kind: code
@@ -929,7 +929,7 @@ rc=$( ( cd "$T22C_DIR" && echo '{"tool_input":{"file_path":"src/locked.ts"}}' | 
 # (f) verified-guard: FRESH page → exit 0
 T22F_DIR="$(mktemp -d)"
 mkdir -p "$T22F_DIR/.brain/code/src"
-echo '0.1.0' > "$T22F_DIR/.brain/.codebrain-version"
+echo '0.1.0' > "$T22F_DIR/.brain/.graphbrain-version"
 cat > "$T22F_DIR/.brain/code/src/free.ts.md" <<'EOF'
 ---
 kind: code
@@ -1448,30 +1448,30 @@ T34_REPO="$(setup_user_repo)"
 node -e "
   const j = require('$T34_REPO/.claude/settings.local.json');
   const pre = (j.hooks && j.hooks.PreToolUse) || [];
-  const observe = pre.find(e => e && e.id === 'codebrain:pre:observe');
+  const observe = pre.find(e => e && e.id === 'graphbrain:pre:observe');
   if (!observe) { console.error('observe entry missing'); process.exit(1); }
   if (observe.matcher !== '*') { console.error('observe matcher wrong:', observe.matcher); process.exit(1); }
   if (!observe.hooks[0].async) { console.error('observe not async'); process.exit(1); }
   if (!observe.hooks[0].command.includes('graphbrain hook observe')) { console.error('observe command wrong'); process.exit(1); }
   process.exit(0);
-" 2>/dev/null && ok "T34: settings.local.json has codebrain:pre:observe with correct shape" || nope "T34: observe entry incorrect"
+" 2>/dev/null && ok "T34: settings.local.json has graphbrain:pre:observe with correct shape" || nope "T34: observe entry incorrect"
 
-# Total codebrain hooks = 3 (verified-guard + stale-detect + observe)
+# Total graphbrain hooks = 3 (verified-guard + stale-detect + observe)
 total_cb_hooks=$(node -e "
   const j = require('$T34_REPO/.claude/settings.local.json');
   const all = [...(j.hooks.PreToolUse||[]), ...(j.hooks.PostToolUse||[])];
-  console.log(all.filter(e => e && typeof e.id === 'string' && e.id.startsWith('codebrain:')).length);
+  console.log(all.filter(e => e && typeof e.id === 'string' && e.id.startsWith('graphbrain:')).length);
 " 2>/dev/null)
-[ "$total_cb_hooks" = "3" ] && ok "T34: settings.local.json has exactly 3 codebrain hooks (verified-guard + stale-detect + observe)" || nope "T34: codebrain hook count was $total_cb_hooks (expected 3)"
+[ "$total_cb_hooks" = "3" ] && ok "T34: settings.local.json has exactly 3 graphbrain hooks (verified-guard + stale-detect + observe)" || nope "T34: graphbrain hook count was $total_cb_hooks (expected 3)"
 
 # Re-init: still 3 (no duplication)
 ( cd "$T34_REPO" && HOME="$HOME" node "$CB" init >/dev/null 2>&1 )
 total_after=$(node -e "
   const j = require('$T34_REPO/.claude/settings.local.json');
   const all = [...(j.hooks.PreToolUse||[]), ...(j.hooks.PostToolUse||[])];
-  console.log(all.filter(e => e && typeof e.id === 'string' && e.id.startsWith('codebrain:')).length);
+  console.log(all.filter(e => e && typeof e.id === 'string' && e.id.startsWith('graphbrain:')).length);
 " 2>/dev/null)
-[ "$total_after" = "3" ] && ok "T34: re-init keeps exactly 3 codebrain hooks (no duplication)" || nope "T34: re-init count was $total_after"
+[ "$total_after" = "3" ] && ok "T34: re-init keeps exactly 3 graphbrain hooks (no duplication)" || nope "T34: re-init count was $total_after"
 
 # === Test 35: M#7 — observe hook + learn/status procedures =================
 
@@ -1490,24 +1490,24 @@ head -1 "$CODEBRAIN_ROOT/scripts/hooks/observe.js" | grep -q '^#!/usr/bin/env no
 # CLI dispatches the new subcommand
 hook_help="$(node "$CB" hook 2>&1)"
 echo "$hook_help" | grep -q 'observe' \
-  && ok "T35: 'codebrain hook' help lists observe" \
-  || nope "T35: 'codebrain hook' help missing observe"
+  && ok "T35: 'graphbrain hook' help lists observe" \
+  || nope "T35: 'graphbrain hook' help missing observe"
 
 # Fixture: observe is silent when toggle is off
 T35_DIR="$(mktemp -d)"
 mkdir -p "$T35_DIR/.brain"
-echo '0.1.0' > "$T35_DIR/.brain/.codebrain-version"
+echo '0.1.0' > "$T35_DIR/.brain/.graphbrain-version"
 # No toggle file → default off → observe should exit silently with no observations file
 rc=$( ( cd "$T35_DIR" && echo '{"tool_name":"Edit","tool_input":{"file_path":"src/test.ts"}}' | node "$CB" hook observe 2>/dev/null ); echo $? )
 [ "$rc" -eq 0 ] && ok "T35: observe exits 0 when toggle missing (default off)" || nope "T35: observe exit was $rc (expected 0)"
 
 # Fixture: observe is silent when toggle is "off"
-echo 'off' > "$T35_DIR/.brain/.codebrain-learn-state"
+echo 'off' > "$T35_DIR/.brain/.graphbrain-learn-state"
 rc=$( ( cd "$T35_DIR" && echo '{"tool_name":"Edit","tool_input":{"file_path":"src/test.ts"}}' | node "$CB" hook observe 2>/dev/null ); echo $? )
 [ "$rc" -eq 0 ] && ok "T35: observe exits 0 when toggle off" || nope "T35: observe off exit was $rc"
 
 # Fixture: observe records when toggle is "on"
-echo 'on' > "$T35_DIR/.brain/.codebrain-learn-state"
+echo 'on' > "$T35_DIR/.brain/.graphbrain-learn-state"
 ( cd "$T35_DIR" && echo '{"tool_name":"Edit","tool_input":{"file_path":"src/test.ts"}}' | node "$CB" hook observe >/dev/null 2>&1 )
 ( cd "$T35_DIR" && echo '{"tool_name":"Read","tool_input":{"file_path":"src/other.ts"}}' | node "$CB" hook observe >/dev/null 2>&1 )
 
@@ -1681,8 +1681,8 @@ grep -qF '# llms.txt — agent-readable site map' "$USER_REPO/.brain/llms.txt" \
   && ok "T37: llms.txt declares AEO convention in header" \
   || nope "T37: llms.txt header missing AEO declaration"
 
-grep -qF '# codebrain v' "$USER_REPO/.brain/llms.txt" \
-  && ok "T37: llms.txt header has codebrain version line" \
+grep -qF '# graphbrain v' "$USER_REPO/.brain/llms.txt" \
+  && ok "T37: llms.txt header has graphbrain version line" \
   || nope "T37: llms.txt missing version line"
 
 grep -qF '## Top-level' "$USER_REPO/.brain/llms.txt" \
@@ -1807,7 +1807,7 @@ for v in brain; do
     || nope "T39: $v/ingest.md missing portability rationale"
 done
 
-# Alias parity — brain/ingest.md and codebrain/ingest.md byte-identical
+# Alias parity — brain/ingest.md and graphbrain/ingest.md byte-identical
 
 # === Test 40: M#10a — /brain spec verb (spec-orchestrator agent + spec skill + spec.md per-verb) ===
 
@@ -1859,7 +1859,7 @@ grep -qF 'M#9-prereq' "$CODEBRAIN_ROOT/skills/core/spec/SKILL.md" \
   && ok "T40: core/spec SKILL.md cites M#9-prereq bridge dependency" \
   || nope "T40: core/spec SKILL.md missing M#9-prereq reference"
 
-# Per-verb spec.md exists in both brain/ and codebrain/
+# Per-verb spec.md exists in both brain/ and graphbrain/
 for v in brain; do
   test -f "$CODEBRAIN_ROOT/commands/$v/spec.md" \
     && ok "T40: commands/$v/spec.md exists" \
@@ -1894,7 +1894,7 @@ grep -qF "'init', \`ingest\`, \`query\`, \`lint\`, \`learn\`, \`status\`, \`spec
   && ok "T40: brain.md legacy dispatcher knows 'spec' verb" \
   || nope "T40: brain.md legacy dispatcher missing 'spec' in verb list"
 
-# Alias parity — brain/spec.md and codebrain/spec.md byte-identical
+# Alias parity — brain/spec.md and graphbrain/spec.md byte-identical
 
 # npm pack ships the new files
 pack_list="$(cd "$CODEBRAIN_ROOT" && npm pack --dry-run 2>&1)"
@@ -2059,31 +2059,31 @@ echo "$pack_list_t42" | grep -q 'skills/behavioral/wiki-reading-principles/SKILL
 
 # === Test 43: M#10c — intent-routing behavioral update ======================
 
-# behavioral/codebrain SKILL.md has the new section
-grep -qF '## Prompt-intent routing (M#10c)' "$CODEBRAIN_ROOT/skills/behavioral/codebrain/SKILL.md" \
-  && ok "T43: behavioral/codebrain has Prompt-intent routing section" \
-  || nope "T43: behavioral/codebrain missing Prompt-intent routing section"
+# behavioral/graphbrain SKILL.md has the new section
+grep -qF '## Prompt-intent routing (M#10c)' "$CODEBRAIN_ROOT/skills/behavioral/graphbrain/SKILL.md" \
+  && ok "T43: behavioral/graphbrain has Prompt-intent routing section" \
+  || nope "T43: behavioral/graphbrain missing Prompt-intent routing section"
 
 # Default is OFF (safety-critical — must be opt-in)
-grep -qF '**Default: OFF.**' "$CODEBRAIN_ROOT/skills/behavioral/codebrain/SKILL.md" \
+grep -qF '**Default: OFF.**' "$CODEBRAIN_ROOT/skills/behavioral/graphbrain/SKILL.md" \
   && ok "T43: intent routing default is OFF (opt-in)" \
   || nope "T43: intent routing default not declared OFF"
 
-# Toggle file is .brain/.codebrain-intent-routing-state
-grep -qF '.brain/.codebrain-intent-routing-state' "$CODEBRAIN_ROOT/skills/behavioral/codebrain/SKILL.md" \
-  && ok "T43: intent routing toggle file is .codebrain-intent-routing-state" \
+# Toggle file is .brain/.graphbrain-intent-routing-state
+grep -qF '.brain/.graphbrain-intent-routing-state' "$CODEBRAIN_ROOT/skills/behavioral/graphbrain/SKILL.md" \
+  && ok "T43: intent routing toggle file is .graphbrain-intent-routing-state" \
   || nope "T43: intent routing toggle file path missing"
 
 # Feature-intent verbs listed
 for verb in 'add' 'build' 'create' 'implement' "let me" "we should"; do
-  grep -qF "\`$verb\`" "$CODEBRAIN_ROOT/skills/behavioral/codebrain/SKILL.md" \
+  grep -qF "\`$verb\`" "$CODEBRAIN_ROOT/skills/behavioral/graphbrain/SKILL.md" \
     && ok "T43: intent routing detects '$verb' verb" \
     || nope "T43: intent routing missing '$verb' verb"
 done
 
 # Operator overrides documented
 for ovr in 'just do it' 'skip the spec' 'no-spec'; do
-  grep -qF -- "$ovr" "$CODEBRAIN_ROOT/skills/behavioral/codebrain/SKILL.md" \
+  grep -qF -- "$ovr" "$CODEBRAIN_ROOT/skills/behavioral/graphbrain/SKILL.md" \
     && ok "T43: intent routing documents '$ovr' override" \
     || nope "T43: intent routing missing '$ovr' override"
 done
@@ -2093,7 +2093,7 @@ grep -qF 'Intent routing:' "$CODEBRAIN_ROOT/commands/brain/status.md" \
   && ok "T43: brain/status.md surfaces Intent routing state" \
   || nope "T43: brain/status.md missing Intent routing line"
 
-grep -qF '.codebrain-intent-routing-state' "$CODEBRAIN_ROOT/commands/brain/status.md" \
+grep -qF '.graphbrain-intent-routing-state' "$CODEBRAIN_ROOT/commands/brain/status.md" \
   && ok "T43: brain/status.md reads the intent-routing toggle file" \
   || nope "T43: brain/status.md doesn't reference toggle file"
 
@@ -2102,12 +2102,12 @@ grep -qF '.codebrain-intent-routing-state' "$CODEBRAIN_ROOT/commands/brain/statu
 # init.js does NOT create the toggle file (default off = file absent)
 T43_DIR="$(mktemp -d)"
 ( cd "$T43_DIR" && git init -q && node "$CB" init >/dev/null 2>&1 )
-[ ! -f "$T43_DIR/.brain/.codebrain-intent-routing-state" ] \
-  && ok "T43: init does NOT scaffold .codebrain-intent-routing-state (default off via absence)" \
-  || nope "T43: init unexpectedly created .codebrain-intent-routing-state"
+[ ! -f "$T43_DIR/.brain/.graphbrain-intent-routing-state" ] \
+  && ok "T43: init does NOT scaffold .graphbrain-intent-routing-state (default off via absence)" \
+  || nope "T43: init unexpectedly created .graphbrain-intent-routing-state"
 
 # Suggestion-text uses /brain:spec (namespaced form per M#12)
-grep -qF '/brain:spec' "$CODEBRAIN_ROOT/skills/behavioral/codebrain/SKILL.md" \
+grep -qF '/brain:spec' "$CODEBRAIN_ROOT/skills/behavioral/graphbrain/SKILL.md" \
   && ok "T43: intent routing suggests /brain:spec (namespaced form)" \
   || nope "T43: intent routing missing /brain:spec reference"
 
@@ -2242,11 +2242,11 @@ grep -qF 'creds`' "$CODEBRAIN_ROOT/commands/brain.md" \
   || nope "T44: brain.md legacy dispatcher missing 'creds'"
 
 # M#11c — behavioral integration
-grep -qF 'Credential-handling protocol (M#11c)' "$CODEBRAIN_ROOT/skills/behavioral/codebrain/SKILL.md" \
-  && ok "T44: behavioral/codebrain has Credential-handling protocol section" \
-  || nope "T44: behavioral/codebrain missing Credential-handling protocol"
+grep -qF 'Credential-handling protocol (M#11c)' "$CODEBRAIN_ROOT/skills/behavioral/graphbrain/SKILL.md" \
+  && ok "T44: behavioral/graphbrain has Credential-handling protocol section" \
+  || nope "T44: behavioral/graphbrain missing Credential-handling protocol"
 
-grep -qF '/brain:creds' "$CODEBRAIN_ROOT/skills/behavioral/codebrain/SKILL.md" \
+grep -qF '/brain:creds' "$CODEBRAIN_ROOT/skills/behavioral/graphbrain/SKILL.md" \
   && ok "T44: Credential-handling protocol references /brain:creds (namespaced form)" \
   || nope "T44: Credential-handling protocol missing /brain:creds reference"
 

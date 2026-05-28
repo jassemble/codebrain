@@ -4,7 +4,7 @@ description: Read source files → write LLM-authored .brain/ wiki pages. Accept
 
 ## When `$ARGUMENTS` starts with `ingest <file>`
 
-You are the codebrain ingester (see `agents/brain/ingester.md` for your full persona + Rules; the Rules apply throughout this procedure). Run the procedure exactly. If any step's preconditions fail, emit a clear error and stop — do not improvise.
+You are the graphbrain ingester (see `agents/brain/ingester.md` for your full persona + Rules; the Rules apply throughout this procedure). Run the procedure exactly. If any step's preconditions fail, emit a clear error and stop — do not improvise.
 
 **Step 0 — Argument parsing + path guards**:
 
@@ -14,17 +14,17 @@ You are the codebrain ingester (see `agents/brain/ingester.md` for your full per
 - **Symlink guard**: if the resolved path is a symlink (use `Bash: test -L <path>`), print `error: refused — symlinks not supported in v0.1; pass the target path directly` and stop.
 - If the resolved path is a directory: print `Milestone #3b (folder ingest) — not yet implemented in v0.1. Pass a single file path: /brain ingest src/auth.ts` and stop.
 - If the resolved path does not exist: print `error: file not found: <path>` and stop.
-- **Binary-file guard**: check the file extension against the blocklist `[.png, .jpg, .jpeg, .gif, .webp, .pdf, .exe, .bin, .so, .dylib, .o, .a, .zip, .tar, .tgz, .gz, .mp4, .mp3, .wav, .ico, .ttf, .woff, .woff2]`. If matched, print `error: refused — <path> looks like a binary file (extension <ext>); codebrain ingests text source files only` and stop. Additionally, read the first 1024 bytes; if a null byte is present, treat as binary and refuse with the same message.
+- **Binary-file guard**: check the file extension against the blocklist `[.png, .jpg, .jpeg, .gif, .webp, .pdf, .exe, .bin, .so, .dylib, .o, .a, .zip, .tar, .tgz, .gz, .mp4, .mp3, .wav, .ico, .ttf, .woff, .woff2]`. If matched, print `error: refused — <path> looks like a binary file (extension <ext>); graphbrain ingests text source files only` and stop. Additionally, read the first 1024 bytes; if a null byte is present, treat as binary and refuse with the same message.
 
 **Step 1 — Preconditions**:
 
 - Verify `.brain/` exists in cwd. If not, print:
   ```
   error: .brain/ not found in this repo.
-  Run `npx codebrain init` first to scaffold the skeleton, then re-run /brain ingest.
+  Run `npx graphbrain init` first to scaffold the skeleton, then re-run /brain ingest.
   ```
   and stop.
-- Read `.brain/.codebrain-version` to confirm M#1's scaffold is present.
+- Read `.brain/.graphbrain-version` to confirm M#1's scaffold is present.
 
 **Step 2 — Read inputs**:
 
@@ -225,11 +225,11 @@ Skip Step 4b entirely if no detected/* skill matches this source file. The gener
 
 After resolving which `detected/*` skills apply for this source file, check each matched skill's `expert_skills:` field in `skills/registry.json`. For every named expert skill:
 
-1. **Probe availability**: check whether the named skill (e.g., `ecc:nestjs-patterns`, `ecc:django-patterns`, `ecc:springboot-patterns`) is available in the current harness. The ECC plugin ships many of these; codebrain does NOT vendor or re-implement them — it bridges to them.
+1. **Probe availability**: check whether the named skill (e.g., `ecc:nestjs-patterns`, `ecc:django-patterns`, `ecc:springboot-patterns`) is available in the current harness. The ECC plugin ships many of these; graphbrain does NOT vendor or re-implement them — it bridges to them.
 2. **If available**: load that expert skill and apply its code-writing / code-reviewing guidance throughout this ingest (and throughout any code-writing the agent does in this repo after ingest). The expert skill's patterns become the codebase's idiomatic conventions for the agent.
-3. **If unavailable**: proceed without that expert skill; the page still gets the codebrain-side extras above. The agent works without framework-expert guidance for this stack. Document in the report which `expert_skills:` were declared but unavailable.
+3. **If unavailable**: proceed without that expert skill; the page still gets the graphbrain-side extras above. The agent works without framework-expert guidance for this stack. Document in the report which `expert_skills:` were declared but unavailable.
 
-The bridge is the load-bearing v0.1.1 architectural contract: codebrain detects stacks + ships the page-format extras; ECC (or another expert-skill source) provides the code-writing expertise. No duplication.
+The bridge is the load-bearing v0.1.1 architectural contract: graphbrain detects stacks + ships the page-format extras; ECC (or another expert-skill source) provides the code-writing expertise. No duplication.
 
 Currently shipped `detected/*` skills with `expert_skills:` declarations (post-v0.1.1):
 
@@ -269,7 +269,7 @@ Operationalizes the declarative contract from Step 4b.2. For each matched `detec
 5. **Idempotency + caching**: if the same `<vendor>:<skill-name>` appears in multiple `detected/*` matches (e.g., a `.ts` file in a NestJS project loads both `detected/nestjs` and `detected/typescript`, and both list `ecc:typescript-patterns`), probe + load it ONCE. Dedupe by the colon-separated key.
 
 6. **Failure modes**:
-   - Bash unavailable (rare): skip Step 4b.3 entirely; add a single `bridges_unavailable: [all (Bash unavailable for probe)]` entry to the report; continue with the codebrain-side extras only.
+   - Bash unavailable (rare): skip Step 4b.3 entirely; add a single `bridges_unavailable: [all (Bash unavailable for probe)]` entry to the report; continue with the graphbrain-side extras only.
    - Probe path resolves but Read fails (permission denied, broken symlink): treat as unavailable for that entry; log a one-line warning in the report (`bridges_unavailable: <key> (path exists but Read failed: <reason>)`); continue.
 
 7. **Never** invoke the skill via a Skill() tool call — the probe-and-Read pattern is intentionally portable across harnesses that do not expose cross-plugin Skill() invocation. Reading the SKILL.md body and treating it as authoritative is the load-bearing primitive.
@@ -302,7 +302,7 @@ Operationalizes the declarative contract from Step 4b.2. For each matched `detec
 Print exactly:
 
 ```
-/brain ingest complete (codebrain v<version-from-.codebrain-version>)
+/brain ingest complete (graphbrain v<version-from-.graphbrain-version>)
   Source:        <source-path>
   Page:          .brain/code/<source-path>.md (~<token-count> tokens)
   Source hash:   <prefixed hash>
@@ -333,8 +333,8 @@ You are orchestrating a folder ingest. Run the M#3a ingester per file, then invo
 
 **Step 1 — Preconditions**:
 
-- Verify `.brain/` exists in cwd. If not, print the same `npx codebrain init` first message as M#3a Step 1.
-- Read `.brain/.codebrain-version` to confirm M#1's scaffold is present.
+- Verify `.brain/` exists in cwd. If not, print the same `npx graphbrain init` first message as M#3a Step 1.
+- Read `.brain/.graphbrain-version` to confirm M#1's scaffold is present.
 
 **Step 2 — Walk the folder**:
 
@@ -368,7 +368,7 @@ You are orchestrating a folder ingest. Run the M#3a ingester per file, then invo
 **Step 7 — Final report**:
 
 ```
-/brain ingest <folder> complete (codebrain v<version>)
+/brain ingest <folder> complete (graphbrain v<version>)
   Files found:    <total before filter>
   Files filtered: <count after filter>
   Ingested:       <ingested.length> ([<one path per line>])
@@ -384,7 +384,7 @@ If linker emitted partial-completion warning (because per-file failures), includ
 
 ## Linker procedure (invoked after folder ingest)
 
-You are the codebrain **linker** (see `agents/brain/linker.md` for your full persona + Rules; the Rules apply throughout). This procedure runs at Step 6 of the folder-ingest procedure, with the list of ingested code-page paths.
+You are the graphbrain **linker** (see `agents/brain/linker.md` for your full persona + Rules; the Rules apply throughout). This procedure runs at Step 6 of the folder-ingest procedure, with the list of ingested code-page paths.
 
 **L1 — Load inputs**:
 
@@ -494,7 +494,7 @@ WARNING: linker analyzed <M> of <N> requested files; concepts may be missing sou
 
 ## When `$ARGUMENTS` is just `ingest`
 
-You are the codebrain **planner** (see `agents/brain/planner.md` for your full persona + Rules; orchestrate, do not write). The operator invoked `/brain ingest` with no path argument. Run this procedure exactly.
+You are the graphbrain **planner** (see `agents/brain/planner.md` for your full persona + Rules; orchestrate, do not write). The operator invoked `/brain ingest` with no path argument. Run this procedure exactly.
 
 **T0 — Argument parsing**:
 
@@ -503,7 +503,7 @@ You are the codebrain **planner** (see `agents/brain/planner.md` for your full p
 
 **T1 — Preconditions**:
 
-- Verify `.brain/` exists; `.brain/.codebrain-version` is present. If not, error and tell the operator to run `npx codebrain init` first.
+- Verify `.brain/` exists; `.brain/.graphbrain-version` is present. If not, error and tell the operator to run `npx graphbrain init` first.
 - Verify `.brain/overview.md` exists. If it's missing or appears unpopulated (`status: UNENRICHED`), print:
   ```
   WARN: .brain/overview.md isn't populated. Stack detection results aren't cached.
@@ -535,7 +535,7 @@ A file matches the FIRST tier whose glob set it satisfies (precedence: 1 → 2 �
 **T5 — Present plan**:
 
 ```
-Codebrain tiered ingest plan (codebrain v<version>)
+Graphbrain tiered ingest plan (graphbrain v<version>)
   Detected stack: <comma-separated list>
 
   Tier  Files  Cost(~)  Locations (top entries)
@@ -571,7 +571,7 @@ For each tier:
 **T7 — Final report**:
 
 ```
-/brain ingest (tiered) complete (codebrain v<version>)
+/brain ingest (tiered) complete (graphbrain v<version>)
   Detected stack: <comma-separated list>
 
   Tier 1: <ingested>/<filtered> ingested, <skipped> skipped (unchanged), <failed> failed

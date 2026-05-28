@@ -13,7 +13,7 @@ You are operating the continuous-learning subsystem (see `agents/observers/obser
 **Le1 — Preconditions**:
 
 - Verify `.brain/` exists in cwd. If not, print the same npx-init message as M#3a Step 1 and stop.
-- Verify `.brain/.codebrain-version` is present.
+- Verify `.brain/.graphbrain-version` is present.
 
 **Le2 — Dispatch**:
 
@@ -28,33 +28,33 @@ You are operating the continuous-learning subsystem (see `agents/observers/obser
 
 1. Print the privacy notice EXACTLY (verbatim — operators rely on this):
    ```
-   [Privacy notice — codebrain v<version>]
-   Codebrain will now collect minimal observations of your tool use in this repo:
+   [Privacy notice — graphbrain v<version>]
+   Graphbrain will now collect minimal observations of your tool use in this repo:
      - Captured fields: timestamp, tool name, relative path (if applicable), status
      - NOT captured: tool outputs, prompts, file contents, stderr, stdout
-     - Storage: <XDG_DATA_HOME or ~/.local/share>/codebrain/projects/<git-hash>/observations.jsonl
+     - Storage: <XDG_DATA_HOME or ~/.local/share>/graphbrain/projects/<git-hash>/observations.jsonl
      - Disable anytime: /brain learn off
    ```
-2. Atomic-write `.brain/.codebrain-learn-state` with content `on\n` (use `Bash: printf "on\n" > .brain/.codebrain-learn-state`).
+2. Atomic-write `.brain/.graphbrain-learn-state` with content `on\n` (use `Bash: printf "on\n" > .brain/.graphbrain-learn-state`).
 3. Append to `.brain/log.md`:
    ```
    ## [YYYY-MM-DD] learn | toggled on
    ```
-4. Print: `Toggle written: .brain/.codebrain-learn-state = on`
+4. Print: `Toggle written: .brain/.graphbrain-learn-state = on`
 
 ---
 
 **Le4 — `learn off` (toggle off)**:
 
-1. Atomic-write `.brain/.codebrain-learn-state` with content `off\n`.
+1. Atomic-write `.brain/.graphbrain-learn-state` with content `off\n`.
 2. Append to `.brain/log.md`:
    ```
    ## [YYYY-MM-DD] learn | toggled off
    ```
 3. Print:
    ```
-   Toggle written: .brain/.codebrain-learn-state = off
-   Existing observations and instincts in ~/.local/share/codebrain/projects/<hash>/ are preserved.
+   Toggle written: .brain/.graphbrain-learn-state = off
+   Existing observations and instincts in ~/.local/share/graphbrain/projects/<hash>/ are preserved.
    To purge them, manually delete that directory.
    ```
 
@@ -63,12 +63,12 @@ You are operating the continuous-learning subsystem (see `agents/observers/obser
 **Le5 — `learn status` (per-project learn dashboard)**:
 
 1. Read toggle state (`on`/`off`/`missing`).
-2. Read `<XDG>/projects/<git-hash>/observations.jsonl` via `Bash: cat ~/.local/share/codebrain/projects/$(... project hash computation ...)/observations.jsonl 2>/dev/null` — count lines (= observation count).
+2. Read `<XDG>/projects/<git-hash>/observations.jsonl` via `Bash: cat ~/.local/share/graphbrain/projects/$(... project hash computation ...)/observations.jsonl 2>/dev/null` — count lines (= observation count).
 3. Read `<XDG>/projects/<git-hash>/instincts.jsonl` similarly — count lines (= instinct count).
 4. Compute top 5 patterns from instincts (sort by frequency desc; take 5).
 5. Print:
    ```
-   /brain learn status (codebrain v<version>)
+   /brain learn status (graphbrain v<version>)
      Toggle:             <on | off | missing (default off)>
      Observations:       <count> (since <oldest ts as YYYY-MM-DD>)
      Instincts:          <count>
@@ -85,7 +85,7 @@ You are operating the continuous-learning subsystem (see `agents/observers/obser
 
 You are now acting as the observer agent. Follow the observer's procedure exactly:
 
-1. **Toggle check**: read `.brain/.codebrain-learn-state`. If NOT `on`: print `error: cannot consolidate while toggle is off or missing. Run /brain learn on first.` and stop.
+1. **Toggle check**: read `.brain/.graphbrain-learn-state`. If NOT `on`: print `error: cannot consolidate while toggle is off or missing. Run /brain learn on first.` and stop.
 
 2. **Read observations**: load `<XDG>/projects/<git-hash>/observations.jsonl` via `Bash` + a small Node one-liner that uses `scripts/hooks/lib/observations.readObservations(cwd)`. Get an array of records.
 

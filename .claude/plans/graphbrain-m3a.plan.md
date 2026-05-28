@@ -1,12 +1,12 @@
-# Plan: codebrain — Milestone #3a (Single-file ingest, end-to-end loop)
+# Plan: graphbrain — Milestone #3a (Single-file ingest, end-to-end loop)
 
-**Source PRD**: `.claude/prds/codebrain.prd.md`
+**Source PRD**: `.claude/prds/graphbrain.prd.md`
 **Selected Milestone**: #3a — first sub-step of the 3-way split of original M#3 (Ingest pipeline)
-**Complexity**: Medium — first writer agent in codebrain; introduces a new tier (ingestion); pure-LLM ingest (no AST per PRD #5); deliberately scope-locked to single-file to prove the architecture before scaling
+**Complexity**: Medium — first writer agent in graphbrain; introduces a new tier (ingestion); pure-LLM ingest (no AST per PRD #5); deliberately scope-locked to single-file to prove the architecture before scaling
 
 ## Summary
 
-Prove the end-to-end ingest loop on the smallest possible input: `/brain ingest src/auth.ts` → ingester agent reads the file → writes a folder-mirrored code page at `.brain/code/src/auth.ts.md` using a verbatim template → updates `index.md`, `log.md`, `status.md`. Multi-file/folder ingest (M#3b) and tiered auto-prioritize (M#3c) are deferred. This milestone establishes the first writer agent in codebrain — locking in the dual-layer guardrails pattern (agent self-rules now; structural PreToolUse hook lands in M#4) that every subsequent writer agent (linker M#3b, verifier M#6) will copy.
+Prove the end-to-end ingest loop on the smallest possible input: `/brain ingest src/auth.ts` → ingester agent reads the file → writes a folder-mirrored code page at `.brain/code/src/auth.ts.md` using a verbatim template → updates `index.md`, `log.md`, `status.md`. Multi-file/folder ingest (M#3b) and tiered auto-prioritize (M#3c) are deferred. This milestone establishes the first writer agent in graphbrain — locking in the dual-layer guardrails pattern (agent self-rules now; structural PreToolUse hook lands in M#4) that every subsequent writer agent (linker M#3b, verifier M#6) will copy.
 
 ## Patterns to Mirror
 
@@ -22,8 +22,8 @@ Prove the end-to-end ingest loop on the smallest possible input: `/brain ingest 
 | Error recovery | PRD #26 (locked) | Tier 1: retry once with fresh context; Tier 2: emit structured `blocked: ingester couldn't complete <task>. Reason: <why>. Operator action: <what>.` and stop |
 
 **Patterns we are NOT mirroring (intentional):**
-- graphbrain's `brain-ingester` AGENT.md is a useful reference (it has a similar 5-phase procedure) but its `.ctx/` paths and conventions differ from codebrain's `.brain/` — adapt, don't copy.
-- ECC's `tdd-guide` and other writer agents — those operate on user source code; codebrain's ingester writes only to `.brain/` and is therefore much narrower.
+- graphbrain's `brain-ingester` AGENT.md is a useful reference (it has a similar 5-phase procedure) but its `.ctx/` paths and conventions differ from graphbrain's `.brain/` — adapt, don't copy.
+- ECC's `tdd-guide` and other writer agents — those operate on user source code; graphbrain's ingester writes only to `.brain/` and is therefore much narrower.
 - No AST helper (PRD #5 locks pure-LLM); if precision is poor on dogfood, the fix is better prompts / multi-pass / a wikilink-resolver agent — not external extraction.
 - Concept pages, cross-page wikilinks, multi-file batching — all deferred to M#3b (need 2+ pages first to be meaningful).
 
@@ -52,9 +52,9 @@ Five polish items also folded in:
 | `skills/ingestion/page-format/SKILL.md` | CREATE | The skill that defines what a `.brain/code/*.md` page **must** contain — frontmatter spec, required sections, wikilink rules. Tier: `ingestion` (loaded during `/brain ingest` per PRD #21) |
 | `skills/ingestion/page-format/templates/code-page.md` | CREATE | The verbatim template the ingester reads and fills in. Sections: Purpose, Exports, Imports, Key behaviors, Cross-references. Each section prefaced with `<!-- AGENT: ... -->` instruction comments. |
 | `commands/brain.md` | UPDATE | Replace the `ingest` row in the dispatch table with full agent instructions (single-file case only); folder + no-arg cases stay stubbed with explicit "coming in M#3b/c" pointers |
-| `commands/codebrain.md` | UPDATE | Mirror brain.md changes (alias parity) |
+| `commands/graphbrain.md` | UPDATE | Mirror brain.md changes (alias parity) |
 | `tests/e2e-test.sh` | UPDATE | Add T14 (agent + skill + template structural assertions, alias parity, npm pack inclusion) and T15 (ingest verb wiring: single-file no longer stubbed; folder and no-arg still stubbed with the right pointer) |
-| `.claude/prds/codebrain.prd.md` | UPDATE | Split M#3 row into M#3a/M#3b/M#3c; mark M#3a `in-progress` with link to this plan; downstream rows (4–8) unchanged |
+| `.claude/prds/graphbrain.prd.md` | UPDATE | Split M#3 row into M#3a/M#3b/M#3c; mark M#3a `in-progress` with link to this plan; downstream rows (4–8) unchanged |
 
 **Files explicitly NOT touched in Milestone #3a:**
 - `agents/brain/linker.md`, `agents/brain/verifier.md` — Milestones #3b, #6
@@ -86,7 +86,7 @@ Five polish items also folded in:
   ---
   ```
   Body sections (per `agents/README.md` convention):
-  - One-paragraph persona ("You are the codebrain ingester. Read a single source file and produce a structured wiki page about it.")
+  - One-paragraph persona ("You are the graphbrain ingester. Read a single source file and produce a structured wiki page about it.")
   - **Prompt-defense reference** (PRD #20): single line: `Read the Prompt Defense Baseline section of CLAUDE.md before acting.`
   - **When to activate** — invoked by `/brain ingest <file>` or matched trigger phrases above
   - **Inputs you receive** — a single source-file path; the page-format skill (loaded by tier) defines the output contract
@@ -101,7 +101,7 @@ Five polish items also folded in:
     - ALWAYS update `.brain/status.md` (regenerated derived view) after writing a page
     - ALWAYS append to `.brain/log.md` with the grep-parseable prefix (`## [YYYY-MM-DD] ingest | <source-path> → <output-path>`)
   - **Error recovery** (PRD #26): retry once with fresh context if the first attempt fails; if the second attempt also fails, emit `blocked: ingester couldn't complete ingest of <path>. Reason: <why>. Operator action: <what>.` and stop. Do not loop past `max_iterations: 5`.
-- **Mirror**: `agents/README.md` (the frontmatter spec); graphbrain `agents-registry/brain/ingester/AGENT.md` (the procedure shape — reference only, adapt to `.brain/` paths and codebrain conventions)
+- **Mirror**: `agents/README.md` (the frontmatter spec); graphbrain `agents-registry/brain/ingester/AGENT.md` (the procedure shape — reference only, adapt to `.brain/` paths and graphbrain conventions)
 - **Validate**: `head -14 agents/brain/ingester.md | grep -q '^---$'`; `grep -c "^- NEVER\|^- ALWAYS" agents/brain/ingester.md` ≥ 7 (rules section present); `grep -q "Read the Prompt Defense Baseline" agents/brain/ingester.md`
 
 ### Task 2: skills/ingestion/page-format/SKILL.md
@@ -111,11 +111,11 @@ Five polish items also folded in:
   ---
   name: page-format
   description: Defines the required shape of a .brain/code/<path>.md page — frontmatter fields, section structure, wikilink convention, page-size cap. Loaded during /brain ingest. Every ingester (and future verifier in M#6) reads this skill to know what a valid page looks like.
-  origin: codebrain
+  origin: graphbrain
   version: 0.1.0
   tier: ingestion
   pattern: Reviewer
-  related_skills: [behavioral/codebrain]
+  related_skills: [behavioral/graphbrain]
   ---
   ```
   Body sections:
@@ -187,7 +187,7 @@ Five polish items also folded in:
 
   In the dispatch table, change:
   ```
-  | `ingest` | not implemented | `Milestone #3 (Ingest pipeline) — not yet implemented in v0.1. See the Roadmap section of the codebrain README.` |
+  | `ingest` | not implemented | `Milestone #3 (Ingest pipeline) — not yet implemented in v0.1. See the Roadmap section of the graphbrain README.` |
   ```
   to:
   ```
@@ -201,7 +201,7 @@ Five polish items also folded in:
   ```markdown
   ## When `$ARGUMENTS` starts with `ingest <file>`
 
-  You are the codebrain ingester. The operator has invoked `/brain ingest <file-path>`. Run this procedure exactly. If any step's preconditions fail, emit a clear error and stop.
+  You are the graphbrain ingester. The operator has invoked `/brain ingest <file-path>`. Run this procedure exactly. If any step's preconditions fail, emit a clear error and stop.
 
   **Step 0 — Argument parsing + path guards**:
   - Extract the path arg from `$ARGUMENTS` (the token after `ingest`).
@@ -210,11 +210,11 @@ Five polish items also folded in:
   - **Symlink guard** (sweep finding #6): `lstat` the resolved path; if it's a symlink, print `error: refused — symlinks not supported in M#3a; pass the target path directly` and stop.
   - Resolve the path against cwd. If the resolved path is a directory: print `Milestone #3b (folder ingest) — not yet implemented. Pass a single file path: /brain ingest src/auth.ts` and stop.
   - If the resolved path does not exist: print `error: file not found: <path>` and stop.
-  - **Binary-file guard** (sweep finding #3): check the file extension against the blocklist `[.png, .jpg, .jpeg, .gif, .webp, .pdf, .exe, .bin, .so, .dylib, .o, .a, .zip, .tar, .tgz, .gz, .mp4, .mp3, .wav, .ico, .ttf, .woff, .woff2]`. If matched, print `error: refused — <path> looks like a binary file (extension <ext>); codebrain ingests text source files only` and stop. Additionally, read the first 1024 bytes; if a null byte is present, treat as binary and refuse with the same message.
+  - **Binary-file guard** (sweep finding #3): check the file extension against the blocklist `[.png, .jpg, .jpeg, .gif, .webp, .pdf, .exe, .bin, .so, .dylib, .o, .a, .zip, .tar, .tgz, .gz, .mp4, .mp3, .wav, .ico, .ttf, .woff, .woff2]`. If matched, print `error: refused — <path> looks like a binary file (extension <ext>); graphbrain ingests text source files only` and stop. Additionally, read the first 1024 bytes; if a null byte is present, treat as binary and refuse with the same message.
 
   **Step 1 — Preconditions**:
-  - Verify `.brain/` exists in cwd. If not: same `npx codebrain init` first message as `/brain init` (Step 1).
-  - Read `.brain/.codebrain-version` to confirm M#1's scaffold is present.
+  - Verify `.brain/` exists in cwd. If not: same `npx graphbrain init` first message as `/brain init` (Step 1).
+  - Read `.brain/.graphbrain-version` to confirm M#1's scaffold is present.
 
   **Step 2 — Read inputs**:
   - Read the source file in full.
@@ -252,7 +252,7 @@ Five polish items also folded in:
 
   Print exactly:
   ```
-  /brain ingest complete (codebrain v<version>)
+  /brain ingest complete (graphbrain v<version>)
     Source:        <source-path>
     Page:          .brain/code/<source-path>.md (<token-count> tokens)
     Source hash:   <hash>
@@ -270,10 +270,10 @@ Five polish items also folded in:
 - **Mirror**: `commands/brain.md:80-148` (the M#2 `When $ARGUMENTS is init` section — same numbered-step shape, same error-report convention)
 - **Validate**: `! grep -q 'ingest.*Milestone #3 (Ingest pipeline).*not yet implemented' commands/brain.md`; the new procedure section is present; folder + no-arg stubs are present with M#3b/M#3c pointers
 
-### Task 5: Update commands/codebrain.md (alias parity)
+### Task 5: Update commands/graphbrain.md (alias parity)
 
-- **Action**: Copy Task 4's procedure section verbatim into `commands/codebrain.md` (same `## When $ARGUMENTS starts with ingest <file>` heading). Mirror the dispatch-table changes.
-- **Validate**: T14 (in Task 6) asserts the ingest procedure section is byte-identical between brain.md and codebrain.md, same way T12 does for the init procedure
+- **Action**: Copy Task 4's procedure section verbatim into `commands/graphbrain.md` (same `## When $ARGUMENTS starts with ingest <file>` heading). Mirror the dispatch-table changes.
+- **Validate**: T14 (in Task 6) asserts the ingest procedure section is byte-identical between brain.md and graphbrain.md, same way T12 does for the init procedure
 
 ### Task 6: Update tests/e2e-test.sh — M#3a assertions
 
@@ -293,25 +293,25 @@ Five polish items also folded in:
   - `grep -q "When \`\$ARGUMENTS\` starts with \`ingest <file>\`" commands/brain.md` (new procedure section is present)
   - `grep -q "Step 7 — Report" commands/brain.md` after the ingest section (numbered procedure complete)
   - Folder and no-arg cases still produce M#3b/M#3c "not yet implemented" pointers (grep for the exact strings)
-  - Alias parity: the ingest procedure section is byte-identical between `commands/brain.md` and `commands/codebrain.md` (`diff <(sed -n '/^## When `\$ARGUMENTS` starts with `ingest <file>`$/,$p' brain.md) <(sed -n '...' codebrain.md)` is empty)
+  - Alias parity: the ingest procedure section is byte-identical between `commands/brain.md` and `commands/graphbrain.md` (`diff <(sed -n '/^## When `\$ARGUMENTS` starts with `ingest <file>`$/,$p' brain.md) <(sed -n '...' graphbrain.md)` is empty)
 - **Mirror**: T10–T13 from `tests/e2e-test.sh`
 - **Validate**: `bash tests/e2e-test.sh` exits 0; total count goes from 73 → ~90 (~17 new assertions); runtime still <5s
 
 ### Task 7: PRD update — split M#3 into 3a/3b/3c
 
-- **Action**: Edit `.claude/prds/codebrain.prd.md`. In the Delivery Milestones table, replace the existing M#3 row:
+- **Action**: Edit `.claude/prds/graphbrain.prd.md`. In the Delivery Milestones table, replace the existing M#3 row:
   ```
   | 3 | Ingest pipeline | ... | pending | — |
   ```
   with three rows:
   ```
-  | 3a | Ingest pipeline — single-file end-to-end | `/brain ingest <single-file-path>` invokes the ingester agent which writes `.brain/code/<path>.md` using the page-format template; updates index/status/log; idempotent on unchanged source | in-progress | [.claude/plans/codebrain-m3a.plan.md](.claude/plans/codebrain-m3a.plan.md) |
+  | 3a | Ingest pipeline — single-file end-to-end | `/brain ingest <single-file-path>` invokes the ingester agent which writes `.brain/code/<path>.md` using the page-format template; updates index/status/log; idempotent on unchanged source | in-progress | [.claude/plans/graphbrain-m3a.plan.md](.claude/plans/graphbrain-m3a.plan.md) |
   | 3b | Ingest pipeline — folder + concept pages + linker | `/brain ingest <folder>` walks the folder, ingests each file via the M#3a ingester; linker agent creates concept pages for cross-cutting ideas and wires bidirectional wikilinks | pending | — |
   | 3c | Ingest pipeline — tiered auto-prioritize + detected/* skills | `/brain ingest` (no args) proposes a 3-tier plan based on stack detection, pauses between tiers; detected/{react,python,go,typescript} skills ship and light up stack-aware page templates | pending | — |
   ```
   Downstream rows (4–8) unchanged.
 - **Mirror**: M#1 + M#2 PRD update pattern
-- **Validate**: `grep "Ingest pipeline" .claude/prds/codebrain.prd.md | wc -l` returns 3
+- **Validate**: `grep "Ingest pipeline" .claude/prds/graphbrain.prd.md | wc -l` returns 3
 
 ## Validation
 
@@ -339,14 +339,14 @@ grep -q 'Milestone #3c' commands/brain.md   # no-arg case points to 3c
 
 # 5. Alias parity for ingest procedure
 diff <(sed -n '/^## When `$ARGUMENTS` starts with `ingest <file>`$/,$p' commands/brain.md) \
-     <(sed -n '/^## When `$ARGUMENTS` starts with `ingest <file>`$/,$p' commands/codebrain.md)
+     <(sed -n '/^## When `$ARGUMENTS` starts with `ingest <file>`$/,$p' commands/graphbrain.md)
 # Expect: empty diff
 
 # 6. npm pack ships the new files
 npm pack --dry-run | grep -E 'agents/brain/ingester.md|skills/ingestion/page-format/'
 
 # 7. Manual smoke test (operator) — the agent-behavior part bash can't test:
-#  In a Claude Code session inside a repo that already ran `npx codebrain init`
+#  In a Claude Code session inside a repo that already ran `npx graphbrain init`
 #  and `/brain init`:
 #     /brain ingest src/somefile.ts
 #       → ingester reads the file, writes .brain/code/src/somefile.ts.md
@@ -376,7 +376,7 @@ npm pack --dry-run | grep -E 'agents/brain/ingester.md|skills/ingestion/page-for
 | `/brain ingest src/` (folder) accidentally triggers the single-file procedure | Low | Step 0 explicitly checks `if path is a directory` BEFORE doing any work; folder case stubs out cleanly |
 | Re-running ingest on a modified source produces a duplicate page (path collision is impossible since path is deterministic, but content might double-up if the agent appends instead of overwrites) | Low | Step 5 says "write" not "append"; the page is replaced; the source-hash check in Step 3 makes re-ingest a SKIP unless content actually changed |
 | First writer agent without the M#4 structural hook means agent self-rules are the ONLY guardrail | Med | This is by design — dual-layer is the target, but layers can land separately. Document in the ingester's body that the structural hook layer arrives in M#4. Ingester Rules cover the critical mutation guarantees (never overwrite VERIFIED, never write outside `.brain/`). |
-| Alias drift between brain.md and codebrain.md ingest procedure | Low | T15 asserts the procedure section is byte-identical; same pattern as T12 for init |
+| Alias drift between brain.md and graphbrain.md ingest procedure | Low | T15 asserts the procedure section is byte-identical; same pattern as T12 for init |
 | The agent invokes Bash for `git hash-object` but the tool isn't in the agent's `tools:` list | Low | Frontmatter declares `tools: [Read, Glob, Bash, Edit, Write]` — Bash is included; Glob for path resolution; Edit/Write for the page; Read for source + template |
 | LLM ingest is expensive on a large source file (~5k LOC) | Low for M#3a (single-file is opt-in by the operator); high for M#3b/c | Out of scope for M#3a; M#3c's tiered auto-prioritize is where cost control matters |
 | Operator confuses M#3 sub-milestones — "is folder ingest done yet?" | Low | Folder + no-arg cases produce explicit "Milestone #3b / #3c — not yet implemented" messages with the right pointer; PRD split rows make the roadmap obvious |
@@ -393,4 +393,4 @@ npm pack --dry-run | grep -E 'agents/brain/ingester.md|skills/ingestion/page-for
 - [ ] PRD M#3 row split into M#3a/M#3b/M#3c; M#3a in-progress with plan link
 - [ ] Patterns mirrored from M#1 + M#2 + the agents/skills README conventions — not reinvented
 - [ ] No regression: all 73 existing M#1+M#2 tests still pass; total ~90 after T14+T15 added
-- [ ] (Optional but recommended) Manual smoke test on a real Claude Code session — `/brain ingest <some-source-file>` in the codebrain repo itself produces a valid `.brain/code/scripts/init.js.md` (or similar)
+- [ ] (Optional but recommended) Manual smoke test on a real Claude Code session — `/brain ingest <some-source-file>` in the graphbrain repo itself produces a valid `.brain/code/scripts/init.js.md` (or similar)

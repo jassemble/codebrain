@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// codebrain observe — PreToolUse hook for the continuous-learning observer (M#7)
+// graphbrain observe — PreToolUse hook for the continuous-learning observer (M#7)
 //
 // Fires before every tool call when /brain learn is toggled `on` for the
 // current project. Appends a MINIMAL observation record to the XDG store:
@@ -16,7 +16,7 @@
 //   - Reads stdin JSON (Claude Code hook payload)
 //   - Async, fast (<100ms)
 //   - Always exits 0 — observations must never block tool execution
-//   - Silently no-ops if .brain/.codebrain-learn-state is missing OR set to "off"
+//   - Silently no-ops if .brain/.graphbrain-learn-state is missing OR set to "off"
 //   - Silently no-ops if cwd has no .brain/ at all (per M#4 D7 — works safely in every repo)
 
 'use strict';
@@ -29,7 +29,7 @@ function safe(fn) {
   try {
     return fn();
   } catch (e) {
-    process.stderr.write(`[codebrain] observe error: ${e.message}\n`);
+    process.stderr.write(`[graphbrain] observe error: ${e.message}\n`);
     return null;
   }
 }
@@ -59,7 +59,7 @@ function extractToolName(payload) {
 async function main() {
   const cwd = process.cwd();
 
-  // Fast bail-out 1: no .brain/ → not a codebrain project → exit 0 silently
+  // Fast bail-out 1: no .brain/ → not a graphbrain project → exit 0 silently
   if (!fs.existsSync(path.join(cwd, '.brain'))) {
     process.exit(0);
   }

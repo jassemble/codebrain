@@ -1,27 +1,27 @@
 ---
 name: init
-description: Populate the codebrain wiki — write the full schema block to CLAUDE.md, customize .brain/overview.md with a project digest, detect tech stack, log the init event. Distinct from `npx codebrain init` (M#1, file-system scaffold); this is the LLM-agent-driven content-population step that runs inside Claude Code via the `/brain init` slash command.
-origin: codebrain
+description: Populate the graphbrain wiki — write the full schema block to CLAUDE.md, customize .brain/overview.md with a project digest, detect tech stack, log the init event. Distinct from `npx graphbrain init` (M#1, file-system scaffold); this is the LLM-agent-driven content-population step that runs inside Claude Code via the `/brain init` slash command.
+origin: graphbrain
 version: 0.1.0
 tier: core
 pattern: Generator
-related_skills: [behavioral/codebrain]
+related_skills: [behavioral/graphbrain]
 ---
 
-# init — codebrain content-population skill
+# init — graphbrain content-population skill
 
-This skill is the agent-side complement to `npx codebrain init`. The npm step creates skeleton files with empty frontmatter; this skill fills them with project-aware content the agent infers from the user's repo.
+This skill is the agent-side complement to `npx graphbrain init`. The npm step creates skeleton files with empty frontmatter; this skill fills them with project-aware content the agent infers from the user's repo.
 
 ## When to Activate
 
 - Operator runs `/brain init`
-- Operator types a trigger phrase: "initialize codebrain", "set up the brain", "populate .brain/", "fill in the codebrain schema"
-- An automated workflow needs to refresh the schema block after a codebrain upgrade (`/brain init --force`)
+- Operator types a trigger phrase: "initialize graphbrain", "set up the brain", "populate .brain/", "fill in the graphbrain schema"
+- An automated workflow needs to refresh the schema block after a graphbrain upgrade (`/brain init --force`)
 
 ## Prerequisites
 
-- `.brain/` directory must exist in the cwd. If not, `npx codebrain init` hasn't been run yet — emit an error pointing the operator there.
-- `CLAUDE.md` in cwd must contain both `<!-- codebrain:begin -->` and `<!-- codebrain:end -->` markers (M#1 wrote them). If missing, the operator's CLAUDE.md was modified externally — emit an error and stop rather than guess where to insert.
+- `.brain/` directory must exist in the cwd. If not, `npx graphbrain init` hasn't been run yet — emit an error pointing the operator there.
+- `CLAUDE.md` in cwd must contain both `<!-- graphbrain:begin -->` and `<!-- graphbrain:end -->` markers (M#1 wrote them). If missing, the operator's CLAUDE.md was modified externally — emit an error and stop rather than guess where to insert.
 
 ## How It Works
 
@@ -44,7 +44,7 @@ In summary, init does:
 # Normal flow: idempotent if schema block already current; populates overview if it's a stub.
 
 /brain init --force
-# Refreshes the schema block in CLAUDE.md even if it's already current; useful after a codebrain version bump.
+# Refreshes the schema block in CLAUDE.md even if it's already current; useful after a graphbrain version bump.
 ```
 
 Sample report on a Next.js project:
@@ -63,14 +63,14 @@ Next: try `/brain ingest src/` (Milestone #3 — not yet implemented).
 
 After a successful `/brain init`:
 
-- `<cwd>/CLAUDE.md` has the full ~120-line codebrain schema block between the managed-region markers (replacing M#1's placeholder)
+- `<cwd>/CLAUDE.md` has the full ~120-line graphbrain schema block between the managed-region markers (replacing M#1's placeholder)
 - `<cwd>/.brain/overview.md` has populated content; frontmatter `status: FRESH`
 - `<cwd>/.brain/log.md` has a new entry under `## Activity History`
 - Detected stacks are reported to the operator; **no `detected/` skills are installed yet** (that's M#3 — for now, detection is reported and the catalog is in place)
 
 ## Cross-references
 
-- Meta skill: `../../behavioral/codebrain/SKILL.md`
+- Meta skill: `../../behavioral/graphbrain/SKILL.md`
 - Templates this skill reads: `./templates/`
 - Load-bearing instructions: `../../../commands/brain.md` (the `init` verb section)
 - Schema-block content the agent writes: `./templates/claude-md-schema.md`

@@ -1,6 +1,6 @@
-# Plan: codebrain — Milestone #3b (Folder ingest + concept pages + linker)
+# Plan: graphbrain — Milestone #3b (Folder ingest + concept pages + linker)
 
-**Source PRD**: `.claude/prds/codebrain.prd.md`
+**Source PRD**: `.claude/prds/graphbrain.prd.md`
 **Selected Milestone**: #3b — second sub-step of the 3-way split of original M#3
 **Complexity**: Medium-to-Large — second writer agent (linker); first concept pages; first cross-page wikilinks; first per-source-hash tracking
 **Status**: **READY** — draft refined post-M#3a with 12 sweep findings folded in
@@ -50,9 +50,9 @@ Twelve findings — five from the pre-M#3a sweep (B1–B5, refined) + seven new 
 | `skills/ingestion/concept-extraction/SKILL.md` | CREATE | The concept contract — when to extract, when not to. Tier: `ingestion`. Loaded automatically during folder ingest. |
 | `skills/ingestion/concept-extraction/templates/concept-page.md` | CREATE | Verbatim template for `.brain/concepts/<name>.md`. Sections: Definition (1–3 sentences), Spans (which code pages reference this), Examples (links to specific symbols/lines), Related (other concept pages). Frontmatter: `kind: concept, status, sources: [{path, hash}]` (B6 format). |
 | `commands/brain.md` | UPDATE | Add: (a) folder-dispatch row in dispatch table, (b) `## When $ARGUMENTS starts with ingest <folder>` procedure section, (c) `## Linker procedure (invoked after folder ingest)` section with the inlined concept-page template |
-| `commands/codebrain.md` | UPDATE | Mirror brain.md changes — alias parity for folder dispatch + folder procedure + linker procedure |
+| `commands/graphbrain.md` | UPDATE | Mirror brain.md changes — alias parity for folder dispatch + folder procedure + linker procedure |
 | `tests/e2e-test.sh` | UPDATE | T16 (linker agent + concept skill + concept template structural checks; npm pack inclusion); T17 (folder verb wired; folder dispatch stub for files-with-trailing-slash; linker procedure section present; alias parity for both new sections) |
-| `.claude/prds/codebrain.prd.md` | UPDATE | M#3b row → `in-progress` with link to this plan |
+| `.claude/prds/graphbrain.prd.md` | UPDATE | M#3b row → `in-progress` with link to this plan |
 
 ## Tasks
 
@@ -96,11 +96,11 @@ Twelve findings — five from the pre-M#3a sweep (B1–B5, refined) + seven new 
   ---
   name: concept-extraction
   description: Decides what qualifies as a concept page. Loaded by the linker agent during /brain ingest <folder>. Locks the criteria so concept-page creation is consistent across linker invocations.
-  origin: codebrain
+  origin: graphbrain
   version: 0.1.0
   tier: ingestion
   pattern: Reviewer
-  related_skills: [behavioral/codebrain, ingestion/page-format]
+  related_skills: [behavioral/graphbrain, ingestion/page-format]
   ---
   ```
   Body sections: **When to Activate**, **DO extract**, **DO NOT extract**, **When uncertain (defer)**, **Concept-page contract** (frontmatter + sections + per-source-hash format), **Examples** (1 entity, 1 integration, 1 convention, 1 "do not extract" case).
@@ -156,7 +156,7 @@ Twelve findings — five from the pre-M#3a sweep (B1–B5, refined) + seven new 
 
   Procedure:
   - **Step 0 — Argument parsing + path guards**: extract folder arg; out-of-repo guard (same as M#3a); resolve and verify it's a directory; error if missing.
-  - **Step 1 — Preconditions**: `.brain/` exists; `.brain/.codebrain-version` present.
+  - **Step 1 — Preconditions**: `.brain/` exists; `.brain/.graphbrain-version` present.
   - **Step 2 — Walk the folder** (B12): try `git ls-files <folder>` first. If git unavailable, manual recursive walk excluding hardcoded blocklist (`node_modules .git .brain .claude dist build coverage .venv __pycache__ target .next .nuxt`).
   - **Step 3 — Filter** (B1): exclude binary blocklist + lockfiles + minified/generated. Print the file count + per-extension breakdown.
   - **Step 4 — Cost gate** (B7): estimate `cost ≈ count × $0.006`; if count > 50 require `--yes` flag; if 20–50 ask `Proceed? (yes/no/show-files)`; if <20 proceed.
@@ -184,7 +184,7 @@ Twelve findings — five from the pre-M#3a sweep (B1–B5, refined) + seven new 
 - **Mirror**: `commands/brain.md` `When $ARGUMENTS starts with ingest <file>` (Step structure + procedure shape + error reporting)
 - **Validate**: T17 — both new sections present with their respective step headers; folder dispatch row updated; no-arg row still M#3c stub
 
-### Task 5: Update commands/codebrain.md (alias parity)
+### Task 5: Update commands/graphbrain.md (alias parity)
 
 - **Action**: Copy Task 4's two sections verbatim. Update dispatch table identically. The post-M#3a alias-parity assertion (T15) confirmed the byte-identical strategy works.
 - **Validate**: T17 — diff over both new section headers ↦ EOF is empty
@@ -195,7 +195,7 @@ Twelve findings — five from the pre-M#3a sweep (B1–B5, refined) + seven new 
 
   **T16 — M#3b linker + concept-extraction skill + concept template surface:**
   - `agents/brain/linker.md` exists with valid YAML frontmatter; all 7 merged fields present; `pattern: Reviewer`; ≥9 NEVER/ALWAYS rules; prompt-defense reference
-  - `skills/ingestion/concept-extraction/SKILL.md` exists with frontmatter; `tier: ingestion`; `related_skills` includes `behavioral/codebrain` AND `ingestion/page-format`; 5 required body sections present
+  - `skills/ingestion/concept-extraction/SKILL.md` exists with frontmatter; `tier: ingestion`; `related_skills` includes `behavioral/graphbrain` AND `ingestion/page-format`; 5 required body sections present
   - `skills/ingestion/concept-extraction/templates/concept-page.md` exists; starts with `---`; 4 section headers (Definition, Spans, Examples, Related); ≥8 AGENT directives; `sources:` example shows per-source-hash format (B6)
   - npm pack includes all 3 new files
 
@@ -205,14 +205,14 @@ Twelve findings — five from the pre-M#3a sweep (B1–B5, refined) + seven new 
   - Section contains: Step 0–7 headers; references to `git ls-files`; binary blocklist; cost-gate language; per-file ingest invocation pattern; partial-completion warning text
   - `## Linker procedure (invoked after folder ingest)` section present in brain.md
   - Section contains: L1–L6 headers; bidirectional wikilink wording; per-source-hash format (`hash: git:` example); inlined concept-page template (fenced markdown block containing `kind: concept`)
-  - Alias parity: both new sections byte-identical between brain.md and codebrain.md (anchor-from-section-header sed pattern, same trick as T15 for ingest section)
+  - Alias parity: both new sections byte-identical between brain.md and graphbrain.md (anchor-from-section-header sed pattern, same trick as T15 for ingest section)
 - **Mirror**: T14/T15 patterns from `tests/e2e-test.sh`
 - **Validate**: total ~155 (120 + ~35 new); runtime still <5s
 
 ### Task 7: PRD update — M#3b → in-progress
 
-- **Action**: Edit `.claude/prds/codebrain.prd.md`: flip M#3b row `pending` → `in-progress`; set `Plan` cell to `[.claude/plans/codebrain-m3b.plan.md](.claude/plans/codebrain-m3b.plan.md)`.
-- **Validate**: `grep "3b" .claude/prds/codebrain.prd.md` shows updated row
+- **Action**: Edit `.claude/prds/graphbrain.prd.md`: flip M#3b row `pending` → `in-progress`; set `Plan` cell to `[.claude/plans/graphbrain-m3b.plan.md](.claude/plans/graphbrain-m3b.plan.md)`.
+- **Validate**: `grep "3b" .claude/prds/graphbrain.prd.md` shows updated row
 
 ## Validation
 
@@ -245,9 +245,9 @@ grep -qE 'hash:[[:space:]]*git:' commands/brain.md   # inlined copy
 
 # 7. Alias parity for both new sections
 diff <(sed -n '/^## When `$ARGUMENTS` starts with `ingest <folder>`$/,/^## /p' commands/brain.md | head -n -1) \
-     <(sed -n '/^## When `$ARGUMENTS` starts with `ingest <folder>`$/,/^## /p' commands/codebrain.md | head -n -1)
+     <(sed -n '/^## When `$ARGUMENTS` starts with `ingest <folder>`$/,/^## /p' commands/graphbrain.md | head -n -1)
 diff <(sed -n '/^## Linker procedure (invoked after folder ingest)$/,$p' commands/brain.md) \
-     <(sed -n '/^## Linker procedure (invoked after folder ingest)$/,$p' commands/codebrain.md)
+     <(sed -n '/^## Linker procedure (invoked after folder ingest)$/,$p' commands/graphbrain.md)
 
 # 8. npm pack ships new files
 npm pack --dry-run | grep -E 'agents/brain/linker|concept-extraction'
@@ -268,7 +268,7 @@ npm pack --dry-run | grep -E 'agents/brain/linker|concept-extraction'
 | Linker creates concept-page spam | Med | B8 hard criteria locked in concept-extraction SKILL; M#6 lint will surface orphans |
 | Wikilinks introduced are dangling | Low | B4 self-check before write; lint catches anything missed |
 | Concept page `sources:` format complicates the M#4 staleness hook | Med | The hook iterates `sources:` and checks each `hash` against the current source-file hash; format is explicit per B6; if hook can't parse the array, it warns rather than crashes |
-| Alias drift between brain.md and codebrain.md (two new sections) | Low | T17 byte-identical asserts on both section anchors |
+| Alias drift between brain.md and graphbrain.md (two new sections) | Low | T17 byte-identical asserts on both section anchors |
 | brain.md grows past 500 lines | Med | B10 — defer split decision to M#3c; M#3b expected total ~470 lines; M#3c forces the real decision when detected/* templates multiply |
 | Per-file ingest in folder mode duplicates Step 0–7 logic in commands/brain.md | Low | The folder procedure REFERENCES `the M#3a single-file procedure (Steps 0–7)` by section name rather than re-listing; agent jumps back to that section per file |
 | Operator interrupts mid-folder; partial state on disk | Low | Per-file writes are atomic (M#1's atomic-write pattern); `.brain/log.md` has the partial trail; re-run `/brain ingest <folder>` resumes via SKIPs |
@@ -283,4 +283,4 @@ npm pack --dry-run | grep -E 'agents/brain/linker|concept-extraction'
 - [ ] PRD M#3b row → in-progress with plan link
 - [ ] Patterns mirrored from M#3a's shipped artifacts — not reinvented
 - [ ] No regression: all 120 M#1+M#2+M#3a tests still pass; total ~155 after T16+T17 added
-- [ ] (Optional) Manual smoke test on a real repo (dogfood codebrain itself or graphify/graphbrain/ECC); deferred to post-commit
+- [ ] (Optional) Manual smoke test on a real repo (dogfood graphbrain itself or graphify/graphbrain/ECC); deferred to post-commit

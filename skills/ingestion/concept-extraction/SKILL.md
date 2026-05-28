@@ -1,11 +1,11 @@
 ---
 name: concept-extraction
 description: Decides what qualifies as a concept page. Loaded by the linker agent during /brain ingest <folder>. Locks the criteria so concept-page creation is consistent across linker invocations.
-origin: codebrain
+origin: graphbrain
 version: 0.1.0
 tier: ingestion
 pattern: Reviewer
-related_skills: [behavioral/codebrain, ingestion/page-format]
+related_skills: [behavioral/graphbrain, ingestion/page-format]
 ---
 
 # concept-extraction — what becomes a concept page

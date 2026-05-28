@@ -1,11 +1,11 @@
 ---
 name: detected/nextjs
 description: Stack-aware page-template extras + ECC-bridge for Next.js code pages. Activates when package.json contains "next" AND the source file is .tsx/.jsx/.ts/.js. Bridges to ecc:nextjs-turbopack.
-origin: codebrain
+origin: graphbrain
 version: 0.1.1
 tier: detected
 pattern: Generator
-related_skills: [behavioral/codebrain, ingestion/page-format, detected/react, detected/typescript]
+related_skills: [behavioral/graphbrain, ingestion/page-format, detected/react, detected/typescript]
 detect:
   - { file_exists: "package.json", contains: "\"next\"" }
 applies_to_extensions: [".tsx", ".jsx", ".ts", ".js"]

@@ -1,8 +1,8 @@
-// Minimal TOON parser/serializer for codebrain's credential registry (M#11a).
+// Minimal TOON parser/serializer for graphbrain's credential registry (M#11a).
 //
 // TOON ("Token-Oriented Object Notation") is a compact INI/TOML-subset designed
 // to be more token-efficient than JSON for agent-consumed config files. This
-// implementation handles only the subset codebrain needs:
+// implementation handles only the subset graphbrain needs:
 //
 //   # comment lines (preserved as header on serialize)
 //   [section-name]
@@ -68,7 +68,7 @@ function parse(content) {
       continue;
     }
 
-    // Unrecognized line — skip silently. Strict parsing would throw; codebrain
+    // Unrecognized line — skip silently. Strict parsing would throw; graphbrain
     // prefers tolerance + lint-time detection of malformed entries.
   }
 

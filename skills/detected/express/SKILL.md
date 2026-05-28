@@ -1,11 +1,11 @@
 ---
 name: detected/express
 description: Stack-aware page-template extras + ECC-bridge for Express code pages. Activates when package.json contains "express" AND the source file is .ts/.js. Bridges to ecc:backend-patterns.
-origin: codebrain
+origin: graphbrain
 version: 0.1.1
 tier: detected
 pattern: Generator
-related_skills: [behavioral/codebrain, ingestion/page-format, detected/typescript]
+related_skills: [behavioral/graphbrain, ingestion/page-format, detected/typescript]
 detect:
   - { file_exists: "package.json", contains: "\"express\"" }
 applies_to_extensions: [".ts", ".js"]

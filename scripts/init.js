@@ -1,11 +1,11 @@
-// codebrain init — scaffold .brain/ + wire slash commands and hooks into .claude/.
+// graphbrain init — scaffold .brain/ + wire slash commands and hooks into .claude/.
 //
 // Load-bearing for Milestone #1. Respect these contracts:
 //   - PRD #28: npm-only distribution; this script is the install path.
 //   - PRD #31: project-local default; --global opts into ~/.claude/.
-//   - PRD #32: hooks ownership via `id:` prefix `codebrain:*`.
+//   - PRD #32: hooks ownership via `id:` prefix `graphbrain:*`.
 //             Partition existing entries; replace own; preserve others.
-//   - PRD #33: ship `.brain/.codebrain-version` so upgrade detection works.
+//   - PRD #33: ship `.brain/.graphbrain-version` so upgrade detection works.
 //   - Idempotent: re-running with the same version produces no diff.
 //   - Atomic-write: temp + fsync + rename; .bak before destructive edit.
 //   - Project-dir guard: refuse to run in random cwd without --global.
@@ -20,9 +20,9 @@ const pkg = require(path.join(__dirname, '..', 'package.json'));
 const CODEBRAIN_VERSION = pkg.version;
 const ROOT = path.join(__dirname, '..');
 
-const VERSION_MARKER = `<!-- codebrain v${CODEBRAIN_VERSION} -->`;
-const CLAUDE_MD_BEGIN = '<!-- codebrain:begin -->';
-const CLAUDE_MD_END = '<!-- codebrain:end -->';
+const VERSION_MARKER = `<!-- graphbrain v${CODEBRAIN_VERSION} -->`;
+const CLAUDE_MD_BEGIN = '<!-- graphbrain:begin -->';
+const CLAUDE_MD_END = '<!-- graphbrain:end -->';
 
 const PROJECT_SIGNALS = ['.git', 'package.json', 'pyproject.toml', 'go.mod', 'Cargo.toml'];
 
@@ -36,13 +36,13 @@ function parseFlags(argv) {
 }
 
 function printInitHelp() {
-  console.log(`codebrain init — scaffold .brain/ + wire /brain commands and hooks
+  console.log(`graphbrain init — scaffold .brain/ + wire /brain commands and hooks
 
 Usage:
-  codebrain init                   Project-local install in the current repo
-  codebrain init --global          Write to ~/.claude/ instead of <cwd>/.claude/
-  codebrain init --force           Overwrite existing files (still writes .bak)
-  codebrain init --dry-run         Print plan, write nothing
+  graphbrain init                   Project-local install in the current repo
+  graphbrain init --global          Write to ~/.claude/ instead of <cwd>/.claude/
+  graphbrain init --force           Overwrite existing files (still writes .bak)
+  graphbrain init --dry-run         Print plan, write nothing
 
 Default mode requires the cwd to look like a project (one of: .git/, package.json,
 pyproject.toml, go.mod, Cargo.toml). Use --global to install slash commands and
@@ -114,7 +114,7 @@ function copyTemplate(srcRel, destAbs, opts) {
 }
 
 // Recursively copy a directory of templates. Used by M#12 to ship the
-// per-verb slash-command files under commands/brain/ and commands/codebrain/.
+// per-verb slash-command files under commands/brain/ and commands/graphbrain/.
 // Atomicity, .bak, and idempotency are inherited from copyTemplate — one
 // atomic write per file. Subdirectories are mkdir'd before each file write.
 function copyDir(srcRel, destAbs, opts) {
@@ -132,7 +132,7 @@ function copyDir(srcRel, destAbs, opts) {
     } else if (entry.isFile()) {
       copyTemplate(childSrcRel, childDest, opts);
     }
-    // symlinks + other types: skip silently — codebrain templates are plain files
+    // symlinks + other types: skip silently — graphbrain templates are plain files
   }
 }
 
@@ -156,8 +156,8 @@ function scaffoldBrainDir(cwd, opts) {
     }
   }
 
-  // .codebrain-version marker — PRD Design Decision #33
-  const versionFile = path.join(brain, '.codebrain-version');
+  // .graphbrain-version marker — PRD Design Decision #33
+  const versionFile = path.join(brain, '.graphbrain-version');
   const versionContent = `${CODEBRAIN_VERSION}\n`;
   if (fs.existsSync(versionFile) && fs.readFileSync(versionFile, 'utf8') === versionContent) {
     report.log('SKIP', versionFile, 'already current');
@@ -173,7 +173,7 @@ function scaffoldBrainDir(cwd, opts) {
       + '\n# Index\n\nPage catalog. Populated by Milestone #2 init skill and updated on every ingest.\n',
     'log.md': frontmatter({ kind: 'log', status: 'UNENRICHED', created: today })
       + '\n# Log\n\n## Recent Patterns\n\n<!-- Promoted recurring patterns from activity history. -->\n\n## Activity History\n\n<!-- Append-only per-event entries. Format: ## [YYYY-MM-DD] <op> | <subject> -->\n\n'
-      + `## [${today}] init | codebrain v${CODEBRAIN_VERSION} scaffolded .brain/\n`,
+      + `## [${today}] init | graphbrain v${CODEBRAIN_VERSION} scaffolded .brain/\n`,
     'overview.md': frontmatter({ kind: 'overview', status: 'UNENRICHED', created: today })
       + '\n# Overview\n\n## Project Purpose\n\n## Codebase Structure\n\n## Key Patterns\n\n## Active State\n\n## Recent Activity\n',
     'decisions.md': frontmatter({ kind: 'decisions-index', status: 'UNENRICHED', created: today })
@@ -186,14 +186,14 @@ function scaffoldBrainDir(cwd, opts) {
       + `Each entry shape: \`- YYYY-MM-DD: <narrative summary of what changed and why>\`\n`
       + `\n`
       + `## ${today.slice(0, 7)}\n\n`
-      + `- ${today}: codebrain v${CODEBRAIN_VERSION} scaffolded \`.brain/\` in this project.\n`,
-    'llms.txt': `# .brain — codebrain wiki\n`
+      + `- ${today}: graphbrain v${CODEBRAIN_VERSION} scaffolded \`.brain/\` in this project.\n`,
+    'llms.txt': `# .brain — graphbrain wiki\n`
       + `# llms.txt — agent-readable site map (https://llmstxt.org / AEO convention)\n`
       + `# Last refreshed: ${today}\n`
-      + `# codebrain v${CODEBRAIN_VERSION}\n`
+      + `# graphbrain v${CODEBRAIN_VERSION}\n`
       + `# Pages: 0, estimated tokens: ~0\n`
       + `\n`
-      + `> .brain is a folder-mirrored markdown wiki of this codebase, maintained by codebrain.\n`
+      + `> .brain is a folder-mirrored markdown wiki of this codebase, maintained by graphbrain.\n`
       + `> Each page is generated from a real source file (code/), an extracted concept (concepts/),\n`
       + `> or a recorded architectural decision (decisions/). Pages are addressable as wikilinks:\n`
       + `> [[code/<path>]], [[concepts/<slug>]], [[decisions/<adr>]].\n`
@@ -238,7 +238,7 @@ function frontmatter(fields) {
 
 function appendClaudeMdManagedRegion(cwd, opts) {
   const target = path.join(cwd, 'CLAUDE.md');
-  const block = `${CLAUDE_MD_BEGIN}\n## codebrain\n_placeholder schema block — populated by Milestone #2 init skill_\n${CLAUDE_MD_END}\n`;
+  const block = `${CLAUDE_MD_BEGIN}\n## graphbrain\n_placeholder schema block — populated by Milestone #2 init skill_\n${CLAUDE_MD_END}\n`;
 
   if (!fs.existsSync(target)) {
     atomicWrite(target, `# CLAUDE.md\n\n${block}`, opts);
@@ -275,7 +275,7 @@ function appendClaudeMdManagedRegion(cwd, opts) {
 function mergeHooks(targetDir, opts) {
   // PRD Design Decision #32: partition existing entries; replace own; preserve others.
   // Milestone #4 populated this with the two hook entries below; entries are keyed
-  // by their `id:` field — codebrain owns only ids starting `codebrain:`.
+  // by their `id:` field — graphbrain owns only ids starting `graphbrain:`.
   const target = path.join(targetDir, 'settings.local.json');
   const codebrainOwnedHooks = {
     PreToolUse: [
@@ -288,7 +288,7 @@ function mergeHooks(targetDir, opts) {
             timeout: 5,
           },
         ],
-        id: 'codebrain:pre:verified-guard',
+        id: 'graphbrain:pre:verified-guard',
         description: 'Block writes to .brain/ pages with status: VERIFIED unless --force is passed',
       },
       {
@@ -301,7 +301,7 @@ function mergeHooks(targetDir, opts) {
             timeout: 10,
           },
         ],
-        id: 'codebrain:pre:observe',
+        id: 'graphbrain:pre:observe',
         description: 'Continuous-learning observer: append minimal tool-use observations to XDG store when /brain learn is on (opt-in per-project; privacy by design — captures only tool name + path + timestamp, never content)',
       },
     ],
@@ -315,7 +315,7 @@ function mergeHooks(targetDir, opts) {
             timeout: 10,
           },
         ],
-        id: 'codebrain:post:stale-detect',
+        id: 'graphbrain:post:stale-detect',
         description: 'Mark .brain/ pages STALE when their source file is edited (4-tier staleness model tier 1)',
       },
     ],
@@ -335,7 +335,7 @@ function mergeHooks(targetDir, opts) {
 
   for (const phase of phases) {
     const arr = Array.isArray(existing.hooks[phase]) ? existing.hooks[phase] : [];
-    const nonCodebrain = arr.filter(e => !(e && typeof e.id === 'string' && e.id.startsWith('codebrain:')));
+    const nonCodebrain = arr.filter(e => !(e && typeof e.id === 'string' && e.id.startsWith('graphbrain:')));
     const ours = codebrainOwnedHooks[phase] || [];
 
     const newArr = nonCodebrain.concat(ours);
@@ -376,7 +376,7 @@ function init(argv) {
   const isGlobal = opts.global;
   const claudeDir = isGlobal ? path.join(os.homedir(), '.claude') : path.join(cwd, '.claude');
 
-  console.log(`codebrain v${CODEBRAIN_VERSION} — init${opts.dryRun ? ' --dry-run' : ''}${opts.force ? ' --force' : ''}${isGlobal ? ' --global' : ''}`);
+  console.log(`graphbrain v${CODEBRAIN_VERSION} — init${opts.dryRun ? ' --dry-run' : ''}${opts.force ? ' --force' : ''}${isGlobal ? ' --global' : ''}`);
   console.log(`  cwd:        ${cwd}`);
   console.log(`  target:     ${claudeDir}`);
   console.log(`  vault:      ${path.join(cwd, '.brain')}\n`);
@@ -384,7 +384,7 @@ function init(argv) {
   // Project-dir guard (Design Decision: refuse in random cwd without --global).
   if (!isGlobal && !isProjectDir(cwd)) {
     console.error(`error: cwd does not look like a project root (no ${PROJECT_SIGNALS.join(', no ')}).`);
-    console.error('To install codebrain commands globally, re-run with --global.');
+    console.error('To install graphbrain commands globally, re-run with --global.');
     console.error('Otherwise, cd into a project repo and re-run.');
     return 1;
   }
@@ -400,7 +400,7 @@ function init(argv) {
 
   // Copy slash-command templates into target.
   // Top-level dispatcher + per-verb namespaced files (M#12b layout).
-  // v0.2: only /brain — the /codebrain alias was dropped (see v0.2.0 changelog).
+  // v0.2: only /brain — the /graphbrain alias was dropped (see v0.2.0 changelog).
   copyTemplate('commands/brain.md', path.join(claudeDir, 'commands', 'brain.md'), opts);
   copyDir('commands/brain', path.join(claudeDir, 'commands', 'brain'), opts);
 

@@ -1,10 +1,10 @@
-# codebrain — manual measurements procedure
+# graphbrain — manual measurements procedure
 
-This document describes the **LLM-driven measurements** for codebrain v0.1 validation. These can't be automated in bash; they require real Claude Code sessions, real time, and (for M2) real ongoing edits.
+This document describes the **LLM-driven measurements** for graphbrain v0.1 validation. These can't be automated in bash; they require real Claude Code sessions, real time, and (for M2) real ongoing edits.
 
 Run these on **3 target repos** per the PRD M#8 outcome:
 
-1. **codebrain itself** — `/Users/dev/Desktop/Project/OSS/idea/codebrain/`
+1. **graphbrain itself** — `/Users/dev/Desktop/Project/OSS/idea/graphbrain/`
 2. **graphify** — `/Users/dev/Desktop/Project/OSS/idea/graphify/`
 3. **graphbrain** — `/Users/dev/Desktop/Project/OSS/idea/graphbrain/`
 
@@ -20,7 +20,7 @@ Record each measurement in `.claude/validation/v0.1-baseline.md` under the match
 
 ```
 cd <target-repo>
-npx codebrain init
+npx graphbrain init
 # Restart Claude Code or open a new session
 /brain init
 /brain ingest src/        # or appropriate top-level source folder
@@ -138,14 +138,14 @@ In `.claude/validation/v0.1-baseline.md` § M2:
 
 ## M4 — Time-to-first-value (wall-clock)
 
-**Target**: < 5 minutes from `npx codebrain init` to first useful wiki page.
+**Target**: < 5 minutes from `npx graphbrain init` to first useful wiki page.
 
 ### Procedure
 
-On a clean target repo (no `.brain/`, no `.claude/commands/brain*`, no codebrain entries in settings.local.json):
+On a clean target repo (no `.brain/`, no `.claude/commands/brain*`, no graphbrain entries in settings.local.json):
 
 1. **Stopwatch start**
-2. `npx codebrain init`
+2. `npx graphbrain init`
 3. Restart Claude Code session
 4. `/brain init`
 5. `/brain ingest src/<the most important file or folder>`
@@ -157,7 +157,7 @@ On a clean target repo (no `.brain/`, no `.claude/commands/brain*`, no codebrain
 ```
 ### M4 — <repo name>
 - Start: <time>
-- npx codebrain init: <duration>
+- npx graphbrain init: <duration>
 - restart + /brain init: <duration>
 - /brain ingest: <duration>
 - /brain query: <duration>
@@ -202,5 +202,5 @@ After completing M1–M4 on all 3 repos:
 ## Notes on running these measurements
 
 - **Cost discipline**: M1 alone runs 30 × 2 = 60 LLM calls. Budget ~$5–10 for the full M1 across 3 repos. Set `CODEBRAIN_PROFILE=minimal` if you want to avoid the observer's overhead during measurement (relevant once M#7 ships).
-- **Repeatability**: record the codebrain version used for each measurement (`codebrain version`). M2 in particular spans a week — codebrain may upgrade between start and end; note any version changes.
-- **Honest reporting**: if a metric MISSES its target, document what happened. The goal of M#8 is to know whether codebrain delivers, not to confirm a hypothesis. A 30% token reduction is still useful; a 0% reduction is a signal to revise the design.
+- **Repeatability**: record the graphbrain version used for each measurement (`graphbrain version`). M2 in particular spans a week — graphbrain may upgrade between start and end; note any version changes.
+- **Honest reporting**: if a metric MISSES its target, document what happened. The goal of M#8 is to know whether graphbrain delivers, not to confirm a hypothesis. A 30% token reduction is still useful; a 0% reduction is a signal to revise the design.

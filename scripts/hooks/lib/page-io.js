@@ -1,4 +1,4 @@
-// Shared page I/O helpers for codebrain hooks.
+// Shared page I/O helpers for graphbrain hooks.
 // Single source of truth for reading + mutating .brain/ pages.
 //
 // Used by:
@@ -40,7 +40,7 @@ function readPage(absolutePath) {
   const body = raw.slice(end + 5);
 
   // Detect version-marker comment as the first line of the body and skip it
-  // (M#1 ships <!-- codebrain v0.1.0 --> as line 1 of slash-command templates,
+  // (M#1 ships <!-- graphbrain v0.1.0 --> as line 1 of slash-command templates,
   // but pages from M#3a+ don't have it. Tolerant either way.)
 
   const frontmatter = {};
@@ -223,7 +223,7 @@ function findBrainRoot(cwd) {
   // Hook runs in cwd; .brain/ should be at cwd or refuse to act.
   const candidate = path.join(cwd, '.brain');
   if (!fs.existsSync(candidate)) return null;
-  if (!fs.existsSync(path.join(candidate, '.codebrain-version'))) return null;
+  if (!fs.existsSync(path.join(candidate, '.graphbrain-version'))) return null;
   return candidate;
 }
 

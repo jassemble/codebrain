@@ -1,6 +1,6 @@
-# Plan: codebrain — Milestone #6 (/brain lint — wiki health-check + tier-3 staleness)
+# Plan: graphbrain — Milestone #6 (/brain lint — wiki health-check + tier-3 staleness)
 
-**Source PRD**: `.claude/prds/codebrain.prd.md`
+**Source PRD**: `.claude/prds/graphbrain.prd.md`
 **Selected Milestone**: #6 — Lint pass with `--fix`
 **Complexity**: Medium — fifth agent (Verifier pattern); maximum reuse of M#4 lib/page-io + M#3a/b ingest procedures; closes the final tier of the 4-tier staleness model
 **Status**: READY — 8 sweep findings (G1–G8) inline
@@ -16,7 +16,7 @@
 
 Read-only by default. `--fix` opts into batch refresh of STALE pages (delegated to M#3a / M#3b ingesters). Closes **tier 3** of the 4-tier staleness model — all 4 tiers now operational.
 
-After M#6: codebrain is feature-complete in spirit. Continuous-learning observer (M#7) and dogfood validation (M#8) are the remaining items.
+After M#6: graphbrain is feature-complete in spirit. Continuous-learning observer (M#7) and dogfood validation (M#8) are the remaining items.
 
 ## Patterns to Mirror (from shipped M#1–M#5)
 
@@ -38,7 +38,7 @@ After M#6: codebrain is feature-complete in spirit. Continuous-learning observer
 - **G4 — Structured report** — 4 categories clearly delimited; counts at the top; details under each. Grep-parseable for the operator who wants to pipe `| grep STALE`. Final summary line with overall health.
 - **G5 — `--fix` requires confirmation** unless `--yes` is passed. Mirrors M#3c tiered planner's interaction model. Print "will refresh <N> code pages + <M> concept folders; proceed? (yes/no)". On `yes`: delegate. On `no`: exit with the report only.
 - **G6 — Lint always exits 0** for v0.1 (regardless of findings). Future post-MVP can extend to exit-code severity (0 = clean, 1 = errors, 2 = warnings) for CI hook usage; skip for now.
-- **G7 — CLAUDE.md schema coherence check**: compare the content between `<!-- codebrain:begin -->` and `<!-- codebrain:end -->` in user's CLAUDE.md against the verbatim content of `skills/core/init/templates/claude-md-schema.md`. If they differ: flag as "schema drift — run /brain init --force to refresh, OR codebrain may have shipped a new schema version (check `codebrain version` vs your .brain/.codebrain-version)".
+- **G7 — CLAUDE.md schema coherence check**: compare the content between `<!-- graphbrain:begin -->` and `<!-- graphbrain:end -->` in user's CLAUDE.md against the verbatim content of `skills/core/init/templates/claude-md-schema.md`. If they differ: flag as "schema drift — run /brain init --force to refresh, OR graphbrain may have shipped a new schema version (check `graphbrain version` vs your .brain/.graphbrain-version)".
 - **G8 — Hook interaction is already safe**: M#4's stale-detect hook ignores edits to `.brain/` (`if relEdited.startsWith('.brain' + path.sep) → exit 0`). So when `--fix` triggers ingester writes to `.brain/code/<path>.md`, the hook silently no-ops. No extra work needed.
 
 ## Files to Change
@@ -48,9 +48,9 @@ After M#6: codebrain is feature-complete in spirit. Continuous-learning observer
 | `agents/brain/verifier.md` | CREATE | Fifth agent — Verifier pattern. Tools `[Read, Glob, Grep, Bash]` (no mutation; --fix delegates). max_iterations 5. Rules emphasize: read-only by default; hash-compare-not-frontmatter; delegate-fixes; never-auto-create-concept-pages (operator decision). |
 | `skills/core/lint/SKILL.md` | CREATE | Defines the lint contract. Tier: core. Pattern: Verifier. Body covers 4 categories, flag matrix (`--fix`, `--yes`, `--include-contradictions`, `--severity=errors\|warnings\|info`), output shape, cost gate. |
 | `commands/brain.md` | UPDATE | Replace M#6 stub on `lint` dispatch row. Add `## When $ARGUMENTS starts with lint` procedure section, steps L0–L7. |
-| `commands/codebrain.md` | UPDATE | Alias parity. |
+| `commands/graphbrain.md` | UPDATE | Alias parity. |
 | `tests/e2e-test.sh` | UPDATE | T28 (verifier + skill structural shape); T29 (procedure + flags + alias parity + npm pack). |
-| `.claude/prds/codebrain.prd.md` | UPDATE | M#6 row → complete. |
+| `.claude/prds/graphbrain.prd.md` | UPDATE | M#6 row → complete. |
 
 **Not in M#6 (deferred):**
 - Severity-coded exit codes for CI usage → post-MVP
@@ -99,11 +99,11 @@ Frontmatter:
 ---
 name: lint
 description: Defines the lint contract — 4 categories (defects, gaps, contradictions, suggested questions), flag matrix (--fix, --yes, --include-contradictions), output shape, cost-gate for opt-in contradiction-check. Loaded by /brain lint. Closes tier 3 of the 4-tier staleness model (PRD #10).
-origin: codebrain
+origin: graphbrain
 version: 0.1.0
 tier: core
 pattern: Verifier
-related_skills: [behavioral/codebrain, ingestion/page-format, core/query]
+related_skills: [behavioral/graphbrain, ingestion/page-format, core/query]
 ---
 ```
 
@@ -121,14 +121,14 @@ Add procedure section after the query section. Steps L0–L7:
 - **L0 — Argument parsing**:
   - Flags: `--fix` (opt into batch refresh), `--yes` (skip --fix confirmation), `--include-contradictions` (opt into LLM contradiction-check; expensive)
   - No question/path expected — `lint` takes only flags
-- **L1 — Preconditions**: `.brain/` exists; `.brain/.codebrain-version` present; CLAUDE.md exists (for schema check)
+- **L1 — Preconditions**: `.brain/` exists; `.brain/.graphbrain-version` present; CLAUDE.md exists (for schema check)
 - **L2 — Inventory**: walk `.brain/code/`, `.brain/concepts/`, `.brain/decisions/` via `lib/page-io.walkBrainPages`. Count pages per kind.
 - **L3 — Defects category** (deterministic, fast):
   - **Stale verification**: for every page with `status: STALE`, re-hash the source(s) and compare. Pages where hashes match → "false stale" (should be promoted; lint reports the count; `--fix` promotes via `lib/page-io.writePage`). Pages where hashes don't match → true stale; reported under "needs refresh".
   - **Broken wikilinks**: scan every page body for `[[code/<path>]]` and `[[concepts/<name>]]`; for each, verify the target file exists in `.brain/`. Report dangling links with source page + target.
   - **Page-size violations**: read each page; estimate token count (chars / 4); flag pages over the cap (code: 4k soft / 8k hard; concept: 6k / 12k).
   - **Orphan source files**: for each `.brain/code/<path>.md`, check if `<cwd>/<path>` (source file) still exists. If not, flag as "orphan: source deleted; consider removing the page".
-  - **Schema coherence drift**: read the content between `<!-- codebrain:begin -->` and `<!-- codebrain:end -->` in `<cwd>/CLAUDE.md`; compare to the verbatim content of `skills/core/init/templates/claude-md-schema.md` (load via Read). If differ: flag as "schema drift — run /brain init --force or check version mismatch".
+  - **Schema coherence drift**: read the content between `<!-- graphbrain:begin -->` and `<!-- graphbrain:end -->` in `<cwd>/CLAUDE.md`; compare to the verbatim content of `skills/core/init/templates/claude-md-schema.md` (load via Read). If differ: flag as "schema drift — run /brain init --force or check version mismatch".
 - **L4 — Gaps category** (heuristic):
   - **Missing concept pages**: scan code pages for repeated mentions of named ideas (capitalized symbols, domain terms) across ≥2 pages; cross-reference against `.brain/concepts/`. Anything mentioned 2+ times with no concept page → "consider creating concept: <name>".
   - **Stub/TBD pages**: any page whose `## Purpose` section is `_(unclear — investigate)_` or whose body contains `_(TBD)_` patterns → "stub: needs deeper ingest".
@@ -149,7 +149,7 @@ Add procedure section after the query section. Steps L0–L7:
   - Track per-page outcomes; collect into the report.
 - **L7 — Output + log**:
   ```
-  /brain lint — wiki health report (codebrain v<version>)
+  /brain lint — wiki health report (graphbrain v<version>)
 
   Inventory:
     Code pages:     <count>
@@ -188,7 +188,7 @@ Add procedure section after the query section. Steps L0–L7:
 
 **Error recovery**: same Tier 1 / Tier 2 pattern; max_iterations 5.
 
-### Task 4: Update commands/codebrain.md (alias parity)
+### Task 4: Update commands/graphbrain.md (alias parity)
 
 Copy Task 3's dispatch row + procedure section verbatim.
 
@@ -209,7 +209,7 @@ Copy Task 3's dispatch row + procedure section verbatim.
 
 ### Task 6: PRD update
 
-`.claude/prds/codebrain.prd.md` M#6 row → `complete` with plan link.
+`.claude/prds/graphbrain.prd.md` M#6 row → `complete` with plan link.
 
 ## Validation
 
@@ -243,7 +243,7 @@ grep -qF -- '--yes' commands/brain.md
 
 # 6. Alias parity
 diff <(awk '/^## When `\$ARGUMENTS` starts with `lint`$/{flag=1} flag' commands/brain.md) \
-     <(awk '/^## When `\$ARGUMENTS` starts with `lint`$/{flag=1} flag' commands/codebrain.md)
+     <(awk '/^## When `\$ARGUMENTS` starts with `lint`$/{flag=1} flag' commands/graphbrain.md)
 
 # 7. npm pack
 npm pack --dry-run | grep -E 'agents/brain/verifier|skills/core/lint/SKILL'
@@ -257,7 +257,7 @@ npm pack --dry-run | grep -E 'agents/brain/verifier|skills/core/lint/SKILL'
 | `--fix` cascades into unintended refresh | Med | G5 — explicit operator confirmation unless `--yes` |
 | Schema drift false positive (whitespace differences) | Low | Normalize whitespace before comparing (trim trailing spaces, normalize line endings); compare token-by-token rather than byte-for-byte |
 | Wikilink check is slow on large brains | Low | Walk is O(pages); per-link verify is O(1) file-exists; <1s for any reasonable brain |
-| Schema coherence reads `skills/core/init/templates/claude-md-schema.md` from npm-installed location (Q1) | Low | Same as M#5 query — the template file ships in the npm package; agent reads from the installed location. Document path resolution like M#3a does ("locate in the codebrain npm package"). |
+| Schema coherence reads `skills/core/init/templates/claude-md-schema.md` from npm-installed location (Q1) | Low | Same as M#5 query — the template file ships in the npm package; agent reads from the installed location. Document path resolution like M#3a does ("locate in the graphbrain npm package"). |
 | brain.md size growth | Med | M#6 adds ~180 lines (procedure + report templates). Total brain.md ~1030 lines after M#6. The "extract to runtime config" decision from M#3c/M#5 is now genuinely pressing — flag for M#7 or post-MVP. |
 | Alias drift on the lint procedure | Low | T29 awk byte-identical check |
 | Verifier triggers M#3a/M#3b indirectly through --fix; cascading hook events | Resolved | G8 — M#4 stale-detect hook ignores edits to `.brain/`. Safe. |

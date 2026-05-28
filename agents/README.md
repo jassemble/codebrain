@@ -1,6 +1,6 @@
 # Agents
 
-codebrain's agent system merges ECC's robustness with graphbrain's simplicity (PRD Design Decisions #16–#20, #26). No agents ship in v0.1 — this directory reserves the structure so Milestones #3, #5, #6, #7 land their agents into a known shape.
+graphbrain's agent system merges ECC's robustness with graphbrain's simplicity (PRD Design Decisions #16–#20, #26). No agents ship in v0.1 — this directory reserves the structure so Milestones #3, #5, #6, #7 land their agents into a known shape.
 
 ## Layout
 
@@ -76,17 +76,17 @@ After the frontmatter, every agent file has a body with:
 }
 ```
 
-`tier`: `core` (ships with codebrain) | `community` (opt-in via future `/brain agent install`).
+`tier`: `core` (ships with graphbrain) | `community` (opt-in via future `/brain agent install`).
 `install`: `always` (auto-installed at the tier) | `manual` (operator must opt-in).
-`version`: semver of this individual agent definition (independent of codebrain's package version).
+`version`: semver of this individual agent definition (independent of graphbrain's package version).
 
 ## Guardrails (Design Decision #19 — dual-layer)
 
-codebrain agents are protected by **two independent layers** so a single mistake can't compromise the brain:
+graphbrain agents are protected by **two independent layers** so a single mistake can't compromise the brain:
 
 ### Layer 1: Structural (PreToolUse hook — Milestone #4)
 
-A hook installed via `codebrain init` runs before every tool use and:
+A hook installed via `graphbrain init` runs before every tool use and:
 
 - Blocks writes to pages with `status: VERIFIED` in their frontmatter (force a deliberate refresh path)
 - Blocks Edit/Write/MultiEdit from any agent declared with `pattern: Observer` (observer agents can't mutate even if their prompt is hijacked)
@@ -105,15 +105,15 @@ Every writer agent's body **must** include a `## Rules` section with self-enforc
 
 ## Error recovery (Design Decision #26)
 
-Every codebrain agent follows a **two-tier recovery model** (simplified from graphbrain's four-tier):
+Every graphbrain agent follows a **two-tier recovery model** (simplified from graphbrain's four-tier):
 
 1. **Tier 1**: Retry the failing operation once with fresh context (re-read the source file, re-check the frontmatter, etc.)
 2. **Tier 2**: If still failing, stop and emit a structured "blocked" report to the operator: `blocked: <agent-name> couldn't complete <task>. Reason: <why>. Operator action: <what to do>.`
 
-graphbrain's "Tier 2 reflect" (ask the agent to reflect on why it failed) is **deliberately omitted** — too expensive in tokens. Codebrain's bet: a clear blocked-report is more useful than recursive self-analysis.
+graphbrain's "Tier 2 reflect" (ask the agent to reflect on why it failed) is **deliberately omitted** — too expensive in tokens. Graphbrain's bet: a clear blocked-report is more useful than recursive self-analysis.
 
 ## Cross-references
 
 - Skill conventions: `../skills/README.md`
 - Claude Code conventions (the shape of agent files in the user's `.claude/`): `../reference/claude-code-conventions.md`
-- PRD with all 33 locked design decisions: `../.claude/prds/codebrain.prd.md`
+- PRD with all 33 locked design decisions: `../.claude/prds/graphbrain.prd.md`

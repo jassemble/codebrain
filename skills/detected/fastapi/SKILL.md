@@ -1,11 +1,11 @@
 ---
 name: detected/fastapi
 description: Stack-aware page-template extras + ECC-bridge for FastAPI code pages. Activates when pyproject.toml contains "fastapi" AND the source file is .py. Bridges to ecc:fastapi-patterns.
-origin: codebrain
+origin: graphbrain
 version: 0.1.1
 tier: detected
 pattern: Generator
-related_skills: [behavioral/codebrain, ingestion/page-format, detected/python]
+related_skills: [behavioral/graphbrain, ingestion/page-format, detected/python]
 detect:
   - { file_exists: "pyproject.toml", contains: "fastapi" }
 applies_to_extensions: [".py"]

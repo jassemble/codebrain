@@ -1,6 +1,6 @@
-# Plan: codebrain — Milestone #9 (Framework-detection + ECC-bridge full architecture)
+# Plan: graphbrain — Milestone #9 (Framework-detection + ECC-bridge full architecture)
 
-**Source PRD**: `.claude/prds/codebrain.prd.md` (v0.2 Roadmap section)
+**Source PRD**: `.claude/prds/graphbrain.prd.md` (v0.2 Roadmap section)
 **Selected Milestone**: #9 — Gap B from operator dogfood
 **Complexity**: Medium-to-Large — runtime mechanism for bridging to ECC; coverage extension to more frameworks; first cross-plugin skill-loading
 **Status**: DRAFT — not yet implementation-ready; refinement expected after operator's v0.1.1 dogfood produces evidence
@@ -43,13 +43,13 @@ After M#9: when an operator runs `/brain ingest` on a NestJS codebase with ECC i
 | File | Action | Why |
 |---|---|---|
 | `commands/brain.md` | UPDATE | Add `Step 4b.3 — Active bridge probe + activation` after Step 4b.2. Procedure: for each `expert_skill` declared by an applying `detected/*`, probe availability via harness-specific command; if available, load the skill BEFORE writing the page; track which loaded for the report. |
-| `commands/codebrain.md` | UPDATE | Alias parity for Step 4b.3 |
+| `commands/graphbrain.md` | UPDATE | Alias parity for Step 4b.3 |
 | `skills/registry.json` | UPDATE | Add `expert_skills:` bridges for the M#3d skills: `detected/react` → `[ecc:react-patterns]` (if/when it exists), `detected/typescript`, `detected/python`, `detected/go`. Add new entries for vue, rails, flask, koa, hapi, gin, echo, fiber. |
 | `skills/core/init/templates/stack-detection.json` | UPDATE | Add detect rules for the new frameworks not yet cataloged (koa, hapi, gin, echo, fiber, flask) |
 | `skills/detected/{vue,rails,flask,koa,hapi,gin,echo,fiber}/SKILL.md` (NEW × 8) | CREATE | Same schema as v0.1.1's 6 detected skills — frontmatter + bridge declaration + 5 stack-specific extra sections |
 | `skills/core/init/templates/claude-md-schema.md` | UPDATE | Add a brief mention of the "Active bridges" report so operators understand which expert skills loaded for their codebase |
 | `tests/e2e-test.sh` | UPDATE | T37: assert `Step 4b.3` exists; assert per-stack bridges declared; assert all 8 new detected skills exist + have `expert_skills:`; alias parity; npm pack |
-| `.claude/prds/codebrain.prd.md` | UPDATE | Flip M#9 row `pending` → `in-progress` then `complete` when shipped |
+| `.claude/prds/graphbrain.prd.md` | UPDATE | Flip M#9 row `pending` → `in-progress` then `complete` when shipped |
 
 ## Tasks (provisional — sharpen during a sweep before implementation)
 
@@ -60,7 +60,7 @@ After M#9: when an operator runs `/brain ingest` on a NestJS codebase with ECC i
    - **(d)** Trial-and-error: try to load the skill via the Skill tool; catch the error
    Resolution required BEFORE implementation.
 
-2. **Add `Step 4b.3 — Active bridge probe + activation`** to `commands/brain.md` (mirror to `codebrain.md`):
+2. **Add `Step 4b.3 — Active bridge probe + activation`** to `commands/brain.md` (mirror to `graphbrain.md`):
    - Input: list of matching `detected/*` skills from Step 4b.1 (already known)
    - For each, read `expert_skills:` from `skills/registry.json` (the agent already has the registry loaded)
    - For each named expert skill, probe availability via the mechanism resolved in Task 1
@@ -127,7 +127,7 @@ find skills/detected -maxdepth 1 -mindepth 1 -type d | wc -l
 | Risk | Likelihood | Mitigation |
 |---|---|---|
 | The probe mechanism (Task 1) doesn't have a clean primitive in Claude Code | Med | Spike before implementation; if no clean probe exists, fall back to "let the operator declare what's installed via a `.brain/.bridges` config file" |
-| ECC's expert skills don't actually map 1:1 to codebrain's detected stacks (e.g., no `ecc:vue-patterns`) | Med | For each declared bridge, verify the ECC skill exists; if not, document as "no bridge available" in the registry |
+| ECC's expert skills don't actually map 1:1 to graphbrain's detected stacks (e.g., no `ecc:vue-patterns`) | Med | For each declared bridge, verify the ECC skill exists; if not, document as "no bridge available" in the registry |
 | Loading multiple ECC skills inflates context per ingest | Med | Skill-loader caches; second invocation cheap; report which loaded so operator can disable noisy ones via `--no-bridge ecc:foo` (post-MVP flag) |
 | Operator without ECC sees "unavailable" lines and worries something is broken | Low | Report explicitly says "declared by detected/X but not present in harness — install ECC plugin to enable" with a link |
 | Two detected/* skills declare conflicting `expert_skills` (e.g., both nestjs and express applied to one file, both want different backend skills) | Low | Load all; ECC skills are additive (multiple loaded skills compose); contradictions surface at code-write time |

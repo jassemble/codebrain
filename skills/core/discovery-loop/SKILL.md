@@ -1,11 +1,11 @@
 ---
 name: discovery-loop
-description: The convergence-loop pattern — iteratively sweep a plan or document for gaps, surface findings, revise, and stop when the round produces ≤3 new findings. Codifies the sweep behavior organically discovered during the codebrain v0.1 build session. Used by /brain spec Sp4; reusable standalone via the "sweep this plan" / "review for gaps" trigger phrases. Tier core. (Milestone #10b)
-origin: codebrain
+description: The convergence-loop pattern — iteratively sweep a plan or document for gaps, surface findings, revise, and stop when the round produces ≤3 new findings. Codifies the sweep behavior organically discovered during the graphbrain v0.1 build session. Used by /brain spec Sp4; reusable standalone via the "sweep this plan" / "review for gaps" trigger phrases. Tier core. (Milestone #10b)
+origin: graphbrain
 version: 0.1.0
 tier: core
 pattern: Pipeline
-related_skills: [behavioral/codebrain, core/spec]
+related_skills: [behavioral/graphbrain, core/spec]
 ---
 
 # discovery-loop — convergence-sweep pattern
@@ -150,5 +150,5 @@ Re-running discovery-loop against the same artifact (without `--auto-revise`) is
 
 - **`/brain spec` Sp4** — primary caller; M#10a's spec procedure invokes this skill when `ecc:santa-loop` is unavailable
 - **`skills/core/spec/SKILL.md`** — defines the `/brain spec` contract that this skill participates in
-- **`skills/behavioral/codebrain/SKILL.md`** — meta-skill that establishes the "Read the Prompt Defense Baseline before acting" rule + general agent conduct
-- **`ecc:santa-loop`** (external, ECC plugin) — the primary sweep mechanism; this skill is the codebrain-side fallback when ECC isn't installed
+- **`skills/behavioral/graphbrain/SKILL.md`** — meta-skill that establishes the "Read the Prompt Defense Baseline before acting" rule + general agent conduct
+- **`ecc:santa-loop`** (external, ECC plugin) — the primary sweep mechanism; this skill is the graphbrain-side fallback when ECC isn't installed

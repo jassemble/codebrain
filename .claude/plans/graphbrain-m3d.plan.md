@@ -1,6 +1,6 @@
-# Plan: codebrain — Milestone #3d (Stack-aware page templates — detected/* skills)
+# Plan: graphbrain — Milestone #3d (Stack-aware page templates — detected/* skills)
 
-**Source PRD**: `.claude/prds/codebrain.prd.md`
+**Source PRD**: `.claude/prds/graphbrain.prd.md`
 **Selected Milestone**: #3d — fourth and final sub-step of the M#3 split
 **Complexity**: Medium — 4 new skills, 4 templates, brain.md ingest procedure extended; no new agents; inheritance pattern means no template duplication
 **Status**: READY — sweep findings inline (E1–E7)
@@ -50,13 +50,13 @@ Examples:
 | `skills/detected/typescript/templates/code-page-typescript-extras.md` | CREATE | Verbatim TypeScript extras |
 | `skills/registry.json` | UPDATE | Populate the empty shell with 4 entries (one per detected stack) |
 | `commands/brain.md` | UPDATE | Extend ingest Step 4 with a new sub-section: "Stack-aware extras". After writing the generic 5 sections (per Step 4's verbatim template), check installed `detected/*` skills against (a) the project's detected stack list AND (b) the source file's extension. For each match, append the verbatim extras inlined in brain.md. |
-| `commands/codebrain.md` | UPDATE | Alias parity |
+| `commands/graphbrain.md` | UPDATE | Alias parity |
 | `tests/e2e-test.sh` | UPDATE | T23 (4 detected skills + 4 templates structural shape; frontmatter `tier: detected` + `detect:` field present); T24 (registry.json has 4 entries); T25 (brain.md has stack-aware extras section + alias parity + inlined per-stack content for all 4 stacks) |
-| `.claude/prds/codebrain.prd.md` | UPDATE | M#3d row → in-progress with plan link |
+| `.claude/prds/graphbrain.prd.md` | UPDATE | M#3d row → in-progress with plan link |
 
 **Not in M#3d (deferred):**
 - Stack-aware tier-glob overrides for M#3c's no-arg planner — future polish (sweep finding E7)
-- Other detected stacks (Vue, Next, Django, FastAPI, Rust, Kotlin, etc.) — codebrain v0.1 ships only the 4 most-common; community-extensible later
+- Other detected stacks (Vue, Next, Django, FastAPI, Rust, Kotlin, etc.) — graphbrain v0.1 ships only the 4 most-common; community-extensible later
 - `applies_to_extensions` runtime resolution helper (the slash-command body inlines the matching logic for M#3d; a shared helper can be extracted in M#6+)
 
 ## Tasks
@@ -68,11 +68,11 @@ Create with frontmatter:
 ---
 name: detected/react
 description: Stack-aware page-template extras for React/JSX/TSX code pages. Loaded by /brain ingest when a React project is detected (package.json contains "react") AND the source file's extension is .tsx or .jsx. Extras append AFTER the generic 5 sections (Purpose, Exports, Imports, Key behaviors, Cross-references) — never replace.
-origin: codebrain
+origin: graphbrain
 version: 0.1.0
 tier: detected
 pattern: Generator
-related_skills: [behavioral/codebrain, ingestion/page-format]
+related_skills: [behavioral/graphbrain, ingestion/page-format]
 detect:
   - { file_exists: "package.json", contains: "\"react\"" }
 applies_to_extensions: [".tsx", ".jsx"]
@@ -283,9 +283,9 @@ Skip Step 4b entirely if no detected/* skill matches. The generic 5 sections alw
 
 Update the dispatch table footer notes — no new dispatch rows needed, just behavior extension to existing `ingest <file>` and `ingest <folder>` paths.
 
-### Task 7: Update commands/codebrain.md (alias parity)
+### Task 7: Update commands/graphbrain.md (alias parity)
 
-Mirror Task 6 — copy Step 4b verbatim into codebrain.md. T25 asserts byte-identical via awk pattern (consistent with M#3b/M#3c).
+Mirror Task 6 — copy Step 4b verbatim into graphbrain.md. T25 asserts byte-identical via awk pattern (consistent with M#3b/M#3c).
 
 ### Task 8: tests/e2e-test.sh — T23 + T24 + T25
 
@@ -304,7 +304,7 @@ Mirror Task 6 — copy Step 4b verbatim into codebrain.md. T25 asserts byte-iden
 - `Step 4b — Stack-aware extras` section present in brain.md
 - All 4 stack sub-sections present (`#### detected/react extras`, etc.)
 - Each sub-section contains the stack's required body sections (e.g., React: Component, Props, State, Hooks, Effects)
-- codebrain.md mirrors (byte-identical via awk anchor)
+- graphbrain.md mirrors (byte-identical via awk anchor)
 - npm pack includes the brain.md update
 
 ## Validation
@@ -341,7 +341,7 @@ done
 
 # 6. Alias parity
 diff <(awk '/^\*\*Step 4b — Stack-aware extras\*\*/{flag=1} flag' commands/brain.md) \
-     <(awk '/^\*\*Step 4b — Stack-aware extras\*\*/{flag=1} flag' commands/codebrain.md)
+     <(awk '/^\*\*Step 4b — Stack-aware extras\*\*/{flag=1} flag' commands/graphbrain.md)
 # Expect: empty
 
 # 7. npm pack
@@ -355,7 +355,7 @@ npm pack --dry-run | grep -E 'skills/detected/(react|python|go|typescript)/'
 | Ingest procedure's extras-resolution logic produces wrong section for a `.tsx` file in a TypeScript-only project (no React) | Low | E2 detect rules: React requires `package.json` contains `"react"`; if absent, React extras don't apply. Strict AND on rules. |
 | Multiple detected skills' extras have section-name collisions (e.g., both declare `## Exports`) | Low | The generic template already has `## Exports`; detected skills' extras use stack-specific names (Component, Props, Public API, Receivers, etc.) — no collisions in v0.1. |
 | brain.md size growth | Med | M#3d adds ~100 lines (Step 4b + 4 stack extras blocks). Total brain.md ~700 lines after M#3d. M#5/M#6 will push further; M#5 may force the "extract to .brain/.runtime/" decision deferred from M#3c sweep. |
-| Alias drift between brain.md and codebrain.md (Step 4b is large) | Low | T25 byte-identical via awk |
+| Alias drift between brain.md and graphbrain.md (Step 4b is large) | Low | T25 byte-identical via awk |
 | Operator unfamiliar with the inheritance pattern thinks generic template stopped applying when a detected/* skill matches | Med | Step 4b explicitly states "extras append AFTER `## Cross-references` — never replace"; each detected SKILL.md repeats this in its "Inheritance contract" body section |
 | A file matches multiple stacks (TypeScript + React for `.tsx`) and the extras are too long together | Low | Both stacks combined add ~10 sections; still under the 8k hard cap (PRD #7); if a specific page exceeds, the ingester's page-size self-check (M#3a Step 4) catches it |
 | `applies_to_extensions` is a new field not documented in skills/README.md | Med | Update skills/README.md to document the field in M#3d (small task; can be folded into Task 5 — registry update — for consistency). NOTE: I'll add this to Task 5. |

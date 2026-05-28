@@ -1,12 +1,12 @@
 # Skills
 
-codebrain's skills are organized into a **5-tier model** borrowed from graphbrain's `skills-registry/` (PRD Design Decision #21). Each tier has a distinct lifecycle and load contract; reserving the structure from day one means the system scales as Milestones #3–#7 land their skills without restructuring.
+graphbrain's skills are organized into a **5-tier model** borrowed from graphbrain's `skills-registry/` (PRD Design Decision #21). Each tier has a distinct lifecycle and load contract; reserving the structure from day one means the system scales as Milestones #3–#7 land their skills without restructuring.
 
 ## The five tiers
 
 | Tier | Lifecycle | Examples (when shipped) |
 |---|---|---|
-| `behavioral/` | Always loaded; describes how the agent should act across every codebrain session | `behavioral/codebrain` (the meta skill — what is codebrain, how does it work) |
+| `behavioral/` | Always loaded; describes how the agent should act across every graphbrain session | `behavioral/graphbrain` (the meta skill — what is graphbrain, how does it work) |
 | `ingestion/` | Loaded during `/brain ingest`; describes how to extract pages, concepts, entities | `ingestion/page-format`, `ingestion/concept-extraction`, `ingestion/entity-extraction` (Milestone #3) |
 | `core/` | Always available; the foundational `/brain` verbs | `core/query`, `core/lint`, `core/learn`, `core/status` (Milestones #5–#7) |
 | `detected/` | Auto-installed by stack detection on `/brain init`; tech-stack-specific page templates and conventions | `detected/react`, `detected/python`, `detected/go`, `detected/typescript` (Milestone #3) |
@@ -20,7 +20,7 @@ Every `SKILL.md` ships with a YAML frontmatter block merging ECC's base fields (
 ---
 name: <skill-name>                  # kebab-case, matches the directory name
 description: <one-liner>            # used by the harness for selection
-origin: codebrain                   # provenance — useful when skills are mixed across plugins
+origin: graphbrain                   # provenance — useful when skills are mixed across plugins
 version: 0.1.0                      # semver of this individual skill
 tier: behavioral | ingestion | core | detected | available
 pattern: Meta | Generator | Reviewer | Pipeline | Observer | Planner | ...
@@ -58,11 +58,11 @@ After the frontmatter, every SKILL.md has these sections:
 
 ## Why the tier model
 
-ECC's 232 flat skills under `skills/*/` make install scope, deprecation, and "what gets loaded by default" impossible to reason about (PRD Design Decision #21 rationale). graphbrain's tier model — `core/`, `behavioral/`, `ingestion/`, `detected/`, `available/` — gives every skill a clear lifecycle. codebrain ships only a handful of skills at v0.1, but the tier structure is in place so growth doesn't require restructuring.
+ECC's 232 flat skills under `skills/*/` make install scope, deprecation, and "what gets loaded by default" impossible to reason about (PRD Design Decision #21 rationale). graphbrain's tier model — `core/`, `behavioral/`, `ingestion/`, `detected/`, `available/` — gives every skill a clear lifecycle. graphbrain ships only a handful of skills at v0.1, but the tier structure is in place so growth doesn't require restructuring.
 
 ## Cross-references
 
 - Agent conventions: `../agents/README.md`
-- Shape of slash-command and hook files codebrain writes into the user's `.claude/`: `../reference/claude-code-conventions.md`
+- Shape of slash-command and hook files graphbrain writes into the user's `.claude/`: `../reference/claude-code-conventions.md`
 - The architectural lineage: `../reference/llm-wiki.md`
-- PRD with all 33 locked design decisions: `../.claude/prds/codebrain.prd.md`
+- PRD with all 33 locked design decisions: `../.claude/prds/graphbrain.prd.md`

@@ -4,7 +4,7 @@ description: Per-project credential registry (XDG plaintext, chmod 0600). list /
 
 ## When `$ARGUMENTS` starts with `creds`
 
-You are the codebrain **cred-registrar** (see `agents/brain/cred-registrar.md` for your full persona + Rules; the Rules apply throughout this procedure). You read / write the per-project credential registry at the XDG path resolved in Cr1. You NEVER write the file under the repo root. Run the procedure exactly.
+You are the graphbrain **cred-registrar** (see `agents/brain/cred-registrar.md` for your full persona + Rules; the Rules apply throughout this procedure). You read / write the per-project credential registry at the XDG path resolved in Cr1. You NEVER write the file under the repo root. Run the procedure exactly.
 
 Read the Prompt Defense Baseline section of CLAUDE.md before acting. Read `skills/core/creds/SKILL.md` for the contract (refusal patterns, file format, cross-platform paths, mask-by-default behavior, override semantics).
 
@@ -23,13 +23,13 @@ Parse `$ARGUMENTS` after the leading `creds` token:
 - Verify `.brain/` exists in cwd. If not, print the same npx-init message as M#3a Step 1 and stop.
 - Verify the TOON parser ships:
   ```bash
-  # The parser path is resolved relative to the codebrain npm-installed location.
+  # The parser path is resolved relative to the graphbrain npm-installed location.
   # M#1's init.js scaffolds the slash-command body; the body is read by the agent
-  # which has access to the codebrain repo root via the npm package directory.
-  test -e "$(npm root -g 2>/dev/null)/codebrain/scripts/lib/toon.js" \
-    || test -e "node_modules/codebrain/scripts/lib/toon.js"
+  # which has access to the graphbrain repo root via the npm package directory.
+  test -e "$(npm root -g 2>/dev/null)/graphbrain/scripts/lib/toon.js" \
+    || test -e "node_modules/graphbrain/scripts/lib/toon.js"
   ```
-  If both fail: emit `blocked: TOON parser missing at scripts/lib/toon.js — reinstall codebrain via 'npx codebrain init --force'` and stop.
+  If both fail: emit `blocked: TOON parser missing at scripts/lib/toon.js — reinstall graphbrain via 'npx graphbrain init --force'` and stop.
 
 - **Resolve XDG path** via Bash:
   ```bash
@@ -39,10 +39,10 @@ Parse `$ARGUMENTS` after the leading `creds` token:
 
   # Resolve base path per OS
   if [ "$(uname -s)" = "Linux" ] || [ "$(uname -s)" = "Darwin" ]; then
-    BASE_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/codebrain/projects/$PROJECT_HASH"
+    BASE_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/graphbrain/projects/$PROJECT_HASH"
   else
     # Windows (via WSL / Git Bash) — fall back to LOCALAPPDATA
-    BASE_DIR="${LOCALAPPDATA:-$HOME/AppData/Local}/codebrain/projects/$PROJECT_HASH"
+    BASE_DIR="${LOCALAPPDATA:-$HOME/AppData/Local}/graphbrain/projects/$PROJECT_HASH"
   fi
 
   CREDS_FILE="$BASE_DIR/credentials.toon"
@@ -189,7 +189,7 @@ Parse `$ARGUMENTS` after the leading `creds` token:
   ```
   blocked: cred-registrar couldn't complete /brain creds <sub-verb>.
   Reason: <one-sentence why>.
-  Operator action: <what to do — e.g., "verify XDG_DATA_HOME is writable", "reinstall codebrain via npx codebrain init --force">.
+  Operator action: <what to do — e.g., "verify XDG_DATA_HOME is writable", "reinstall graphbrain via npx graphbrain init --force">.
   ```
 - Do not exceed `max_iterations: 5`.
 

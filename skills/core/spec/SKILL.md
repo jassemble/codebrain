@@ -1,11 +1,11 @@
 ---
 name: spec
-description: Defines the /brain spec contract — given an operator intent, orchestrate ECC's plan-prd → plan → optional santa-loop into a converged spec + plan. Tier core. Cousin of core/query, core/lint, core/learn — adds the spec verb to the codebrain surface.
-origin: codebrain
+description: Defines the /brain spec contract — given an operator intent, orchestrate ECC's plan-prd → plan → optional santa-loop into a converged spec + plan. Tier core. Cousin of core/query, core/lint, core/learn — adds the spec verb to the graphbrain surface.
+origin: graphbrain
 version: 0.1.0
 tier: core
 pattern: Orchestrator
-related_skills: [behavioral/codebrain, ingestion/page-format]
+related_skills: [behavioral/graphbrain, ingestion/page-format]
 ---
 
 # spec — `/brain spec` contract
@@ -52,7 +52,7 @@ The threshold: would the work benefit from a written spec a future contributor c
 - **Convergence report** (printed to console + appended to `.brain/log.md`):
 
   ```
-  /brain spec converged (codebrain v<version>)
+  /brain spec converged (graphbrain v<version>)
     Intent:           <intent verbatim>
     PRD:              .claude/prds/<slug>.prd.md (~<token-count> tokens)
     Plan:             .claude/plans/<slug>.plan.md (~<token-count> tokens)
@@ -112,5 +112,5 @@ If either is missing, Sp1 emits a `blocked: ecc bridge unavailable — install t
 - **`/brain query`** — answers questions about the existing codebase; complementary, not redundant
 - **`/brain ingest`** — extends the wiki with new pages; M#10a does NOT auto-trigger this, but the converged plan may instruct the operator to run it
 - **`skills/core/discovery-loop/SKILL.md`** (M#10b) — codifies the Sp4 sweep loop as a reusable skill; M#10a's Sp4 references this skill if shipped
-- **`skills/behavioral/codebrain/SKILL.md`** (updated in M#10c with "Prompt-intent routing") — the upstream trigger that suggests `/brain spec` when operator intent matches
+- **`skills/behavioral/graphbrain/SKILL.md`** (updated in M#10c with "Prompt-intent routing") — the upstream trigger that suggests `/brain spec` when operator intent matches
 - **`agents/brain/spec-orchestrator.md`** — the agent's identity, scope, rules

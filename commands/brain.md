@@ -4,7 +4,7 @@ description: graphbrain — agent-maintained codebase wiki. Dispatcher for the /
 
 # /brain
 
-Codebrain's primary slash command. After M#12 (slash-command namespacing), every verb lives in its own file under `.claude/commands/brain/<verb>.md`. This top-level file is a help disambiguator + legacy dispatcher.
+Graphbrain's primary slash command. After M#12 (slash-command namespacing), every verb lives in its own file under `.claude/commands/brain/<verb>.md`. This top-level file is a help disambiguator + legacy dispatcher.
 
 `$ARGUMENTS` is parsed as `<verb> [args...]`. Route as follows.
 
@@ -38,7 +38,7 @@ The per-verb files are the canonical procedure location. This dispatcher is a th
 Print this help block:
 
 ```
-/brain — codebrain commands
+/brain — graphbrain commands
 
   /brain:init                  Scaffold .brain/ + CLAUDE.md schema block (Milestone #2)
   /brain:ingest [path]         Read source files → write LLM-authored wiki pages (Milestone #3)
@@ -53,8 +53,8 @@ The legacy form /brain <verb> still works (muscle memory) — it dispatches to
 the same per-verb files. The namespaced form is more discoverable in Claude
 Code's command palette.
 
-  Repository:  https://github.com/jassemble/codebrain
-  PRD:         .claude/prds/codebrain.prd.md (if installed for development)
+  Repository:  https://github.com/jassemble/graphbrain
+  PRD:         .claude/prds/graphbrain.prd.md (if installed for development)
 ```
 
 ## Unknown verb

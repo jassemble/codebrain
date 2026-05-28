@@ -1,11 +1,11 @@
 ---
 name: llms-txt
-description: Defines how `.brain/llms.txt` is refreshed — the agent-portable site map (AEO / llmstxt.org convention) that external agents read to route into the codebrain wiki. Deterministic procedure, no LLM call. Loaded by `/brain ingest <file>` Step 6, `/brain ingest <folder>` linker L5, and `/brain lint` L7.
-origin: codebrain
+description: Defines how `.brain/llms.txt` is refreshed — the agent-portable site map (AEO / llmstxt.org convention) that external agents read to route into the graphbrain wiki. Deterministic procedure, no LLM call. Loaded by `/brain ingest <file>` Step 6, `/brain ingest <folder>` linker L5, and `/brain lint` L7.
+origin: graphbrain
 version: 0.1.0
 tier: ingestion
 pattern: Generator
-related_skills: [behavioral/codebrain, ingestion/page-format]
+related_skills: [behavioral/graphbrain, ingestion/page-format]
 ---
 
 # llms-txt — `.brain/llms.txt` refresh procedure
@@ -24,18 +24,18 @@ Each callsite says "Refresh `.brain/llms.txt` per the procedure in `skills/inges
 
 `llms.txt` is the agent-portable site map for `.brain/` (AEO / llmstxt.org convention). External agents read it to route into the wiki without scanning every file. Per the agentctx-idea research (token-economics, AEO six-layer stack), a machine-readable index at a known path is the highest-leverage discoverability artifact for agent-consumed documentation.
 
-Codebrain's `.brain/llms.txt` lives at the project's `.brain/` root and is regenerated on every ingest + every lint. It is **not** committed in the spirit of "deterministic from page state" — but operators are free to commit it if they want a snapshot.
+Graphbrain's `.brain/llms.txt` lives at the project's `.brain/` root and is regenerated on every ingest + every lint. It is **not** committed in the spirit of "deterministic from page state" — but operators are free to commit it if they want a snapshot.
 
 ## File format
 
 ```
-# .brain — codebrain wiki
+# .brain — graphbrain wiki
 # llms.txt — agent-readable site map (https://llmstxt.org / AEO convention)
 # Last refreshed: <ISO date>
-# codebrain v<version-from-.codebrain-version>
+# graphbrain v<version-from-.graphbrain-version>
 # Pages: <total>, estimated tokens: ~<sum>
 
-> .brain is a folder-mirrored markdown wiki of this codebase, maintained by codebrain. (one-paragraph blurb — keep verbatim from init scaffold)
+> .brain is a folder-mirrored markdown wiki of this codebase, maintained by graphbrain. (one-paragraph blurb — keep verbatim from init scaffold)
 
 ## Top-level
 - [overview.md](overview.md) — Project purpose, codebase structure, key patterns, active state

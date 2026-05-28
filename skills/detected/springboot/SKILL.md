@@ -1,11 +1,11 @@
 ---
 name: detected/springboot
 description: Stack-aware page-template extras + ECC-bridge for Spring Boot code pages. Activates when pom.xml OR build.gradle contains "spring-boot" AND the source file is .java/.kt. Bridges to ecc:springboot-patterns + ecc:springboot-security.
-origin: codebrain
+origin: graphbrain
 version: 0.1.1
 tier: detected
 pattern: Generator
-related_skills: [behavioral/codebrain, ingestion/page-format]
+related_skills: [behavioral/graphbrain, ingestion/page-format]
 detect:
   - { file_exists: "pom.xml", contains: "spring-boot" }
 applies_to_extensions: [".java", ".kt"]

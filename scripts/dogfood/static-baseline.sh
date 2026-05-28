@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# codebrain dogfood — static-baseline.sh
+# graphbrain dogfood — static-baseline.sh
 #
 # Gather measurements that don't require a Claude Code session: line counts,
 # file inventory, frontmatter validity, agent/skill counts per pattern/tier,
@@ -25,13 +25,13 @@ pkg_version="$(node -e "console.log(require('$CODEBRAIN_ROOT/package.json').vers
 
 # Line counts of shipped source files
 loc() { wc -l < "$CODEBRAIN_ROOT/$1" 2>/dev/null | awk '{print $1}'; }
-bin_loc=$(loc bin/codebrain.js)
+bin_loc=$(loc bin/graphbrain.js)
 init_loc=$(loc scripts/init.js)
 stale_loc=$(loc scripts/hooks/stale-detect.js)
 guard_loc=$(loc scripts/hooks/verified-guard.js)
 pageio_loc=$(loc scripts/hooks/lib/page-io.js)
 brain_md_loc=$(loc commands/brain.md)
-codebrain_md_loc=$(loc commands/codebrain.md)
+codebrain_md_loc=$(loc commands/graphbrain.md)
 total_loc=$((bin_loc + init_loc + stale_loc + guard_loc + pageio_loc + brain_md_loc + codebrain_md_loc))
 
 # Agent count + per-pattern breakdown
@@ -98,8 +98,8 @@ implemented_verbs=$(grep -oE '\*\*implemented \(M#[0-9a-z]+\)\*\*' "$CODEBRAIN_R
 stubbed_milestones=$(grep -oE 'Milestone #[0-9a-z]+' "$CODEBRAIN_ROOT/commands/brain.md" | sort -u | tr '\n' ', ' | sed 's/,$//')
 
 # Hook count
-pre_hooks=$(grep -c "id: codebrain:pre:" "$CODEBRAIN_ROOT/scripts/init.js" 2>/dev/null || echo 0)
-post_hooks=$(grep -c "id: codebrain:post:" "$CODEBRAIN_ROOT/scripts/init.js" 2>/dev/null || echo 0)
+pre_hooks=$(grep -c "id: graphbrain:pre:" "$CODEBRAIN_ROOT/scripts/init.js" 2>/dev/null || echo 0)
+post_hooks=$(grep -c "id: graphbrain:post:" "$CODEBRAIN_ROOT/scripts/init.js" 2>/dev/null || echo 0)
 
 # Test coverage — parse from the actual test summary.
 # Recursion guard: when invoked from inside e2e-test.sh (which has T32
@@ -124,7 +124,7 @@ fi
 # --- Write report -----------------------------------------------------------
 
 cat > "$REPORT" <<EOF
-# codebrain v${pkg_version} — static baseline
+# graphbrain v${pkg_version} — static baseline
 
 **Generated**: ${today}
 **Repo SHA**: ${git_sha}
@@ -136,13 +136,13 @@ This file is auto-generated. Do not edit manually. Re-run \`bash scripts/dogfood
 
 | File | Lines |
 |---|---|
-| \`bin/codebrain.js\` | ${bin_loc} |
+| \`bin/graphbrain.js\` | ${bin_loc} |
 | \`scripts/init.js\` | ${init_loc} |
 | \`scripts/hooks/stale-detect.js\` | ${stale_loc} |
 | \`scripts/hooks/verified-guard.js\` | ${guard_loc} |
 | \`scripts/hooks/lib/page-io.js\` | ${pageio_loc} |
 | \`commands/brain.md\` | ${brain_md_loc} |
-| \`commands/codebrain.md\` | ${codebrain_md_loc} |
+| \`commands/graphbrain.md\` | ${codebrain_md_loc} |
 | **Total core source LOC** | **${total_loc}** |
 
 ## Agents (${agent_count} total)
@@ -184,8 +184,8 @@ This file is auto-generated. Do not edit manually. Re-run \`bash scripts/dogfood
 
 | Phase | Count |
 |---|---|
-| PreToolUse codebrain entries | ${pre_hooks} |
-| PostToolUse codebrain entries | ${post_hooks} |
+| PreToolUse graphbrain entries | ${pre_hooks} |
+| PostToolUse graphbrain entries | ${post_hooks} |
 
 ## Slash-command surface
 

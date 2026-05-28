@@ -1,11 +1,11 @@
 ---
 name: detected/nestjs
 description: Stack-aware page-template extras + ECC-bridge for NestJS code pages. Activates when package.json contains "@nestjs/core" AND the source file is .ts. Extras APPEND AFTER the generic 5 sections. Bridges to ECC's expert NestJS pattern skill (ecc:nestjs-patterns) when available.
-origin: codebrain
+origin: graphbrain
 version: 0.1.1
 tier: detected
 pattern: Generator
-related_skills: [behavioral/codebrain, ingestion/page-format, detected/typescript]
+related_skills: [behavioral/graphbrain, ingestion/page-format, detected/typescript]
 detect:
   - { file_exists: "package.json", contains: "\"@nestjs/core\"" }
 applies_to_extensions: [".ts"]

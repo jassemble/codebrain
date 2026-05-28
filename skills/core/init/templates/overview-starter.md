@@ -30,7 +30,7 @@ ingested_by: <!-- AGENT: insert your model identifier, e.g. claude-sonnet-4-6 --
 
 ## Key Patterns
 
-<!-- AGENT: leave a single line "_Will be populated by Milestone #3 ingest as the codebrain agent
+<!-- AGENT: leave a single line "_Will be populated by Milestone #3 ingest as the graphbrain agent
      learns the codebase. /brain ingest src/ is the first step._"
      Do not invent patterns at init time — that's ingest's job. -->
 
@@ -39,7 +39,7 @@ ingested_by: <!-- AGENT: insert your model identifier, e.g. claude-sonnet-4-6 --
 <!-- AGENT: write a brief, factual statement of current state. Template:
 
      - Initialized: <today's ISO date> via `/brain init`
-     - Codebrain version: <read from .brain/.codebrain-version>
+     - Graphbrain version: <read from .brain/.graphbrain-version>
      - Detected stack: <comma-separated list from /brain init's stack-detection step>
      - Pages: <count of files in .brain/code/ + .brain/concepts/ + .brain/decisions/>
      - Last ingest: never (run `/brain ingest <path>` to begin)

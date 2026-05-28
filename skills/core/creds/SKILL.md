@@ -1,11 +1,11 @@
 ---
 name: creds
-description: Defines the /brain creds contract — per-project credential registry at <XDG>/codebrain/projects/<git-hash>/credentials.toon. Plaintext but outside the repo; chmod 0600; refusal-pattern enforcement; mask-by-default on show; auditable override for explicit operator opt-in. Tier core. (Milestone #11a)
-origin: codebrain
+description: Defines the /brain creds contract — per-project credential registry at <XDG>/graphbrain/projects/<git-hash>/credentials.toon. Plaintext but outside the repo; chmod 0600; refusal-pattern enforcement; mask-by-default on show; auditable override for explicit operator opt-in. Tier core. (Milestone #11a)
+origin: graphbrain
 version: 0.1.0
 tier: core
 pattern: Pipeline
-related_skills: [behavioral/codebrain]
+related_skills: [behavioral/graphbrain]
 ---
 
 # creds — `/brain creds` contract
@@ -27,7 +27,7 @@ Use `/brain creds` to persist non-production credentials (staging DB connections
 ## File format (TOON)
 
 ```toon
-# codebrain credentials — DO NOT COMMIT
+# graphbrain credentials — DO NOT COMMIT
 # Project: <git-toplevel-path>
 # Last updated: <ISO date>
 # Refusal patterns active: see skills/core/creds/SKILL.md
@@ -57,18 +57,18 @@ The parser at `scripts/lib/toon.js` handles read + write + chmod 0600.
 
 ```
 POSIX (macOS, Linux):
-  $XDG_DATA_HOME/codebrain/projects/<git-hash>/credentials.toon
-  (fallback if XDG_DATA_HOME unset: ~/.local/share/codebrain/projects/<git-hash>/credentials.toon)
+  $XDG_DATA_HOME/graphbrain/projects/<git-hash>/credentials.toon
+  (fallback if XDG_DATA_HOME unset: ~/.local/share/graphbrain/projects/<git-hash>/credentials.toon)
 
 Windows:
-  %LOCALAPPDATA%\codebrain\projects\<git-hash>\credentials.toon
+  %LOCALAPPDATA%\graphbrain\projects\<git-hash>\credentials.toon
 ```
 
 `<git-hash>` = first 16 hex chars of `sha256(git rev-parse --show-toplevel)`. Deterministic per-repo; identifies the project without exposing the repo path.
 
 **Never under the repo root.** The file is outside the project on purpose — to prevent accidental commits + to harmonize with M#7's observer (which uses the same XDG layout).
 
-**Permissions**: chmod 0600 on every write (POSIX). On Windows, use `icacls "<path>" /inheritance:r /grant:r "%USERNAME%":F` equivalent — the agent procedure (Cr5) documents this. Codebrain does NOT ship a Windows chmod helper in v0.2; operator is responsible if running on Windows (post-M#11 enhancement: ship a `scripts/lib/chmod.js` wrapper that handles both).
+**Permissions**: chmod 0600 on every write (POSIX). On Windows, use `icacls "<path>" /inheritance:r /grant:r "%USERNAME%":F` equivalent — the agent procedure (Cr5) documents this. Graphbrain does NOT ship a Windows chmod helper in v0.2; operator is responsible if running on Windows (post-M#11 enhancement: ship a `scripts/lib/chmod.js` wrapper that handles both).
 
 ## Refusal patterns
 
@@ -139,7 +139,7 @@ Flags for `add`:
 
 ## Failure modes
 
-- **TOON parser missing**: agent reads `scripts/lib/toon.js` lazily; if missing, emit `blocked: TOON parser missing — reinstall codebrain`.
+- **TOON parser missing**: agent reads `scripts/lib/toon.js` lazily; if missing, emit `blocked: TOON parser missing — reinstall graphbrain`.
 - **XDG path mkdir fails**: emit `blocked: cannot create credential store directory at <path>: <reason>`. Common causes: disk full, permission denied on parent.
 - **File exists but is malformed TOON**: emit `blocked: existing credentials.toon at <path> is malformed; manual inspection required (run /brain creds list --verify to see the parse error)`. Acceptable to ship `--verify` flag post-MVP.
 - **git rev-parse fails** (not in a git repo): fall back to `sha256(cwd absolute path).slice(0,16)`; log a one-line note. The path still goes to XDG, never under cwd.
@@ -154,15 +154,15 @@ function resolveCredPath() {
   if (process.platform === 'win32') {
     const base = process.env.LOCALAPPDATA;
     if (!base) throw new Error('LOCALAPPDATA not set on Windows');
-    return path.join(base, 'codebrain', 'projects', hash, 'credentials.toon');
+    return path.join(base, 'graphbrain', 'projects', hash, 'credentials.toon');
   }
 
   const base = process.env.XDG_DATA_HOME || path.join(os.homedir(), '.local', 'share');
-  return path.join(base, 'codebrain', 'projects', hash, 'credentials.toon');
+  return path.join(base, 'graphbrain', 'projects', hash, 'credentials.toon');
 }
 ```
 
-The agent procedure (Cr1) implements this via Bash for portability. Codebrain does NOT ship a JS resolver in v0.2 — the procedure does it inline. Post-MVP enhancement: ship `scripts/lib/creds-path.js` for testability.
+The agent procedure (Cr1) implements this via Bash for portability. Graphbrain does NOT ship a JS resolver in v0.2 — the procedure does it inline. Post-MVP enhancement: ship `scripts/lib/creds-path.js` for testability.
 
 ## Related
 
@@ -170,4 +170,4 @@ The agent procedure (Cr1) implements this via Bash for portability. Codebrain do
 - **`commands/brain/creds.md`** — the procedure (Cr0–Cr7) — uses this skill as the single source of truth
 - **`skills/core/creds/templates/credentials.toon`** — starter template
 - **`scripts/lib/toon.js`** — TOON parser + chmod 0600 writer
-- **`skills/behavioral/codebrain/SKILL.md`** (M#11c update) — "Credential-handling protocol" section that detects cred-shaped input and proposes registration
+- **`skills/behavioral/graphbrain/SKILL.md`** (M#11c update) — "Credential-handling protocol" section that detects cred-shaped input and proposes registration

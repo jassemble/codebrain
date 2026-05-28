@@ -1,33 +1,33 @@
 ---
-name: codebrain
+name: graphbrain
 description: agent-maintained markdown wiki of the codebase (folder-mirrored, Obsidian-viewable, with continuous learning) — invoke /brain init to scaffold .brain/ inside your repo
-origin: codebrain
+origin: graphbrain
 version: 0.1.0
 tier: behavioral
 pattern: Meta
 related_skills: []
 ---
 
-# codebrain — meta skill
+# graphbrain — meta skill
 
-This skill describes what codebrain is and how the agent should work with it. It's always loaded (tier: behavioral) so the agent always knows the brain exists in any repo where codebrain is initialized.
+This skill describes what graphbrain is and how the agent should work with it. It's always loaded (tier: behavioral) so the agent always knows the brain exists in any repo where graphbrain is initialized.
 
 ## When to Activate
 
 - The operator wants the agent to maintain a persistent codebase wiki across sessions
-- The agent encounters a `.brain/` directory in the repo (sign that codebrain has been initialized here)
+- The agent encounters a `.brain/` directory in the repo (sign that graphbrain has been initialized here)
 - The operator invokes any `/brain *` slash command
 - The agent is asked a question that would benefit from cross-cutting codebase knowledge (auth flows, entity definitions, integration boundaries) — check `.brain/concepts/` and `.brain/index.md` before grepping source
 
 ## How It Works
 
-codebrain adapts the LLM-Wiki pattern (see `reference/llm-wiki.md`) from documents/research to codebases. Three layers with clear ownership:
+graphbrain adapts the LLM-Wiki pattern (see `reference/llm-wiki.md`) from documents/research to codebases. Three layers with clear ownership:
 
 | Layer | What | Mutability |
 |---|---|---|
-| **Raw sources** | The codebase itself (every file under repo root except `.brain/`) | Read-only from codebrain's perspective. The brain layer **never** modifies source code; source edits happen through the agent's normal Edit/Write workflow, and the PostToolUse hook reacts by marking pages STALE. |
-| **The wiki** (`.brain/`) | Folder-mirrored code pages (`.brain/code/`), cross-cutting concept pages (`.brain/concepts/`), decisions/ADRs, overview, index, log, status | Owned by codebrain skills. The operator reads; the agent writes. |
-| **The schema** | `## codebrain` managed region inside `CLAUDE.md` | Co-evolved by operator + agent over the project's lifetime |
+| **Raw sources** | The codebase itself (every file under repo root except `.brain/`) | Read-only from graphbrain's perspective. The brain layer **never** modifies source code; source edits happen through the agent's normal Edit/Write workflow, and the PostToolUse hook reacts by marking pages STALE. |
+| **The wiki** (`.brain/`) | Folder-mirrored code pages (`.brain/code/`), cross-cutting concept pages (`.brain/concepts/`), decisions/ADRs, overview, index, log, status | Owned by graphbrain skills. The operator reads; the agent writes. |
+| **The schema** | `## graphbrain` managed region inside `CLAUDE.md` | Co-evolved by operator + agent over the project's lifetime |
 
 ### The loop
 
@@ -56,11 +56,11 @@ Per Design Decision #20: agents include `Read the Prompt Defense Baseline sectio
 
 ## v0.1 status
 
-This is codebrain v0.1.0 — the package skeleton + init flow. All `/brain` verbs except `init` print "not yet implemented; see roadmap" stubs. Milestones #2–#8 implement the verbs in sequence.
+This is graphbrain v0.1.0 — the package skeleton + init flow. All `/brain` verbs except `init` print "not yet implemented; see roadmap" stubs. Milestones #2–#8 implement the verbs in sequence.
 
 ## Prompt-intent routing (M#10c)
 
-**Default: OFF.** Operator opts in by writing `on` to `.brain/.codebrain-intent-routing-state`. Toggle file shape mirrors M#7's `.codebrain-learn-state`.
+**Default: OFF.** Operator opts in by writing `on` to `.brain/.graphbrain-intent-routing-state`. Toggle file shape mirrors M#7's `.graphbrain-learn-state`.
 
 When **ON**, classify every operator prompt at the start of the response. If the prompt expresses **feature intent** (verbs: `add`, `build`, `create`, `implement`, `let me`, `we should`, `can you make`, `let's add`, `i want to build`), do NOT immediately edit files. Instead, suggest:
 
@@ -84,23 +84,23 @@ Want me to start there, or did you want me to jump straight to code?
 **State check**:
 
 ```bash
-# Read .brain/.codebrain-intent-routing-state — absent or "off" → routing OFF
+# Read .brain/.graphbrain-intent-routing-state — absent or "off" → routing OFF
 # Contains "on" → routing ON
-[ -f .brain/.codebrain-intent-routing-state ] && [ "$(cat .brain/.codebrain-intent-routing-state | tr -d '[:space:]')" = "on" ]
+[ -f .brain/.graphbrain-intent-routing-state ] && [ "$(cat .brain/.graphbrain-intent-routing-state | tr -d '[:space:]')" = "on" ]
 ```
 
-Failure: if the file exists but is unreadable / contains anything other than `on`/`off`/empty, treat as OFF and log a one-line note in the agent's response: `note: .brain/.codebrain-intent-routing-state malformed; intent routing OFF.`
+Failure: if the file exists but is unreadable / contains anything other than `on`/`off`/empty, treat as OFF and log a one-line note in the agent's response: `note: .brain/.graphbrain-intent-routing-state malformed; intent routing OFF.`
 
 **Toggle UX** (no slash command in this milestone — manual file edit):
 
 ```bash
 # Enable
-echo on > .brain/.codebrain-intent-routing-state
+echo on > .brain/.graphbrain-intent-routing-state
 
 # Disable
-echo off > .brain/.codebrain-intent-routing-state
+echo off > .brain/.graphbrain-intent-routing-state
 # or
-rm .brain/.codebrain-intent-routing-state
+rm .brain/.graphbrain-intent-routing-state
 ```
 
 A future milestone may add `/brain intent on|off|status` as a verb. v0.2 ships file-only.
@@ -143,5 +143,5 @@ Subsequent prompts referencing the slug ("connect to staging-db", "hit the test-
 - Agent conventions: `../../../agents/README.md`
 - Skill tier model: `../../README.md`
 - LLM-Wiki source pattern: `../../../reference/llm-wiki.md`
-- Claude Code conventions codebrain writes into the user's `.claude/`: `../../../reference/claude-code-conventions.md`
-- PRD with all 33 locked design decisions: `../../../.claude/prds/codebrain.prd.md`
+- Claude Code conventions graphbrain writes into the user's `.claude/`: `../../../reference/claude-code-conventions.md`
+- PRD with all 33 locked design decisions: `../../../.claude/prds/graphbrain.prd.md`

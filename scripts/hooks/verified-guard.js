@@ -1,17 +1,17 @@
 #!/usr/bin/env node
-// codebrain verified-guard — PreToolUse hook
+// graphbrain verified-guard — PreToolUse hook
 //
 // Fires before every Edit / Write / MultiEdit tool call. If the target
 // is a page under .brain/ with status: VERIFIED in its frontmatter AND
 // the tool input does not contain --force, the hook blocks the operation
 // (exit code 2 per Claude Code hook convention). This is the structural
-// layer of codebrain's dual-layer guardrail model (PRD design decision #19).
+// layer of graphbrain's dual-layer guardrail model (PRD design decision #19).
 //
 // Contract:
 //   - Reads tool-call payload from stdin (JSON).
 //   - Exits 0 if the action is allowed.
 //   - Exits 2 if blocked — Claude Code will refuse the tool call.
-//   - Errors logged to stderr with [codebrain] prefix; exits 0 on error
+//   - Errors logged to stderr with [graphbrain] prefix; exits 0 on error
 //     (fail-open: a buggy guard should not block legitimate work).
 
 'use strict';
@@ -24,7 +24,7 @@ function safe(fn) {
   try {
     return fn();
   } catch (e) {
-    process.stderr.write(`[codebrain] verified-guard error: ${e.message}\n`);
+    process.stderr.write(`[graphbrain] verified-guard error: ${e.message}\n`);
     return null;
   }
 }
@@ -101,7 +101,7 @@ async function main() {
 
   // Block.
   process.stderr.write(
-    `[codebrain] BLOCKED: refusing to overwrite VERIFIED page ${relTarget}.\n` +
+    `[graphbrain] BLOCKED: refusing to overwrite VERIFIED page ${relTarget}.\n` +
     `  The operator has stamped this page as VERIFIED.\n` +
     `  To override, re-run the operation with --force in the command/argument.\n`
   );

@@ -1,11 +1,11 @@
 ---
 name: query
 description: Defines the query contract — when activated, candidate-selection criteria, freshness model (hash compare with promote-on-match), citation format (both wikilinks + source paths), page-cap rules. Loaded by /brain query (M#5); also read by the M#6 lint pass to verify "concept mentioned but not findable via query" cases.
-origin: codebrain
+origin: graphbrain
 version: 0.1.0
 tier: core
 pattern: Researcher
-related_skills: [behavioral/codebrain, ingestion/page-format]
+related_skills: [behavioral/graphbrain, ingestion/page-format]
 ---
 
 # query — pointer-first lookup with freshness verification

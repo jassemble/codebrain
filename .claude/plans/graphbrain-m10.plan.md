@@ -1,6 +1,6 @@
-# Plan: codebrain — Milestone #10 (Spec-first workflow + intent routing + discovery loop)
+# Plan: graphbrain — Milestone #10 (Spec-first workflow + intent routing + discovery loop)
 
-**Source PRD**: `.claude/prds/codebrain.prd.md` (v0.2 Roadmap section)
+**Source PRD**: `.claude/prds/graphbrain.prd.md` (v0.2 Roadmap section)
 **Selected Milestone**: #10 — Gap C from operator dogfood + agent-readability hardening from external research (see "Evidence base" below)
 **Complexity**: Large — now four distinct features (spec verb, discovery loop, intent routing, agent-readability hardening) in one milestone; introduces a new top-level verb (`/brain spec`); behavioral-skill update changes default agent behavior; codifies a multi-iteration pattern (discovery loop) that's currently implicit; adds frontmatter conventions + CHANGELOG + reading-principles behavioral skill
 **Status**: DRAFT — most architecturally ambitious v0.2 work; sweep + split into 10a/10b/10c/10d expected before implementation
@@ -9,9 +9,9 @@
 
 M#10 ships into the v0.2 master sequence after two earlier milestones:
 
-1. **M#12 (slash-command namespacing) must ship first.** After M#12, the monolithic `commands/brain.md` is reduced to a help disambiguator; per-verb procedures live in `commands/brain/<verb>.md` and the codebrain alias mirror. **All M#10 file paths and validation greps below assume the post-M#12 layout.** M#10 creates `commands/brain/spec.md` (NEW), not a section in `commands/brain.md`.
+1. **M#12 (slash-command namespacing) must ship first.** After M#12, the monolithic `commands/brain.md` is reduced to a help disambiguator; per-verb procedures live in `commands/brain/<verb>.md` and the graphbrain alias mirror. **All M#10 file paths and validation greps below assume the post-M#12 layout.** M#10 creates `commands/brain/spec.md` (NEW), not a section in `commands/brain.md`.
 
-2. **M#9-prereq (Tasks 1–3 of M#9 — bridge runtime) must ship first.** M#10's `/brain spec` invokes `ecc:plan-prd` / `ecc:plan` / `ecc:santa-loop` via the runtime probe + activation mechanism defined in M#9-prereq. Without it, M#10 falls back to documentation-only invocation (Bash-shelling at best). See `.claude/plans/codebrain-m9.plan.md` "Sub-split recommendation" for the split rationale.
+2. **M#9-prereq (Tasks 1–3 of M#9 — bridge runtime) must ship first.** M#10's `/brain spec` invokes `ecc:plan-prd` / `ecc:plan` / `ecc:santa-loop` via the runtime probe + activation mechanism defined in M#9-prereq. Without it, M#10 falls back to documentation-only invocation (Bash-shelling at best). See `.claude/plans/graphbrain-m9.plan.md` "Sub-split recommendation" for the split rationale.
 
 **v0.2 master ordering**: M#12 → M#9-prereq → **M#10** → M#11 → M#9-coverage. M#10d (agent-readability hardening) is independent of M#10a–c and could ship in any order within M#10; recommend after M#10a so the spec verb is functional first.
 
@@ -32,7 +32,7 @@ M#10d is **new in this plan revision** — bundles three small but high-signal a
 
 ## Summary
 
-The v0.1 build session organically demonstrated three patterns that codebrain doesn't yet enforce:
+The v0.1 build session organically demonstrated three patterns that graphbrain doesn't yet enforce:
 
 1. **Spec-first**: every milestone went through `/plan-prd` → PRD → `/plan` → plan → implementation. The operator explicitly asked for this discipline ("if user asks for a new feature describe somethign needs to be added we force user to create a spec first then plan that spec in smaller parts").
 
@@ -43,7 +43,7 @@ The v0.1 build session organically demonstrated three patterns that codebrain do
 M#10 ships these as three coordinated features:
 
 - **`/brain spec "<intent>"`** — new verb that orchestrates ECC's `plan-prd` → `plan` → optional `santa-loop` into a guided spec-then-plan-then-execute flow. Cousin of M#5 (query) and M#6 (lint); the spec equivalent.
-- **Intent-routing behavioral update** — the codebrain meta-skill (`skills/behavioral/codebrain/SKILL.md`) gains a "Prompt-intent routing" section telling the agent: when operator's prompt expresses feature intent (verbs: `add`, `build`, `create`, `implement`, `let me`, `we should`), suggest `/brain spec <intent>` BEFORE jumping to code. Default agent behavior changes; operator can override with explicit "just do it" / `--no-spec` flags.
+- **Intent-routing behavioral update** — the graphbrain meta-skill (`skills/behavioral/graphbrain/SKILL.md`) gains a "Prompt-intent routing" section telling the agent: when operator's prompt expresses feature intent (verbs: `add`, `build`, `create`, `implement`, `let me`, `we should`), suggest `/brain spec <intent>` BEFORE jumping to code. Default agent behavior changes; operator can override with explicit "just do it" / `--no-spec` flags.
 - **Discovery-loop skill** — `skills/core/discovery-loop/SKILL.md` codifies the iterative-sweep pattern. Used by `/brain spec` Step Sp4, by `/brain lint` (post-MVP integration), and as a standalone pattern operators can invoke during planning.
 
 After M#10: when an operator says "let's add user authentication", the agent doesn't immediately edit files. It suggests `/brain spec "add user authentication"`, runs the PRD → plan → sweep loop, presents the converged plan, asks for approval, THEN implements.
@@ -53,10 +53,10 @@ After M#10: when an operator says "let's add user authentication", the agent doe
 | Category | Source | Pattern |
 |---|---|---|
 | Slash-command verb wiring | M#5 query + M#6 lint + M#7 learn | Add `/brain spec` to dispatch table; add `## When $ARGUMENTS starts with spec` procedure section |
-| Orchestrator-only agent | M#3c planner + M#5 query | `agents/spec-orchestrator/spec-orchestrator.md` — tools `[Read, Glob, Grep, Bash]`; orchestrates ECC skills + codebrain procedures, doesn't write code directly |
-| Behavioral-skill update | M#1's `skills/behavioral/codebrain/SKILL.md` | Add "Prompt-intent routing" section with the verb-matching heuristics + the suggest-`/brain spec` instruction |
+| Orchestrator-only agent | M#3c planner + M#5 query | `agents/spec-orchestrator/spec-orchestrator.md` — tools `[Read, Glob, Grep, Bash]`; orchestrates ECC skills + graphbrain procedures, doesn't write code directly |
+| Behavioral-skill update | M#1's `skills/behavioral/graphbrain/SKILL.md` | Add "Prompt-intent routing" section with the verb-matching heuristics + the suggest-`/brain spec` instruction |
 | Discovery-loop codification | This session's organic sweep pattern (J1-J9, G1-G8, etc.) | `skills/core/discovery-loop/SKILL.md` — defines convergence criteria, sweep round structure, halting condition |
-| Bridge to ECC | M#9's expert_skills bridge pattern | `/brain spec` invokes `ecc:plan-prd`, `ecc:plan`, optionally `ecc:santa-loop` as Bash/Skill calls; codebrain orchestrates, ECC does the heavy lifting |
+| Bridge to ECC | M#9's expert_skills bridge pattern | `/brain spec` invokes `ecc:plan-prd`, `ecc:plan`, optionally `ecc:santa-loop` as Bash/Skill calls; graphbrain orchestrates, ECC does the heavy lifting |
 
 ## Files to Change
 
@@ -65,13 +65,13 @@ After M#10: when an operator says "let's add user authentication", the agent doe
 | `agents/brain/spec-orchestrator.md` (NEW) | CREATE | Seventh agent (M#10 ships before M#11's cred-registrar per the v0.2 ordering). "Spec Orchestrator" pattern. Tools `[Read, Glob, Grep, Bash]` — no writes. Procedure: invoke ECC's `plan-prd` for the PRD, then `plan` for the implementation plan, optionally `santa-loop` for adversarial review, present converged spec+plan to operator. Path matches the convention established by the six existing `agents/brain/*` files. |
 | `skills/core/spec/SKILL.md` (NEW) | CREATE | Defines the `/brain spec` contract — input (intent string), output (PRD path + plan path + convergence report), bridge to ECC, when to use vs `/brain query` (questions) vs `/brain ingest` (exploration). |
 | `skills/core/discovery-loop/SKILL.md` (NEW) | CREATE | The discovery-loop pattern. When to invoke; sweep round structure (read existing plan + question every assumption + surface gaps + revise); convergence criteria (sweep produces <3 new findings → converged); max iterations (5). Used by `/brain spec` Step Sp4; reusable standalone. |
-| `commands/brain/spec.md` (NEW) | CREATE | The full `/brain spec` procedure (Sp0–Sp7) ships as its own per-verb file under M#12's namespaced layout. Frontmatter: `description: codebrain — spec-orchestrate an intent into a converged plan`. |
-| `commands/codebrain/spec.md` (NEW) | CREATE | Alias mirror; byte-identical procedure body. |
+| `commands/brain/spec.md` (NEW) | CREATE | The full `/brain spec` procedure (Sp0–Sp7) ships as its own per-verb file under M#12's namespaced layout. Frontmatter: `description: graphbrain — spec-orchestrate an intent into a converged plan`. |
+| `commands/graphbrain/spec.md` (NEW) | CREATE | Alias mirror; byte-identical procedure body. |
 | `commands/brain.md` | UPDATE (help text only) | Add `/brain:spec "<intent>"` row to the dispatch help table (post-M#12 this file is the help disambiguator, not a procedure host). |
-| `commands/codebrain.md` | UPDATE (help text only) | Same in the alias disambiguator. |
-| `skills/behavioral/codebrain/SKILL.md` | UPDATE | Add "Prompt-intent routing" section instructing the agent to suggest `/brain:spec` when prompts express feature intent |
-| `tests/e2e-test.sh` | UPDATE | T38: spec procedure structural shape (in `commands/brain/spec.md`); intent-routing keywords in behavioral skill; discovery-loop skill exists with convergence criteria; **alias parity assertion targets the per-verb file pair** (`commands/brain/spec.md` ↔ `commands/codebrain/spec.md`); npm pack |
-| `.claude/prds/codebrain.prd.md` | UPDATE | Flip M#10 row `pending` → `complete` |
+| `commands/graphbrain.md` | UPDATE (help text only) | Same in the alias disambiguator. |
+| `skills/behavioral/graphbrain/SKILL.md` | UPDATE | Add "Prompt-intent routing" section instructing the agent to suggest `/brain:spec` when prompts express feature intent |
+| `tests/e2e-test.sh` | UPDATE | T38: spec procedure structural shape (in `commands/brain/spec.md`); intent-routing keywords in behavioral skill; discovery-loop skill exists with convergence criteria; **alias parity assertion targets the per-verb file pair** (`commands/brain/spec.md` ↔ `commands/graphbrain/spec.md`); npm pack |
+| `.claude/prds/graphbrain.prd.md` | UPDATE | Flip M#10 row `pending` → `complete` |
 
 **M#10d file paths (post-M#12 layout)**:
 
@@ -82,7 +82,7 @@ After M#10: when an operator says "let's add user authentication", the agent doe
 | `commands/brain/query.md` | UPDATE | M#10d Task 8: query Q4 skips `superseded_by` pages, follows pointer to replacement. (Post-M#12, this lives in the per-verb file.) |
 | `commands/brain/lint.md` | UPDATE | M#10d Task 8: L3/L4 checks for superseded pages still linked + asymmetric supersession. |
 | `commands/brain/ingest.md` | UPDATE | M#10d Task 9: append narrative entry to `.brain/CHANGELOG.md` on each ingest. Mirrors how Step 6 currently updates index/status/log/llms.txt. |
-| `commands/codebrain/{query,lint,ingest}.md` | UPDATE | Alias parity for each per-verb file pair. |
+| `commands/graphbrain/{query,lint,ingest}.md` | UPDATE | Alias parity for each per-verb file pair. |
 | `scripts/init.js` | UPDATE | M#10d Task 9: scaffold `.brain/CHANGELOG.md` alongside the other top-level brain files; also update the `.brain/llms.txt` starter scaffold to list CHANGELOG.md under `## Top-level`. |
 | `skills/behavioral/wiki-reading-principles/SKILL.md` (NEW) | CREATE | M#10d Task 10: behavioral-constraint skill with 3-tier always/ask/never structure. Tier `behavioral`. |
 
@@ -112,7 +112,7 @@ Each sub-milestone is its own commit. M#10 is "complete" when all four ship. M#1
    - **Sp3**: invoke `ecc:plan` on that PRD → produces a plan at `.claude/plans/<slug>.plan.md`
    - **Sp4**: optionally invoke `ecc:santa-loop` (or M#10b's discovery loop) for convergence → revised plan
    - **Sp5**: present converged spec + plan to operator; ask for approval / modifications / cancel
-   - **Sp6**: on approval, the agent proceeds with implementation against the plan (delegates to operator's normal workflow — codebrain doesn't write code)
+   - **Sp6**: on approval, the agent proceeds with implementation against the plan (delegates to operator's normal workflow — graphbrain doesn't write code)
    - **Sp7**: structured report + log entry
 
 ### M#10b (discovery-loop skill)
@@ -136,7 +136,7 @@ Each sub-milestone is its own commit. M#10 is "complete" when all four ship. M#1
 
 ### M#10c (intent routing)
 
-5. Update `skills/behavioral/codebrain/SKILL.md` — add a new section:
+5. Update `skills/behavioral/graphbrain/SKILL.md` — add a new section:
 
    ```
    ## Prompt-intent routing (M#10c)
@@ -159,7 +159,7 @@ Each sub-milestone is its own commit. M#10 is "complete" when all four ship. M#1
    (/brain query, /brain ingest, /brain lint) or are normal coding work.
    ```
 
-6. Update `commands/brain.md` (and codebrain.md alias) to mention `/brain spec` in the dispatch help text + the no-args help block.
+6. Update `commands/brain.md` (and graphbrain.md alias) to mention `/brain spec` in the dispatch help text + the no-args help block.
 
 7. **Tests (T38)** — assertions for: spec procedure with Sp0-Sp7 steps; spec-orchestrator agent exists with proper frontmatter; discovery-loop skill exists with convergence criteria; behavioral skill has "Prompt-intent routing" section with the trigger verb list; alias parity; npm pack.
 
@@ -177,7 +177,7 @@ Pages drift out of relevance during code refactors. Tier-3 staleness today *flag
 - Update `commands/brain.md` `/brain query` Q4 ("Read pages") step: SKIP any page with `superseded_by` set; instead follow the pointer and load the replacement. Log a one-liner in the answer's "Pages consulted" footer: `(superseded: <old> → <new>)`.
 - Update `commands/brain.md` `/brain lint` L3 (Defects): new check — "Superseded pages still linked from non-superseded pages" — report broken-by-deprecation links.
 - Update `commands/brain.md` `/brain lint` L4 (Gaps): new check — "Page declares `superseded_by:` but target page does not declare matching `supersedes:`" — flag asymmetric supersession.
-- Mirror to `commands/codebrain.md` for alias parity.
+- Mirror to `commands/graphbrain.md` for alias parity.
 - Tests: page-format template has the new fields documented; query Q4 skips superseded pages; lint L3/L4 checks present; alias parity; reciprocity (every `supersedes:` entry has a matching `superseded_by:` on the referenced page).
 
 #### Task 9 — `.brain/CHANGELOG.md` (compound learning made visible)
@@ -189,23 +189,23 @@ The observer agent (M#7) already captures continuous-learning observations to XD
 - Update `commands/brain.md` `/brain learn consolidate` (M#7's Le6): append a CHANGELOG entry summarizing the consolidation — `## [YYYY-MM-DD] consolidate | <N> new instincts: <comma-separated names>`.
 - Update `commands/brain.md` `/brain lint` L7: NO CHANGELOG entry from lint (read-only operation; CHANGELOG tracks knowledge growth, not health-checks).
 - `CHANGELOG.md` format: append-only, reverse-chronological newest-first sections by month, plain markdown bullets. The agent never deletes or reorders prior entries.
-- Mirror to `commands/codebrain.md` for alias parity.
+- Mirror to `commands/graphbrain.md` for alias parity.
 - Tests: init scaffolds CHANGELOG.md; ingest appends entries; consolidate appends entries; lint does NOT append; reverse-chronological order is preserved; alias parity.
 
 #### Task 10 — `skills/behavioral/wiki-reading-principles/SKILL.md` (3-tier always/ask/never)
 
-Codebrain installs behavioral skills for agent conduct (`skills/behavioral/codebrain`) but has nothing telling installed agents *how to read the brain*. The 3-tier always/ask/never structure (Jonathan Vila's MCP architecture guide, 2026-03-31; Karpathy's four-principle behavioral spec, 2026-05-14) beats prose for instructing LLM behavior.
+Graphbrain installs behavioral skills for agent conduct (`skills/behavioral/graphbrain`) but has nothing telling installed agents *how to read the brain*. The 3-tier always/ask/never structure (Jonathan Vila's MCP architecture guide, 2026-03-31; Karpathy's four-principle behavioral spec, 2026-05-14) beats prose for instructing LLM behavior.
 
 - Create `skills/behavioral/wiki-reading-principles/SKILL.md` with frontmatter:
   ```yaml
   ---
   name: wiki-reading-principles
-  description: How an agent should read the codebrain wiki. Behavioral-constraint skill — applies to ALL sessions where .brain/ is present.
-  origin: codebrain
+  description: How an agent should read the graphbrain wiki. Behavioral-constraint skill — applies to ALL sessions where .brain/ is present.
+  origin: graphbrain
   version: 0.1.0
   tier: behavioral
   pattern: Behavioral-Constraint
-  related_skills: [behavioral/codebrain]
+  related_skills: [behavioral/graphbrain]
   ---
   ```
 - Body uses the always/ask/never structure:
@@ -228,7 +228,7 @@ Codebrain installs behavioral skills for agent conduct (`skills/behavioral/codeb
   - Edit a code page without re-reading the source file it mirrors (the source is canonical; the page is a projection)
   - Add new content to a page with `superseded_by:` set — that page is frozen by convention
   - Cite raw `.brain/log.md` activity entries as authoritative semantic content — they're an audit trail, not knowledge
-  - Bypass the codebrain hook system by manually editing `.brain/.codebrain-version` or `.codebrain-*` state files
+  - Bypass the graphbrain hook system by manually editing `.brain/.graphbrain-version` or `.graphbrain-*` state files
   ```
 - Update `scripts/init.js` to ensure this skill ships in the npm package (it will by virtue of `skills/` whitelist already in `package.json`, but verify with `npm pack --dry-run`).
 - Update `commands/brain.md` `## Dispatch` table preamble (the part that runs before verb routing) to add: "Before responding, ensure you have read the behavioral skill `skills/behavioral/wiki-reading-principles/SKILL.md` — it defines the always/ask/never structure for engaging with `.brain/`."
@@ -248,18 +248,18 @@ bash tests/e2e-test.sh
 
 # Spec procedure wired (post-M#12 per-verb layout)
 test -f commands/brain/spec.md
-test -f commands/codebrain/spec.md
+test -f commands/graphbrain/spec.md
 for sp in Sp0 Sp1 Sp2 Sp3 Sp4 Sp5 Sp6 Sp7; do
   grep -qF "**$sp" commands/brain/spec.md
 done
 
 # Alias parity (procedure bodies byte-identical)
 body_brain=$(awk '/^# \//{flag=1; next} flag' commands/brain/spec.md)
-body_cb=$(awk '/^# \//{flag=1; next} flag' commands/codebrain/spec.md)
+body_cb=$(awk '/^# \//{flag=1; next} flag' commands/graphbrain/spec.md)
 [ "$body_brain" = "$body_cb" ]
 
 # Intent routing in behavioral skill
-grep -qF 'Prompt-intent routing' skills/behavioral/codebrain/SKILL.md
+grep -qF 'Prompt-intent routing' skills/behavioral/graphbrain/SKILL.md
 
 # Discovery-loop skill exists
 test -f skills/core/discovery-loop/SKILL.md
@@ -290,10 +290,10 @@ grep -qF '## NEVER' skills/behavioral/wiki-reading-principles/SKILL.md
 | Operators hate the intent routing (feels like the agent is gatekeeping their requests) | High | Frame as a SUGGESTION not an interruption; operator's "just do it" override is one phrase; default behavior is "ask once then defer to operator" |
 | ECC's `plan-prd` and `plan` may not be invokable from a slash-command body (cross-plugin skill orchestration is M#9's territory) | High | M#10 implementation should follow M#9 — Tasks 1-2 of M#9 (probe + activation mechanism) are prerequisites for M#10's Bash-orchestration of ECC skills |
 | Discovery-loop convergence criteria (sweep produces <3 findings) is arbitrary | Med | Stake-in-ground; v0.2 dogfood evidence will refine. Document the heuristic + invite operator override via `--convergence-threshold N` flag (post-MVP) |
-| `/brain spec` produces PRD + plan files that proliferate in `.claude/prds/` and `.claude/plans/` | Low | They're already there; codebrain just adds more. Lint pass (M#6 or post-MVP) can surface stale specs. |
-| Behavioral-skill update changes default agent behavior across ALL sessions | High | Phase the rollout — initially the intent-routing is OPT-IN via a `.brain/.codebrain-intent-routing-state` toggle file (mirroring M#7's learn toggle pattern). Default off; operator enables when comfortable. v1.0 may flip default. |
+| `/brain spec` produces PRD + plan files that proliferate in `.claude/prds/` and `.claude/plans/` | Low | They're already there; graphbrain just adds more. Lint pass (M#6 or post-MVP) can surface stale specs. |
+| Behavioral-skill update changes default agent behavior across ALL sessions | High | Phase the rollout — initially the intent-routing is OPT-IN via a `.brain/.graphbrain-intent-routing-state` toggle file (mirroring M#7's learn toggle pattern). Default off; operator enables when comfortable. v1.0 may flip default. |
 | The 4-way M#10 split balloons into 4 separate v0.2 milestones | Med | Acknowledged; if operator wants only spec verb without intent routing, M#10a ships standalone and the others defer. M#10d is the smallest sub-milestone and a natural "ship-first" candidate. |
-| M#10d's wiki-reading-principles behavioral skill conflicts with existing `behavioral/codebrain` | Low | They're complementary: codebrain skill is general agent identity; wiki-reading-principles is wiki-specific conduct. Declare `related_skills: [behavioral/codebrain]` for explicit linkage. |
+| M#10d's wiki-reading-principles behavioral skill conflicts with existing `behavioral/graphbrain` | Low | They're complementary: graphbrain skill is general agent identity; wiki-reading-principles is wiki-specific conduct. Declare `related_skills: [behavioral/graphbrain]` for explicit linkage. |
 | M#10d's `supersedes:` frontmatter not adopted by operators (they just edit pages in place instead) | Med | Acceptable in v0.2 — the feature is opt-in. If usage stays low after 90 days, deprecate. Adoption can be encouraged by `/brain lint` surfacing "page replaced 80% of another page" as a suggestion to set the frontmatter. |
 
 ## Acceptance (provisional)
@@ -313,4 +313,4 @@ grep -qF '## NEVER' skills/behavioral/wiki-reading-principles/SKILL.md
 - Resolve the prerequisite dependency on M#9 (cross-plugin skill orchestration is the load-bearing primitive M#10 needs)
 - Test the intent-routing behavior on at least 3 dogfood operators before defaulting it on
 - Verify ECC's `plan-prd`, `plan`, `santa-loop` skill names + invocation contracts are stable enough to bridge to
-- Consider whether the intent-routing belongs in codebrain at all vs. in an ECC-side skill that codebrain consumes (could be `ecc:intent-routing` and codebrain just bridges to it via M#9's expert_skills mechanism — even cleaner)
+- Consider whether the intent-routing belongs in graphbrain at all vs. in an ECC-side skill that graphbrain consumes (could be `ecc:intent-routing` and graphbrain just bridges to it via M#9's expert_skills mechanism — even cleaner)

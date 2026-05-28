@@ -20,7 +20,7 @@ const os = require('os');
 const crypto = require('crypto');
 const { execSync } = require('child_process');
 
-const TOGGLE_FILENAME = '.codebrain-learn-state';
+const TOGGLE_FILENAME = '.graphbrain-learn-state';
 const OBS_FILENAME = 'observations.jsonl';
 const INST_FILENAME = 'instincts.jsonl';
 
@@ -45,7 +45,7 @@ function xdgDataHome() {
 }
 
 function xdgProjectDir(cwd) {
-  const dir = path.join(xdgDataHome(), 'codebrain', 'projects', projectHash(cwd));
+  const dir = path.join(xdgDataHome(), 'graphbrain', 'projects', projectHash(cwd));
   fs.mkdirSync(dir, { recursive: true });
   return dir;
 }

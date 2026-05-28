@@ -1,11 +1,11 @@
 ---
 name: detected/django
 description: Stack-aware page-template extras + ECC-bridge for Django code pages. Activates when manage.py exists AND the source file is .py. Bridges to ecc:django-patterns + ecc:django-security.
-origin: codebrain
+origin: graphbrain
 version: 0.1.1
 tier: detected
 pattern: Generator
-related_skills: [behavioral/codebrain, ingestion/page-format, detected/python]
+related_skills: [behavioral/graphbrain, ingestion/page-format, detected/python]
 detect:
   - { file_exists: "manage.py" }
 applies_to_extensions: [".py"]

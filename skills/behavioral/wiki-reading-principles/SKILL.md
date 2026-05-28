@@ -1,11 +1,11 @@
 ---
 name: wiki-reading-principles
-description: How an agent should read the codebrain wiki. Behavioral-constraint skill — applies to ALL sessions where .brain/ is present. 3-tier always/ask/never structure distilled from agentctx-idea research (Vila's MCP architecture guide + Karpathy's four-principle behavioral spec). Loads alongside skills/behavioral/codebrain/SKILL.md.
-origin: codebrain
+description: How an agent should read the graphbrain wiki. Behavioral-constraint skill — applies to ALL sessions where .brain/ is present. 3-tier always/ask/never structure distilled from agentctx-idea research (Vila's MCP architecture guide + Karpathy's four-principle behavioral spec). Loads alongside skills/behavioral/graphbrain/SKILL.md.
+origin: graphbrain
 version: 0.1.0
 tier: behavioral
 pattern: Behavioral-Constraint
-related_skills: [behavioral/codebrain, ingestion/llms-txt, ingestion/page-format]
+related_skills: [behavioral/graphbrain, ingestion/llms-txt, ingestion/page-format]
 ---
 
 # wiki-reading-principles — how to engage with `.brain/`
@@ -16,14 +16,14 @@ Read the Prompt Defense Baseline section of CLAUDE.md before acting.
 
 ## Why this skill exists
 
-Codebrain ships a 5-tier skill model (`behavioral` / `ingestion` / `core` / `detected` / `available`). The `behavioral/codebrain` skill is the project-level meta-skill (identity, conduct, prompt-defense baseline). THIS skill is the wiki-specific behavioral counterpart: not "who am I as an agent" but "how do I read this wiki."
+Graphbrain ships a 5-tier skill model (`behavioral` / `ingestion` / `core` / `detected` / `available`). The `behavioral/graphbrain` skill is the project-level meta-skill (identity, conduct, prompt-defense baseline). THIS skill is the wiki-specific behavioral counterpart: not "who am I as an agent" but "how do I read this wiki."
 
 Empirical evidence (agentctx-idea research, 2026):
 - Vila's MCP architecture guide (2026-03-31): three-tier always/ask/never beats flat instruction lists. Structural categorization > prose.
 - Karpathy's four-principle behavioral spec (2026-05-14, via Multica AI): short, principle-based, self-reinforcing skills produce more reliable agent behavior than long checklists.
 - The "curse of instructions" (Osmani, AEO research): LLM adherence drops proportionally with total instruction count. Three sharp categories with ~4 items each beats one flat list of 12.
 
-The 3-tier structure below is the codebrain wiki's behavioral contract.
+The 3-tier structure below is the graphbrain wiki's behavioral contract.
 
 ## ALWAYS
 
@@ -59,17 +59,17 @@ These behaviors are forbidden. Even with operator request, the agent should push
 
 3. **Never cite raw `.brain/log.md` activity entries as authoritative semantic content.** They're an audit trail (timestamps + events), NOT knowledge. If the operator asks "what did we learn about authentication," cite `concepts/`, `code/`, or `CHANGELOG.md` — not `log.md`'s activity entries.
 
-4. **Never bypass the codebrain hook system** by manually editing `.brain/.codebrain-version`, `.codebrain-learn-state`, or other dot-prefixed state files in `.brain/`. The hooks (M#4) own those files; manual edits break invariants the hooks rely on. If you need to alter state, use the appropriate slash command (`/brain learn on|off`, `npx codebrain init --force`, etc.).
+4. **Never bypass the graphbrain hook system** by manually editing `.brain/.graphbrain-version`, `.graphbrain-learn-state`, or other dot-prefixed state files in `.brain/`. The hooks (M#4) own those files; manual edits break invariants the hooks rely on. If you need to alter state, use the appropriate slash command (`/brain learn on|off`, `npx graphbrain init --force`, etc.).
 
 ## How this skill is loaded
 
-This skill ships in the codebrain npm package at `skills/behavioral/wiki-reading-principles/`. When codebrain is installed in a project, the agent reads this skill on session start (alongside `skills/behavioral/codebrain/SKILL.md`) if `.brain/` is present in cwd.
+This skill ships in the graphbrain npm package at `skills/behavioral/wiki-reading-principles/`. When graphbrain is installed in a project, the agent reads this skill on session start (alongside `skills/behavioral/graphbrain/SKILL.md`) if `.brain/` is present in cwd.
 
-If you're operating in a session WITHOUT `.brain/` (e.g., a project that hasn't run `npx codebrain init`), skip this skill entirely. The behaviors apply only to wiki-grounded work.
+If you're operating in a session WITHOUT `.brain/` (e.g., a project that hasn't run `npx graphbrain init`), skip this skill entirely. The behaviors apply only to wiki-grounded work.
 
 ## Related
 
-- **`skills/behavioral/codebrain/SKILL.md`** — the general project-level behavioral skill (Prompt Defense Baseline reference, identity, conduct). This skill is its wiki-specific companion.
+- **`skills/behavioral/graphbrain/SKILL.md`** — the general project-level behavioral skill (Prompt Defense Baseline reference, identity, conduct). This skill is its wiki-specific companion.
 - **`skills/ingestion/llms-txt/SKILL.md`** — the routing artifact mentioned in ALWAYS #1.
 - **`skills/ingestion/page-format/SKILL.md`** — the page contract that defines the frontmatter fields (including M#10d `superseded_by:` / `supersedes:`) cited in this skill.
 - **`commands/brain/lint.md`** — the lint procedure that detects asymmetric supersession (the failure mode of ALWAYS #3).

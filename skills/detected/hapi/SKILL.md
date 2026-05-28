@@ -1,11 +1,11 @@
 ---
 name: detected/hapi
 description: Stack-aware page-template extras + ECC-bridge for hapi.js code pages. Activates when `package.json` contains `"@hapi/hapi"` AND source file extension is one of `.ts` / `.js`. Extras APPEND AFTER the generic 5 sections. Bridges to ECC's expert skill (ecc:backend-patterns) when available via the M#9-prereq runtime probe.
-origin: codebrain
+origin: graphbrain
 version: 0.1.0
 tier: detected
 pattern: Generator
-related_skills: [behavioral/codebrain, ingestion/page-format, detected/typescript]
+related_skills: [behavioral/graphbrain, ingestion/page-format, detected/typescript]
 detect:
   - { file_exists: "package.json", contains: "\"@hapi/hapi\"" }
 applies_to_extensions: [".ts", ".js"]
@@ -27,7 +27,7 @@ Generic 5 sections always written first → hapi extras append AFTER `## Cross-r
 
 ## Extra Sections This Skill Declares
 
-This skill is a minimal v0.2 shipment. The bridge to `ecc:backend-patterns` is the load-bearing primitive — when ECC's expert skill is available (M#9-prereq filesystem probe), it provides the code-writing guidance. Codebrain-side extras (`## hapi-specific` section) are intentionally light in v0.2; flesh out as operator dogfood produces evidence of what's needed.
+This skill is a minimal v0.2 shipment. The bridge to `ecc:backend-patterns` is the load-bearing primitive — when ECC's expert skill is available (M#9-prereq filesystem probe), it provides the code-writing guidance. Graphbrain-side extras (`## hapi-specific` section) are intentionally light in v0.2; flesh out as operator dogfood produces evidence of what's needed.
 
 For now the generic 5 sections (`## Purpose`, `## Exports`, `## Imports`, `## Key behaviors`, `## Cross-references`) are sufficient for most hapi files.
 

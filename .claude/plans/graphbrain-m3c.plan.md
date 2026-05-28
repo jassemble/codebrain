@@ -1,6 +1,6 @@
-# Plan: codebrain — Milestone #3c (Tiered auto-prioritize no-arg ingest)
+# Plan: graphbrain — Milestone #3c (Tiered auto-prioritize no-arg ingest)
 
-**Source PRD**: `.claude/prds/codebrain.prd.md`
+**Source PRD**: `.claude/prds/graphbrain.prd.md`
 **Selected Milestone**: #3c — third sub-step of the M#3 split
 **Complexity**: Medium — third writer agent (planner), no new skills (re-uses page-format + concept-extraction), reuses M#3b folder procedure per tier
 **Status**: **READY** — refined post-M#3b with scope reduced to just the tiered planner. The 4 detected/* skills + stack-aware templates split to a future M#3d so M#3c is shippable in one commit.
@@ -11,7 +11,7 @@
 
 User flow after M#3c lands:
 ```
-npx codebrain init      # M#1
+npx graphbrain init      # M#1
 /brain init             # M#2
 /brain ingest src/      # M#3b — single folder
 /brain ingest           # M#3c — tiered, asks per tier
@@ -35,7 +35,7 @@ From the post-M#3b refresh of the M#3c draft:
 - **C1 — Tier-glob heuristics inlined in `commands/brain.md`** for M#3c. Stack-specific tier-globs (e.g., Python's `src/<package>/` Tier-1 default) were originally planned to live in `detected/<stack>/SKILL.md` frontmatter. Since detected skills are deferred to M#3d, M#3c inlines a single set of generalist tier-globs that work across stacks: Tier 1 = `src/`, `lib/`, `app/`, `pkg/`, `cmd/`; Tier 2 = `api/`, `services/`, `internal/`, top-level source files; Tier 3 = `tests/`, `__tests__/`, `spec/`, `scripts/`, `docs/`. Stack-aware overrides land with M#3d.
 - **C2 — Stack template inheritance**: deferred to M#3d entirely (out of M#3c scope).
 - **C3 — Linker runs after each tier** (not once at end). Cost is higher (linker runs N=3 times per ingest instead of 1) but operator sees concept-page growth between tiers and can abort cleanly.
-- **C4 — README onboarding update**: README's Quickstart now documents the full 3-step flow (`npx codebrain init` → `/brain init` → `/brain ingest`) with all three ingest variants (no-arg tiered, folder, single-file) called out.
+- **C4 — README onboarding update**: README's Quickstart now documents the full 3-step flow (`npx graphbrain init` → `/brain init` → `/brain ingest`) with all three ingest variants (no-arg tiered, folder, single-file) called out.
 - **Q1 — Template discovery**: still inline-in-command-body for M#3c (no new templates needed — planner uses existing page-format). M#3d will force the real decision when 4 detected templates multiply the inline cost.
 - **Q2 — Runaway-ingest escape**: per-tier gates ARE the escape (operator answers `no` to a tier they don't want); mid-tier escape still requires Ctrl-C (documented limitation for v0.1).
 
@@ -45,10 +45,10 @@ From the post-M#3b refresh of the M#3c draft:
 |---|---|---|
 | `agents/brain/planner.md` | CREATE | Third writer agent — Planner pattern. Reads stack detection, groups files into 3 tiers, presents plan, gates each tier, delegates to M#3b folder ingest per confirmed tier. Tools: `[Read, Glob, Bash]` (no Write — planner only orchestrates; the per-tier folder procedure does the writing). `max_iterations: 5`. |
 | `commands/brain.md` | UPDATE | Replace M#3c stub on no-arg `ingest`. New procedure section `## When $ARGUMENTS is just \`ingest\`` (no path). 8 steps: preconditions → load stack → group into tiers → present plan → per-tier confirm + invoke M#3b folder procedure + per-tier linker → final report. |
-| `commands/codebrain.md` | UPDATE | Mirror brain.md (alias parity) |
+| `commands/graphbrain.md` | UPDATE | Mirror brain.md (alias parity) |
 | `tests/e2e-test.sh` | UPDATE | T18 (planner agent structural shape); T19 (no-arg wiring; tier-section present with T0–T7 step headers; tier-glob heuristics documented; alias parity using awk pattern from M#3b) |
 | `README.md` | UPDATE | Quickstart section updated for 3-step onboarding flow with all 3 ingest variants (per sweep finding C4) |
-| `.claude/prds/codebrain.prd.md` | UPDATE | M#3c row → `in-progress` with link to this plan |
+| `.claude/prds/graphbrain.prd.md` | UPDATE | M#3c row → `in-progress` with link to this plan |
 
 **Not in M#3c (deferred to M#3d):**
 - `skills/detected/react/SKILL.md` + template
@@ -99,7 +99,7 @@ In the dispatch table, change the `ingest` (no args) row from stubbed to:
 Add a new procedure section after the linker procedure: `## When $ARGUMENTS is just \`ingest\``. 8 steps:
 
 - **T0 — Argument parsing**: confirm `$ARGUMENTS` is exactly `ingest` (possibly with `--yes`). Anything else routes to the existing single-file or folder sections.
-- **T1 — Preconditions**: `.brain/` + `.brain/.codebrain-version` present; `.brain/overview.md` exists (warns if not — operator should run `/brain init` first for stack detection to be cached).
+- **T1 — Preconditions**: `.brain/` + `.brain/.graphbrain-version` present; `.brain/overview.md` exists (warns if not — operator should run `/brain init` first for stack detection to be cached).
 - **T2 — Load stack detection**: read `.brain/overview.md`. Extract "Detected stack:" line from Active State section. If missing or unreadable, re-run M#2's stack-detection.json catalog against cwd (inline the same logic).
 - **T3 — Walk + filter** (re-use M#3b Steps 2–3): `git ls-files` (fallback to manual walk); apply binary/lockfile/generated blocklists.
 - **T4 — Group files into 3 tiers** using generic glob heuristics (no detected/* overrides in M#3c):
@@ -109,7 +109,7 @@ Add a new procedure section after the linker procedure: `## When $ARGUMENTS is j
   - **Uncategorized**: anything not matching the above; presented but not included in any tier by default
 - **T5 — Present plan**: print the 3-tier table with file counts + per-extension breakdown + cost estimate per tier:
   ```
-  Codebrain tiered ingest plan (codebrain v<version>)
+  Graphbrain tiered ingest plan (graphbrain v<version>)
     Detected stack: <from .brain/overview.md or fresh detection>
 
     Tier  Files  Cost(~)  Locations
@@ -130,7 +130,7 @@ Add a new procedure section after the linker procedure: `## When $ARGUMENTS is j
   - On `yes`: invoke the M#3b folder-ingest procedure (Steps 0–7) treating this tier's file list as the input. The linker runs at M#3b Step 6 after this tier's files complete (per C3 — incremental visibility).
 - **T7 — Final report**: structured summary across all tiers + grep-parseable log entry:
   ```
-  /brain ingest (tiered) complete (codebrain v<version>)
+  /brain ingest (tiered) complete (graphbrain v<version>)
     Tier 1: <ingested>/<filtered> ingested, <skipped> skipped, <failed> failed; linker: <N wires, M concepts>
     Tier 2: ...
     Tier 3: ...
@@ -142,7 +142,7 @@ Add a new procedure section after the linker procedure: `## When $ARGUMENTS is j
 
 If operator declines a tier or types `cancel`, still log the plan presentation to `.brain/log.md`.
 
-### Task 3: Update commands/codebrain.md (alias parity)
+### Task 3: Update commands/graphbrain.md (alias parity)
 
 Copy Task 2 changes verbatim. Update dispatch table identically. T19 confirms byte-identical via awk pattern.
 
@@ -169,9 +169,9 @@ Update the Quickstart section to walk through all 3 ingest variants:
 
 Three-step onboarding:
 
-1. **Install codebrain into the repo** (run once per repo):
+1. **Install graphbrain into the repo** (run once per repo):
    ```
-   npx codebrain init
+   npx graphbrain init
    ```
    Scaffolds `.brain/`, copies `/brain` slash commands into `.claude/commands/`, merges hooks into `.claude/settings.local.json`.
 
@@ -197,7 +197,7 @@ Then navigate the wiki in Obsidian (open `.brain/` as a vault) or query via Clau
 
 ### Task 6: PRD update — M#3c → in-progress; add M#3d row
 
-Edit `.claude/prds/codebrain.prd.md`:
+Edit `.claude/prds/graphbrain.prd.md`:
 - M#3c row: `pending` → `in-progress`; Plan → link to this plan
 - Update M#3c description to reflect scope reduction: "`/brain ingest` (no args) proposes a 3-tier plan based on **generic** tier-glob heuristics, pauses between tiers; stack-aware templates from detected/* skills deferred to M#3d"
 - ADD new M#3d row after M#3c: `3d | Stack-aware page templates (detected/* skills) | 4 detected/* skills (react, python, go, typescript) ship with per-stack code-page templates; ingester picks stack-specific template when matching detection signals are present | pending | — |`
@@ -228,7 +228,7 @@ grep -q '/brain ingest$' README.md   # no-arg variant documented
 
 # 5. Alias parity for new section (awk for cross-platform)
 diff <(awk '/^## When `\$ARGUMENTS` is just `ingest`$/{flag=1} flag' commands/brain.md) \
-     <(awk '/^## When `\$ARGUMENTS` is just `ingest`$/{flag=1} flag' commands/codebrain.md)
+     <(awk '/^## When `\$ARGUMENTS` is just `ingest`$/{flag=1} flag' commands/graphbrain.md)
 # Expect: empty
 
 # 6. npm pack ships planner
@@ -250,7 +250,7 @@ npm pack --dry-run | grep -q 'agents/brain/planner.md'
 | Linker running 3 times (once per tier) is expensive | Med | Each linker run is incremental (only re-processes pages from this tier + spots cross-tier concepts); B2 idempotency means concept pages get updated not duplicated |
 | Operator interrupts mid-tier; partial state | Low | M#3b's per-file atomic writes preserve state; re-run `/brain ingest` shows the partially-ingested tier; SKIPs on unchanged sources make resume cheap |
 | Planner agent's `tools: [Read, Glob, Bash]` doesn't allow writing log entries | Resolved | Log writes happen in the M#3b folder procedure (which has Edit/Write) and in the brain.md command body itself; planner orchestrates but the per-tier delegation does the actual writing |
-| Alias drift between brain.md and codebrain.md tiered section | Low | T19 awk-based byte-identical check |
+| Alias drift between brain.md and graphbrain.md tiered section | Low | T19 awk-based byte-identical check |
 | Brain.md size growth | Low | M#3c adds ~120 lines (one new procedure section + 6 lines to dispatch table). After M#3c brain.md is ~600 lines. M#3d's per-stack templates is when the size question matters. |
 
 ## Acceptance

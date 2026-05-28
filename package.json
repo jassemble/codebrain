@@ -1,6 +1,6 @@
 {
   "name": "graphbrain",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Agent-maintained, folder-mirrored markdown wiki of your codebase. Installs into Claude Code via npx graphbrain init.",
   "bin": {
     "graphbrain": "./bin/graphbrain.js"

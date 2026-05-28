@@ -1,16 +1,16 @@
-# Plan: codebrain — Milestone #2 (Init + schema scaffolding)
+# Plan: graphbrain — Milestone #2 (Init + schema scaffolding)
 
-**Source PRD**: `.claude/prds/codebrain.prd.md`
+**Source PRD**: `.claude/prds/graphbrain.prd.md`
 **Selected Milestone**: #2 — Init + schema scaffolding
 **Complexity**: Medium — first real LLM-agent skill, mostly content + thin wiring (no new runtime code; commands and templates only)
 
 ## Summary
 
-Make `/brain init` (the slash command, invoked by an LLM agent inside Claude Code) do real work: replace the M#1 placeholder schema block in CLAUDE.md with the full codebrain conventions block, populate `.brain/overview.md` with a project-aware starter digest, detect the tech stack and report it, and append a grep-parseable log entry. This is the first agent-driven skill — distinct from M#1's npm-side `scripts/init.js` which scaffolds the empty skeleton.
+Make `/brain init` (the slash command, invoked by an LLM agent inside Claude Code) do real work: replace the M#1 placeholder schema block in CLAUDE.md with the full graphbrain conventions block, populate `.brain/overview.md` with a project-aware starter digest, detect the tech stack and report it, and append a grep-parseable log entry. This is the first agent-driven skill — distinct from M#1's npm-side `scripts/init.js` which scaffolds the empty skeleton.
 
 User flow after M#2 lands:
 ```
-npx codebrain init      # M#1, once per repo — file-system scaffold
+npx graphbrain init      # M#1, once per repo — file-system scaffold
 # (restart Claude Code)
 /brain init             # M#2, agent-driven — populates content + detects stack
 /brain ingest src/      # M#3 (not yet implemented)
@@ -20,7 +20,7 @@ npx codebrain init      # M#1, once per repo — file-system scaffold
 
 | Category | Source | Pattern |
 |---|---|---|
-| SKILL.md frontmatter + body | `skills/behavioral/codebrain/SKILL.md:1-9` | merged ECC + graphbrain frontmatter (`name`, `description`, `origin`, `version`, `tier`, `pattern`, `related_skills`); body sections "When to Activate", "How It Works", "Examples" |
+| SKILL.md frontmatter + body | `skills/behavioral/graphbrain/SKILL.md:1-9` | merged ECC + graphbrain frontmatter (`name`, `description`, `origin`, `version`, `tier`, `pattern`, `related_skills`); body sections "When to Activate", "How It Works", "Examples" |
 | Slash-command verb dispatch | `commands/brain.md:11-23` | `$ARGUMENTS` parsed as `<verb> [args...]`; routing table per verb. M#2 replaces ONLY the `init` row; other verbs keep their Milestone-N stubs. |
 | Managed-region template-merge | `scripts/init.js:166-201` (`appendClaudeMdManagedRegion`) | begin/end markers; if markers present + not `--force`, SKIP; if `--force`, splice replacement between markers; preserve user content outside markers |
 | Page frontmatter shape | `scripts/init.js:148-156` (`frontmatter` helper) + PRD Design Decision frontmatter spec | `kind:`, `status:`, `created:`, optional `source:`/`source_hash:`/`sources:`; Dataview-compatible YAML |
@@ -29,21 +29,21 @@ npx codebrain init      # M#1, once per repo — file-system scaffold
 | Tests | `tests/e2e-test.sh` (graphbrain pass/fail-counter style) | bash, structural assertions, no LLM calls, <5s runtime; the agent-behavior parts of M#2 are not bash-testable (skill bodies are read by the LLM at runtime) — we assert file shape only |
 
 **Patterns we are NOT mirroring (intentional):**
-- graphbrain's `phase{1,2,3,4}-*.sh` scripts — codebrain's init is agent-driven, not a 4-phase bash pipeline.
-- ECC's full plugin-discovered skill auto-loading — codebrain is npm-distributed (Design Decision #28); the slash command body itself carries the load-bearing instructions, the SKILL.md is documentation + discovery.
+- graphbrain's `phase{1,2,3,4}-*.sh` scripts — graphbrain's init is agent-driven, not a 4-phase bash pipeline.
+- ECC's full plugin-discovered skill auto-loading — graphbrain is npm-distributed (Design Decision #28); the slash command body itself carries the load-bearing instructions, the SKILL.md is documentation + discovery.
 
 ## Files to Change
 
 | File | Action | Why |
 |---|---|---|
 | `skills/core/init/SKILL.md` | CREATE | The skill definition: when/why/how the agent invokes init; entry point for skill discovery |
-| `skills/core/init/templates/claude-md-schema.md` | CREATE | The **verbatim** ~120-line schema block the agent writes between `<!-- codebrain:begin -->` and `<!-- codebrain:end -->` in the user's CLAUDE.md (replacing M#1's placeholder) |
+| `skills/core/init/templates/claude-md-schema.md` | CREATE | The **verbatim** ~120-line schema block the agent writes between `<!-- graphbrain:begin -->` and `<!-- graphbrain:end -->` in the user's CLAUDE.md (replacing M#1's placeholder) |
 | `skills/core/init/templates/overview-starter.md` | CREATE | Starter content for `.brain/overview.md`. Sections: Project Purpose / Codebase Structure / Key Patterns / Active State / Recent Activity. Each section starts with an instruction comment telling the agent what to populate |
 | `skills/core/init/templates/stack-detection.json` | CREATE | JSON catalog of stack signals — array of `{ name, signals: [...], skill: "detected/<name>" }`. Agent reads → matches → reports `Detected: react, typescript` and notes "no detected/ skills installed yet (Milestone #3)" |
 | `commands/brain.md` | UPDATE | Replace the `init` row in the dispatch table with full agent instructions (inlined; the slash command body is the load-bearing contract). Other verbs remain Milestone-N stubs. |
-| `commands/codebrain.md` | UPDATE | Mirror brain.md changes; alias body stays identical to brain.md |
+| `commands/graphbrain.md` | UPDATE | Mirror brain.md changes; alias body stays identical to brain.md |
 | `tests/e2e-test.sh` | UPDATE | Add T10–T13 (structural assertions for new files + frontmatter parseability + JSON shape + init-stub-removed check) |
-| `.claude/prds/codebrain.prd.md` | UPDATE | M#2 row in Delivery Milestones table: `pending` → `in-progress`; `Plan` → link to this file |
+| `.claude/prds/graphbrain.prd.md` | UPDATE | M#2 row in Delivery Milestones table: `pending` → `in-progress`; `Plan` → link to this file |
 | `package.json` | NO CHANGE | Version stays at `0.1.0` for now; bump to `0.2.0` only when we decide to release |
 | `scripts/init.js` | NO CHANGE | The npm-side scaffolder doesn't need to know about M#2's skill — it copies the entire `skills/` tree (via the `files:` whitelist), so the new files ship automatically once committed |
 
@@ -61,26 +61,26 @@ npx codebrain init      # M#1, once per repo — file-system scaffold
   ```yaml
   ---
   name: init
-  description: Populate the codebrain wiki — write the full schema block to CLAUDE.md, customize .brain/overview.md with a project digest, detect tech stack, log the init event. Distinct from `npx codebrain init` which scaffolds skeleton files; this is the LLM-agent-driven content-population step that runs inside Claude Code.
-  origin: codebrain
+  description: Populate the graphbrain wiki — write the full schema block to CLAUDE.md, customize .brain/overview.md with a project digest, detect tech stack, log the init event. Distinct from `npx graphbrain init` which scaffolds skeleton files; this is the LLM-agent-driven content-population step that runs inside Claude Code.
+  origin: graphbrain
   version: 0.1.0
   tier: core
   pattern: Generator
-  related_skills: [behavioral/codebrain]
+  related_skills: [behavioral/graphbrain]
   ---
   ```
   Body sections (per ECC/graphbrain convention):
-  - **When to Activate** — operator runs `/brain init` or types trigger phrases: "initialize codebrain", "set up the brain", "populate .brain/"
+  - **When to Activate** — operator runs `/brain init` or types trigger phrases: "initialize graphbrain", "set up the brain", "populate .brain/"
   - **How It Works** — 8-step procedure (preconditions check → read repo signals → detect stack → read templates → merge schema block into CLAUDE.md → customize and write overview.md → append log entry → report)
-  - **Prerequisites** — `.brain/` directory must exist (M#1's `npx codebrain init` must have run); managed-region markers must exist in CLAUDE.md
+  - **Prerequisites** — `.brain/` directory must exist (M#1's `npx graphbrain init` must have run); managed-region markers must exist in CLAUDE.md
   - **Examples** — `/brain init` (normal); `/brain init --force` (refresh the schema block even if managed region is current)
-  - **Cross-references** — link to `skills/behavioral/codebrain/SKILL.md` for the meta-skill; link to templates in `./templates/`
-- **Mirror**: `skills/behavioral/codebrain/SKILL.md:1-9` (frontmatter shape); `skills/README.md` (tier+pattern fields)
+  - **Cross-references** — link to `skills/behavioral/graphbrain/SKILL.md` for the meta-skill; link to templates in `./templates/`
+- **Mirror**: `skills/behavioral/graphbrain/SKILL.md:1-9` (frontmatter shape); `skills/README.md` (tier+pattern fields)
 - **Validate**: `head -12 skills/core/init/SKILL.md | grep -q '^---$'`; all 7 frontmatter fields present
 
 ### Task 2: skills/core/init/templates/claude-md-schema.md
 
-- **Action**: Write the verbatim ~120-line schema block that the agent will splice between `<!-- codebrain:begin -->` and `<!-- codebrain:end -->` in the user's CLAUDE.md. Hard cap: 150 lines (per PRD Design Decision #7 page-cap discipline applied to the schema block — it must not dominate the user's CLAUDE.md). Sections:
+- **Action**: Write the verbatim ~120-line schema block that the agent will splice between `<!-- graphbrain:begin -->` and `<!-- graphbrain:end -->` in the user's CLAUDE.md. Hard cap: 150 lines (per PRD Design Decision #7 page-cap discipline applied to the schema block — it must not dominate the user's CLAUDE.md). Sections:
   - **One-paragraph intro** — what `.brain/` is + the rule "operator reads, agent writes"
   - **Vault layout** — tree diagram of `.brain/{code,concepts,decisions}/` + top-level `.md` files; one-line purpose per directory
   - **Page-type taxonomy** — frontmatter spec: `kind:` (code/concept/decision/overview/index/log/status) + `status:` (UNENRICHED/FRESH/STALE/RESYNCED/VERIFIED) + `source:`/`source_hash:` (for code pages) + `sources:` (optional for concept pages — PRD Design Decision #10 tier 2)
@@ -153,20 +153,20 @@ npx codebrain init      # M#1, once per repo — file-system scaffold
   ```markdown
   ## When `$ARGUMENTS` is `init`
 
-  You are the codebrain init agent. Run this procedure:
+  You are the graphbrain init agent. Run this procedure:
 
   **Step 1 — Preconditions**: Verify `.brain/` exists in cwd. If not, print:
-    `error: .brain/ not found. Run \`npx codebrain init\` first to scaffold the skeleton, then re-run \`/brain init\`.`
+    `error: .brain/ not found. Run \`npx graphbrain init\` first to scaffold the skeleton, then re-run \`/brain init\`.`
     and stop.
 
-  **Step 2 — Read templates**: Read three files from the codebrain npm package:
+  **Step 2 — Read templates**: Read three files from the graphbrain npm package:
     `skills/core/init/templates/claude-md-schema.md`
     `skills/core/init/templates/overview-starter.md`
     `skills/core/init/templates/stack-detection.json`
 
-  **Step 3 — Schema block**: Read `<cwd>/CLAUDE.md`. Find `<!-- codebrain:begin -->` and `<!-- codebrain:end -->` markers.
+  **Step 3 — Schema block**: Read `<cwd>/CLAUDE.md`. Find `<!-- graphbrain:begin -->` and `<!-- graphbrain:end -->` markers.
     - If both present: replace the content between them with the contents of `claude-md-schema.md` (preserve everything outside the markers).
-    - If markers missing: print error explaining to re-run `npx codebrain init` (which writes the markers) and stop.
+    - If markers missing: print error explaining to re-run `npx graphbrain init` (which writes the markers) and stop.
     - If markers present + content between them is **already** the schema block (compare): SKIP unless operator passed `--force`.
 
   **Step 4 — Detect stack**: For each stack in `stack-detection.json`, evaluate the signals against the user's cwd:
@@ -203,11 +203,11 @@ npx codebrain init      # M#1, once per repo — file-system scaffold
 - **Mirror**: `commands/brain.md:1-58` (existing structure); `scripts/init.js:166-201` (managed-region splice pattern)
 - **Validate**: `! grep -q 'Milestone #2.*not yet implemented' commands/brain.md`; other verb stubs still present
 
-### Task 6: Update commands/codebrain.md (alias)
+### Task 6: Update commands/graphbrain.md (alias)
 
 - **Action**: Copy Task 5's changes verbatim — only the slash-command name differs because the file name differs (and we already have the alias-note line at the top). Concretely: the "When `$ARGUMENTS` is `init`" section is identical between the two files.
 - **Mirror**: M#1 alias-equality pattern
-- **Validate**: `diff <(sed -n '/When `\$ARGUMENTS` is `init`/,$p' commands/brain.md) <(sed -n '/When `\$ARGUMENTS` is `init`/,$p' commands/codebrain.md)` is empty (modulo any intentional alias-only note)
+- **Validate**: `diff <(sed -n '/When `\$ARGUMENTS` is `init`/,$p' commands/brain.md) <(sed -n '/When `\$ARGUMENTS` is `init`/,$p' commands/graphbrain.md)` is empty (modulo any intentional alias-only note)
 
 ### Task 7: Update tests/e2e-test.sh — assertions for M#2 surface
 
@@ -242,9 +242,9 @@ npx codebrain init      # M#1, once per repo — file-system scaffold
     && ok "T11: brain.md init verb is no longer stubbed" \
     || nope "T11: brain.md init verb still says Milestone #2 not yet implemented"
 
-  ! grep -q 'Milestone #2.*not yet implemented' "$CODEBRAIN_ROOT/commands/codebrain.md" \
-    && ok "T11: codebrain.md init verb is no longer stubbed" \
-    || nope "T11: codebrain.md init verb still says Milestone #2 not yet implemented"
+  ! grep -q 'Milestone #2.*not yet implemented' "$CODEBRAIN_ROOT/commands/graphbrain.md" \
+    && ok "T11: graphbrain.md init verb is no longer stubbed" \
+    || nope "T11: graphbrain.md init verb still says Milestone #2 not yet implemented"
 
   # But other verb stubs still present (M#3+)
   for milestone in 3 5 6 7; do
@@ -256,8 +256,8 @@ npx codebrain init      # M#1, once per repo — file-system scaffold
   # === Test 12: alias parity for the init section ============================
 
   brain_init=$(sed -n '/When `\$ARGUMENTS` is `init`/,$p' "$CODEBRAIN_ROOT/commands/brain.md")
-  cb_init=$(sed -n '/When `\$ARGUMENTS` is `init`/,$p' "$CODEBRAIN_ROOT/commands/codebrain.md")
-  [ "$brain_init" = "$cb_init" ] && ok "T12: brain.md and codebrain.md init section match" || nope "T12: alias drift in init section"
+  cb_init=$(sed -n '/When `\$ARGUMENTS` is `init`/,$p' "$CODEBRAIN_ROOT/commands/graphbrain.md")
+  [ "$brain_init" = "$cb_init" ] && ok "T12: brain.md and graphbrain.md init section match" || nope "T12: alias drift in init section"
 
   # === Test 13: npm pack includes new templates ==============================
 
@@ -271,9 +271,9 @@ npx codebrain init      # M#1, once per repo — file-system scaffold
 
 ### Task 8: PRD update — M#2 row → in-progress
 
-- **Action**: Edit `.claude/prds/codebrain.prd.md`: in the Delivery Milestones table, change the M#2 row's `Status` from `pending` to `in-progress` and `Plan` from `—` to `[.claude/plans/codebrain-m2.plan.md](.claude/plans/codebrain-m2.plan.md)`
+- **Action**: Edit `.claude/prds/graphbrain.prd.md`: in the Delivery Milestones table, change the M#2 row's `Status` from `pending` to `in-progress` and `Plan` from `—` to `[.claude/plans/graphbrain-m2.plan.md](.claude/plans/graphbrain-m2.plan.md)`
 - **Mirror**: M#1 PRD update pattern
-- **Validate**: `grep "Init + schema" .claude/prds/codebrain.prd.md` shows the updated row
+- **Validate**: `grep "Init + schema" .claude/prds/graphbrain.prd.md` shows the updated row
 
 ## Validation
 
@@ -295,7 +295,7 @@ test "$(wc -l < skills/core/init/templates/claude-md-schema.md)" -le 150
 
 # 4. init verb is no longer a Milestone #2 stub
 ! grep -q 'Milestone #2.*not yet implemented' commands/brain.md
-! grep -q 'Milestone #2.*not yet implemented' commands/codebrain.md
+! grep -q 'Milestone #2.*not yet implemented' commands/graphbrain.md
 
 # But Milestones #3, #5, #6, #7 are still stubs
 grep -q 'Milestone #3.*not yet implemented' commands/brain.md
@@ -303,20 +303,20 @@ grep -q 'Milestone #5.*not yet implemented' commands/brain.md
 grep -q 'Milestone #6.*not yet implemented' commands/brain.md
 grep -q 'Milestone #7.*not yet implemented' commands/brain.md
 
-# 5. brain.md and codebrain.md init sections agree
+# 5. brain.md and graphbrain.md init sections agree
 diff <(sed -n '/When `$ARGUMENTS` is `init`/,$p' commands/brain.md) \
-     <(sed -n '/When `$ARGUMENTS` is `init`/,$p' commands/codebrain.md)
+     <(sed -n '/When `$ARGUMENTS` is `init`/,$p' commands/graphbrain.md)
 # Expect: empty diff
 
 # 6. npm pack ships the new files
 npm pack --dry-run | grep -E 'skills/core/init/(SKILL\.md|templates/)'
 
 # 7. Manual smoke test (operator)
-# In a Claude Code session inside a repo that already ran `npx codebrain init`:
+# In a Claude Code session inside a repo that already ran `npx graphbrain init`:
 #   /brain init             → schema block refreshed, overview.md populated, stack reported, log appended
 #   /brain init             → second run reports SKIP (idempotent)
 #   /brain init --force     → forces refresh even if managed region is current
-#   /brain init (in a repo without .brain/) → error explains to run `npx codebrain init` first
+#   /brain init (in a repo without .brain/) → error explains to run `npx graphbrain init` first
 ```
 
 ## Risks
@@ -325,13 +325,13 @@ npm pack --dry-run | grep -E 'skills/core/init/(SKILL\.md|templates/)'
 |---|---|---|
 | Schema block exceeds 150-line cap | Med | Task 2 author self-edits during writing; T10 asserts the cap |
 | Stack detection misclassifies (e.g., Python repo with package.json from a Node toolchain) | Med | Detect AND report all matched stacks; agent says "Detected: python (strong), nodejs (weak — package.json found in tooling/)" rather than picking one; operator can correct |
-| `/brain init` runs before `npx codebrain init` (no `.brain/`) | Low | Task 5 Step 1: explicit precondition check with helpful error message |
+| `/brain init` runs before `npx graphbrain init` (no `.brain/`) | Low | Task 5 Step 1: explicit precondition check with helpful error message |
 | LLM ignores the verbatim template and writes its own schema block | Med | Template is read as a file then written verbatim; instruction emphasizes "write the file content verbatim into the managed region — do not paraphrase". Lint (M#6) will catch drift. |
 | Skill auto-discovery doesn't work from npm-installed location | Low | The slash command body in `commands/brain.md` is the load-bearing contract — it's read by Claude Code via the `.claude/commands/` install path. SKILL.md is documentation. If skill auto-discovery fails, the slash command still works. |
 | Idempotency check in Step 3 produces a false-positive SKIP when minor formatting differs | Med | Compare content trimmed; if doubt, prompt the operator before overwriting; `--force` always overwrites |
-| Templates ship in npm but agent can't find them at runtime in the npm-installed location | Med | T13 asserts they're in `npm pack`; M#1's `files:` whitelist already includes `skills/` recursively; if Claude Code can't find them, document the path in the agent instructions (Step 2 says "from the codebrain npm package" — explicit) |
+| Templates ship in npm but agent can't find them at runtime in the npm-installed location | Med | T13 asserts they're in `npm pack`; M#1's `files:` whitelist already includes `skills/` recursively; if Claude Code can't find them, document the path in the agent instructions (Step 2 says "from the graphbrain npm package" — explicit) |
 | Agent populates overview.md but ignores frontmatter status transition | Low | Step 5 explicitly lists frontmatter updates; M#6 lint catches stale status fields |
-| Alias drift between brain.md and codebrain.md (init section) | Low | T12 asserts the init sections are byte-identical |
+| Alias drift between brain.md and graphbrain.md (init section) | Low | T12 asserts the init sections are byte-identical |
 
 ## Acceptance
 

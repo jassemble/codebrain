@@ -1,11 +1,11 @@
 ---
 name: lint
 description: Defines the lint contract — 4 categories (defects, gaps, contradictions, suggested questions), flag matrix (--fix, --yes, --include-contradictions), output shape, cost-gate for opt-in contradiction-check. Loaded by /brain lint. Closes tier 3 of the 4-tier staleness model (PRD #10).
-origin: codebrain
+origin: graphbrain
 version: 0.1.0
 tier: core
 pattern: Verifier
-related_skills: [behavioral/codebrain, ingestion/page-format, core/query]
+related_skills: [behavioral/graphbrain, ingestion/page-format, core/query]
 ---
 
 # lint — wiki health-check (4 categories)
@@ -32,7 +32,7 @@ Read-only by default. `--fix` opts into batch refresh of STALE pages via delegat
 | **Page-size hard violations** | Code pages >8k tokens OR concept pages >12k tokens (PRD #7) | ERROR — split source file or split concept |
 | **Page-size soft violations** | Code pages >4k tokens OR concept pages >6k tokens (PRD #7) | WARNING |
 | **Orphan source files** | `.brain/code/<path>.md` exists but `<cwd>/<path>` (source) was deleted | WARNING — operator decides: keep page (historical) or remove it |
-| **CLAUDE.md schema drift** | Managed-region content differs from `skills/core/init/templates/claude-md-schema.md` (the M#2 reference template) | WARNING — run `/brain init --force` to refresh, or check `codebrain version` vs `.brain/.codebrain-version` |
+| **CLAUDE.md schema drift** | Managed-region content differs from `skills/core/init/templates/claude-md-schema.md` (the M#2 reference template) | WARNING — run `/brain init --force` to refresh, or check `graphbrain version` vs `.brain/.graphbrain-version` |
 
 ### 2. Gaps (heuristic — fast, no LLM calls)
 
@@ -72,7 +72,7 @@ Derived from L3–L5 findings. Operator-actionable next steps:
 Structured 4-category report — always produced, even when categories are empty:
 
 ```
-/brain lint — wiki health report (codebrain v<version>)
+/brain lint — wiki health report (graphbrain v<version>)
 
 Inventory:
   Code pages:     <count>
@@ -140,7 +140,7 @@ Future post-MVP: severity-coded exit codes (0 = clean; 1 = errors; 2 = warnings 
 ### Example 1: Clean repo
 
 ```
-/brain lint — wiki health report (codebrain v0.1.0)
+/brain lint — wiki health report (graphbrain v0.1.0)
 
 Inventory:
   Code pages:     12

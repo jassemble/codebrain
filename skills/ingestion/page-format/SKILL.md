@@ -1,11 +1,11 @@
 ---
 name: page-format
 description: Defines the required shape of a .brain/code/<path>.md page — frontmatter fields, section structure, wikilink convention, page-size cap. Loaded during /brain ingest. Every ingester (and the verifier landing in Milestone #6) reads this skill to know what a valid page looks like.
-origin: codebrain
+origin: graphbrain
 version: 0.1.0
 tier: ingestion
 pattern: Reviewer
-related_skills: [behavioral/codebrain]
+related_skills: [behavioral/graphbrain]
 ---
 
 # page-format — code-page contract
@@ -145,5 +145,5 @@ _(none yet — see Milestone #3b for cross-page linking)_
 - Template (verbatim, agent reads + fills): `./templates/code-page.md`
 - Load-bearing inlined copy: `commands/brain.md` under "When `$ARGUMENTS` starts with `ingest <file>`"
 - The ingester agent that produces these pages: `agents/brain/ingester.md`
-- Meta skill: `../../behavioral/codebrain/SKILL.md`
+- Meta skill: `../../behavioral/graphbrain/SKILL.md`
 - Skill tier model + frontmatter convention: `../../README.md`

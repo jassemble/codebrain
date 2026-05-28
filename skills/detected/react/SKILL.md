@@ -1,11 +1,11 @@
 ---
 name: detected/react
 description: Stack-aware page-template extras for React/JSX/TSX code pages. Loaded by /brain ingest when a React project is detected (package.json contains "react") AND the source file's extension is .tsx or .jsx. Extras APPEND AFTER the generic 5 sections from M#3a's code-page template — never replace.
-origin: codebrain
+origin: graphbrain
 version: 0.1.0
 tier: detected
 pattern: Generator
-related_skills: [behavioral/codebrain, ingestion/page-format, detected/typescript]
+related_skills: [behavioral/graphbrain, ingestion/page-format, detected/typescript]
 detect:
   - { file_exists: "package.json", contains: "\"react\"" }
 applies_to_extensions: [".tsx", ".jsx"]

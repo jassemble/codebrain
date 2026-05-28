@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// codebrain stale-detect — PostToolUse hook
+// graphbrain stale-detect — PostToolUse hook
 //
 // Fires after every Edit / Write / MultiEdit tool call. If the edited file
 // is a tracked source (has a corresponding .brain/code/<path>.md page), flips
@@ -11,7 +11,7 @@
 // Contract:
 //   - Reads tool-call payload from stdin (Claude Code hook protocol — JSON).
 //   - Always exits 0. Hooks must never block tool execution.
-//   - Errors logged to stderr with [codebrain] prefix; never stdout.
+//   - Errors logged to stderr with [graphbrain] prefix; never stdout.
 //   - Silently no-ops if cwd has no .brain/ (per sweep finding D7).
 
 'use strict';
@@ -23,7 +23,7 @@ function safe(fn) {
   try {
     return fn();
   } catch (e) {
-    process.stderr.write(`[codebrain] stale-detect error: ${e.message}\n`);
+    process.stderr.write(`[graphbrain] stale-detect error: ${e.message}\n`);
     return null;
   }
 }
@@ -68,7 +68,7 @@ async function main() {
   const cwd = process.cwd();
   const brainRoot = pageIo.findBrainRoot(cwd);
   if (!brainRoot) {
-    // No codebrain in this repo — exit silently per D7
+    // No graphbrain in this repo — exit silently per D7
     process.exit(0);
   }
 
@@ -105,10 +105,10 @@ async function main() {
   }
 
   // Non-blocking: never write to stdout (hook channel). If there's something
-  // to report, write to stderr with the [codebrain] prefix so it's visible
+  // to report, write to stderr with the [graphbrain] prefix so it's visible
   // in tool-call logs but doesn't interfere with Claude Code's tool flow.
   if (flipped.length > 0) {
-    process.stderr.write(`[codebrain] stale-detect: flipped ${flipped.length} page(s) STALE for edit of ${relEdited}\n`);
+    process.stderr.write(`[graphbrain] stale-detect: flipped ${flipped.length} page(s) STALE for edit of ${relEdited}\n`);
   }
 
   process.exit(0);

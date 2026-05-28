@@ -1,6 +1,6 @@
-# Plan: codebrain — Milestone #5 (/brain query — pointer-first lookup + tier-4 staleness)
+# Plan: graphbrain — Milestone #5 (/brain query — pointer-first lookup + tier-4 staleness)
 
-**Source PRD**: `.claude/prds/codebrain.prd.md`
+**Source PRD**: `.claude/prds/graphbrain.prd.md`
 **Selected Milestone**: #5 — Query helper
 **Complexity**: Medium — fourth writer-style agent (Researcher pattern; mostly read); closes tier 4 of the 4-tier staleness model; reuses M#4 lib/page-io for hash verification; delegates re-ingest to M#3a procedure
 **Status**: READY — sweep findings (F1–F7) inline
@@ -15,7 +15,7 @@ The payoff milestone. `/brain query "<question>"` invokes the **query agent** (R
 4. Synthesizes an answer with citations to both the brain pages (`[[code/<path>]]`) and the underlying source paths (`src/api/auth.ts:42`)
 5. Logs the query event with grep-parseable prefix
 
-After M#5: codebrain delivers its core promise. Operators get answers grounded in current wiki content, with the brain self-healing in the background when sources have drifted.
+After M#5: graphbrain delivers its core promise. Operators get answers grounded in current wiki content, with the brain self-healing in the background when sources have drifted.
 
 Closes **tier 4** of the 4-tier staleness model (PRD #10). Tier 3 (`/brain lint` contradiction-check) lands in M#6.
 
@@ -48,9 +48,9 @@ Closes **tier 4** of the 4-tier staleness model (PRD #10). Tier 3 (`/brain lint`
 | `agents/brain/query.md` | CREATE | Fourth agent — Researcher pattern. Tools: `[Read, Glob, Grep, Bash]` (no Edit/Write — refresh happens via delegated ingester). max_iterations: 5. Rules emphasize pointer-first ordering + hash-compare freshness + cite-both citation. |
 | `skills/core/query/SKILL.md` | CREATE | Defines the query contract. Tier: core. Pattern: Researcher. Body covers when activated, output contract (answer + citations + freshness report), candidate-selection criteria, page-cap rules. |
 | `commands/brain.md` | UPDATE | Add `## When $ARGUMENTS starts with query` procedure with steps Q0–Q7. Update dispatch table: `query "<question>"` row from stub to implemented (M#5). |
-| `commands/codebrain.md` | UPDATE | Alias parity for procedure + dispatch table. |
+| `commands/graphbrain.md` | UPDATE | Alias parity for procedure + dispatch table. |
 | `tests/e2e-test.sh` | UPDATE | T26 (query agent + skill structural shape, npm pack); T27 (procedure section + step headers + flags + alias parity). |
-| `.claude/prds/codebrain.prd.md` | UPDATE | M#5 row `pending` → `in-progress` (then `complete` when shipped). |
+| `.claude/prds/graphbrain.prd.md` | UPDATE | M#5 row `pending` → `in-progress` (then `complete` when shipped). |
 
 **Not in M#5 (deferred):**
 - File-answers-back-as-concept-page (F6) → M#5b or post-MVP
@@ -72,7 +72,7 @@ model: sonnet
 pattern: Researcher
 trigger_phrases:
   - "ask the brain"
-  - "query the codebrain"
+  - "query the graphbrain"
   - "what does the brain say"
   - "search .brain"
 max_iterations: 5
@@ -82,7 +82,7 @@ max_iterations: 5
 Body: persona + `Read the Prompt Defense Baseline section of CLAUDE.md before acting.` + procedure pointer (`commands/brain.md` `## When $ARGUMENTS starts with query`) + `## Rules` (≥9):
 
 - **NEVER read more than 5 brain pages** for a single query — if the question seems to require more, suggest narrowing.
-- **NEVER bypass the freshness check** unless `$ARGUMENTS` contains `--no-refresh`. Stale answers undermine codebrain's value.
+- **NEVER bypass the freshness check** unless `$ARGUMENTS` contains `--no-refresh`. Stale answers undermine graphbrain's value.
 - **NEVER write to `.brain/` directly** — refresh writes go through the ingester (delegated via M#3a single-file procedure).
 - **NEVER cite a page without verifying it exists** in `.brain/code/` or `.brain/concepts/` first.
 - **NEVER fabricate source-file line numbers** — only cite lines when you actually read them from the source file.
@@ -99,11 +99,11 @@ Create with frontmatter:
 ---
 name: query
 description: Defines the query contract — when activated, candidate-selection criteria, freshness model, citation format, page-cap rules. Loaded by /brain query and read by the M#6 lint pass to verify "concept mentioned but not findable via query" cases.
-origin: codebrain
+origin: graphbrain
 version: 0.1.0
 tier: core
 pattern: Researcher
-related_skills: [behavioral/codebrain, ingestion/page-format]
+related_skills: [behavioral/graphbrain, ingestion/page-format]
 ---
 ```
 
@@ -189,7 +189,7 @@ Add a new procedure section after the tiered-ingest section: `## When $ARGUMENTS
 
 **Error recovery** (per query Rules + PRD #26): Tier 1 retry once; Tier 2 structured blocked report; do not exceed `max_iterations: 5`.
 
-### Task 4: Update commands/codebrain.md (alias parity)
+### Task 4: Update commands/graphbrain.md (alias parity)
 
 Mirror Task 3 verbatim. T27 confirms byte-identical via awk pattern.
 
@@ -210,7 +210,7 @@ Mirror Task 3 verbatim. T27 confirms byte-identical via awk pattern.
 
 ### Task 6: PRD update
 
-`.claude/prds/codebrain.prd.md` M#5 row → `complete` with plan link (set straight to complete since this single-commit milestone).
+`.claude/prds/graphbrain.prd.md` M#5 row → `complete` with plan link (set straight to complete since this single-commit milestone).
 
 ## Validation
 
@@ -241,7 +241,7 @@ grep -qF 'hash compare' commands/brain.md
 
 # 5. Alias parity
 diff <(awk '/^## When `\$ARGUMENTS` starts with `query`$/{flag=1} flag' commands/brain.md) \
-     <(awk '/^## When `\$ARGUMENTS` starts with `query`$/{flag=1} flag' commands/codebrain.md)
+     <(awk '/^## When `\$ARGUMENTS` starts with `query`$/{flag=1} flag' commands/graphbrain.md)
 
 # 6. npm pack
 npm pack --dry-run | grep -E 'agents/brain/query|skills/core/query/SKILL'

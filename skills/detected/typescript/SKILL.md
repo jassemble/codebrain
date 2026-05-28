@@ -1,11 +1,11 @@
 ---
 name: detected/typescript
 description: Stack-aware page-template extras for TypeScript code pages. Loaded by /brain ingest when a TypeScript project is detected (tsconfig.json exists) AND the source file's extension is .ts or .tsx. Extras APPEND AFTER the generic 5 sections — never replace. When a .tsx file matches BOTH this skill AND detected/react, both apply in registry order (TypeScript extras first, React extras second).
-origin: codebrain
+origin: graphbrain
 version: 0.1.0
 tier: detected
 pattern: Generator
-related_skills: [behavioral/codebrain, ingestion/page-format, detected/react]
+related_skills: [behavioral/graphbrain, ingestion/page-format, detected/react]
 detect:
   - { file_exists: "tsconfig.json" }
 applies_to_extensions: [".ts", ".tsx"]

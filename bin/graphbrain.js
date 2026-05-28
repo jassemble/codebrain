@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// codebrain CLI entry — verb dispatch only. Real logic lives in scripts/.
+// graphbrain CLI entry — verb dispatch only. Real logic lives in scripts/.
 // PRD Design Decisions #28 (npm distribution) + #32 (hooks id-prefix) + #33 (version marker).
 
 'use strict';
@@ -11,26 +11,26 @@ const VERB = process.argv[2];
 const ARGS = process.argv.slice(3);
 
 function printHelp() {
-  console.log(`codebrain ${pkg.version} — agent-maintained codebase wiki for Claude Code
+  console.log(`graphbrain ${pkg.version} — agent-maintained codebase wiki for Claude Code
 
 Usage:
-  codebrain init [--global] [--force] [--dry-run]
+  graphbrain init [--global] [--force] [--dry-run]
       Scaffold .brain/ in the current repo and write /brain slash commands
-      + codebrain hooks block into .claude/. Project-local by default; use
+      + graphbrain hooks block into .claude/. Project-local by default; use
       --global to write to ~/.claude/ instead.
 
-  codebrain version
-      Print the installed codebrain version.
+  graphbrain version
+      Print the installed graphbrain version.
 
-  codebrain update
-      [Deferred to v0.2] Refresh installed templates and hooks after a codebrain
-      version bump. For now, re-run \`codebrain init --force\`.
+  graphbrain update
+      [Deferred to v0.2] Refresh installed templates and hooks after a graphbrain
+      version bump. For now, re-run \`graphbrain init --force\`.
 
-  codebrain uninstall
-      [Deferred to v0.2] Remove .brain/, codebrain entries from .claude/commands/
+  graphbrain uninstall
+      [Deferred to v0.2] Remove .brain/, graphbrain entries from .claude/commands/
       and .claude/settings.local.json. For now, see the message printed below.
 
-  codebrain hook <subcommand>
+  graphbrain hook <subcommand>
       Internal hook entry point invoked by .claude/settings.local.json
       (PreToolUse/PostToolUse). Subcommands:
         stale-detect    — PostToolUse: mark .brain/ pages STALE on source edit
@@ -39,11 +39,11 @@ Usage:
                           (only fires when /brain learn on per-project)
       Not intended for direct operator use.
 
-  codebrain help
+  graphbrain help
       Print this message.
 
-After \`codebrain init\`, restart Claude Code (or open a new session) and use
-\`/brain init\` to begin. See https://github.com/jassemble/codebrain for more.`);
+After \`graphbrain init\`, restart Claude Code (or open a new session) and use
+\`/brain init\` to begin. See https://github.com/jassemble/graphbrain for more.`);
 }
 
 const HOOK_SUBCOMMANDS = ['stale-detect', 'verified-guard', 'observe'];
@@ -51,12 +51,12 @@ const HOOK_SUBCOMMANDS = ['stale-detect', 'verified-guard', 'observe'];
 function dispatchHook(args) {
   const sub = args[0];
   if (!sub) {
-    console.error('codebrain hook: missing subcommand. Available:');
+    console.error('graphbrain hook: missing subcommand. Available:');
     for (const s of HOOK_SUBCOMMANDS) console.error(`  ${s}`);
     process.exit(1);
   }
   if (!HOOK_SUBCOMMANDS.includes(sub)) {
-    console.error(`codebrain hook: unknown subcommand '${sub}'. Available:`);
+    console.error(`graphbrain hook: unknown subcommand '${sub}'. Available:`);
     for (const s of HOOK_SUBCOMMANDS) console.error(`  ${s}`);
     process.exit(1);
   }
@@ -80,22 +80,22 @@ function main() {
 
     case 'update':
       console.log(
-        `codebrain update is not yet implemented in v${pkg.version}. ` +
-        `For now, re-run \`codebrain init --force\` to refresh templates and ` +
-        `hooks after upgrading codebrain via npm.`
+        `graphbrain update is not yet implemented in v${pkg.version}. ` +
+        `For now, re-run \`graphbrain init --force\` to refresh templates and ` +
+        `hooks after upgrading graphbrain via npm.`
       );
       process.exit(0);
 
     case 'uninstall':
       console.log(
-        `codebrain uninstall is not yet implemented in v${pkg.version}. ` +
+        `graphbrain uninstall is not yet implemented in v${pkg.version}. ` +
         `Manual removal:\n` +
         `  1. Delete \`.brain/\` from your repo.\n` +
-        `  2. Remove entries with \`id\` starting \`codebrain:\` from ` +
+        `  2. Remove entries with \`id\` starting \`graphbrain:\` from ` +
         `\`.claude/settings.local.json\`.\n` +
-        `  3. Delete \`.claude/commands/{brain,codebrain}.md\`.\n` +
-        `  4. Remove the \`<!-- codebrain:begin -->\` ... ` +
-        `\`<!-- codebrain:end -->\` block from \`CLAUDE.md\`.`
+        `  3. Delete \`.claude/commands/{brain,graphbrain}.md\`.\n` +
+        `  4. Remove the \`<!-- graphbrain:begin -->\` ... ` +
+        `\`<!-- graphbrain:end -->\` block from \`CLAUDE.md\`.`
       );
       process.exit(0);
 

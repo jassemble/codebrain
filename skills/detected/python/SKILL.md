@@ -1,11 +1,11 @@
 ---
 name: detected/python
 description: Stack-aware page-template extras for Python code pages. Loaded by /brain ingest when a Python project is detected (pyproject.toml exists) AND the source file's extension is .py. Extras APPEND AFTER the generic 5 sections — never replace.
-origin: codebrain
+origin: graphbrain
 version: 0.1.0
 tier: detected
 pattern: Generator
-related_skills: [behavioral/codebrain, ingestion/page-format]
+related_skills: [behavioral/graphbrain, ingestion/page-format]
 detect:
   - { file_exists: "pyproject.toml" }
 applies_to_extensions: [".py"]

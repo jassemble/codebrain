@@ -4,7 +4,7 @@ description: Health-check the wiki: defects, gaps, contradictions. --fix batch-r
 
 ## When `$ARGUMENTS` starts with `lint`
 
-You are the codebrain **verifier** (see `agents/brain/verifier.md` for your full persona + Rules — read-only by default, hash compare for stale verification, delegate-to-ingester on --fix, never auto-create concept pages). Run the procedure exactly.
+You are the graphbrain **verifier** (see `agents/brain/verifier.md` for your full persona + Rules — read-only by default, hash compare for stale verification, delegate-to-ingester on --fix, never auto-create concept pages). Run the procedure exactly.
 
 **L0 — Argument parsing**:
 
@@ -17,7 +17,7 @@ You are the codebrain **verifier** (see `agents/brain/verifier.md` for your full
 **L1 — Preconditions**:
 
 - Verify `.brain/` exists in cwd. If not, print the same npx-init message as M#3a Step 1 + M#5 Q1 + stop.
-- Verify `.brain/.codebrain-version` is present.
+- Verify `.brain/.graphbrain-version` is present.
 - Verify `<cwd>/CLAUDE.md` exists (needed for schema-drift check). If absent: skip the schema check; note `schema-drift: skipped (CLAUDE.md missing)` in the report.
 
 **L2 — Inventory**:
@@ -42,7 +42,7 @@ For every page returned by L2:
   - Code pages: report `Page-size soft` if > 4k; `Page-size hard` if > 8k.
   - Concept pages: report `Page-size soft` if > 6k; `Page-size hard` if > 12k.
 - **Orphan source files**: for each `.brain/code/<path>.md`, check if `<cwd>/<path>` exists. If not → orphan.
-- **CLAUDE.md schema drift**: read the content between `<!-- codebrain:begin -->` and `<!-- codebrain:end -->` in `<cwd>/CLAUDE.md`; compare to the verbatim content of `skills/core/init/templates/claude-md-schema.md` (load from the codebrain npm-installed location — same path-resolution caveat as M#5's template reads). Trim trailing whitespace + normalize line endings before comparing (avoid false positives on whitespace). If differ → `schema-drift: yes`.
+- **CLAUDE.md schema drift**: read the content between `<!-- graphbrain:begin -->` and `<!-- graphbrain:end -->` in `<cwd>/CLAUDE.md`; compare to the verbatim content of `skills/core/init/templates/claude-md-schema.md` (load from the graphbrain npm-installed location — same path-resolution caveat as M#5's template reads). Trim trailing whitespace + normalize line endings before comparing (avoid false positives on whitespace). If differ → `schema-drift: yes`.
 - **Superseded pages still linked** (M#10d): for each page with `superseded_by: <target>` set, scan all OTHER `.brain/**/*.md` pages whose frontmatter does NOT also contain `superseded_by:` for wikilinks pointing to the superseded page. Report as `<linking-page> still references superseded page <target>` (operators should update those links to point at the replacement).
 
 **L4 — Gaps category** (heuristic, fast — no LLM calls):
@@ -73,7 +73,7 @@ For each finding, add a suggestion line. Examples:
 
 - Missing concept `tenant`: `- Concept "tenant" appears in 4 code pages but has no concept page. Try /brain query "what is a tenant?" or /brain ingest src/models/ (which contains tenant.ts) to give the linker more material.`
 - True stale page `code/src/auth.ts.md`: `- Stale page code/src/auth.ts.md. Run /brain lint --fix to refresh, or /brain ingest src/auth.ts to refresh manually.`
-- Schema drift: `- CLAUDE.md schema block differs from codebrain's shipped template. Run /brain init --force to refresh, OR check codebrain --version vs .brain/.codebrain-version for a version mismatch.`
+- Schema drift: `- CLAUDE.md schema block differs from graphbrain's shipped template. Run /brain init --force to refresh, OR check graphbrain --version vs .brain/.graphbrain-version for a version mismatch.`
 - All stub pages: `- Stub page <path>. Re-ingest with /brain ingest <source> --force to deepen.`
 
 **L6b — `--fix` execution** (skip if `--fix` is not in `$ARGUMENTS`):
@@ -96,7 +96,7 @@ Refresh `.brain/llms.txt` per the procedure in `skills/ingestion/llms-txt/SKILL.
 Print the report in exactly this shape:
 
 ```
-/brain lint — wiki health report (codebrain v<version>)
+/brain lint — wiki health report (graphbrain v<version>)
 
 Inventory:
   Code pages:     <count>
@@ -144,7 +144,7 @@ Append to `.brain/log.md` under `## Activity History`:
 ```
 blocked: verifier couldn't complete lint.
 Reason: <one-sentence why>.
-Operator action: <what to do — e.g., "verify .brain/ exists with npx codebrain init", "install git for hash compare", "narrow scope by skipping --include-contradictions">.
+Operator action: <what to do — e.g., "verify .brain/ exists with npx graphbrain init", "install git for hash compare", "narrow scope by skipping --include-contradictions">.
 ```
 and stop. Do not exceed `max_iterations: 5`.
 

@@ -1,6 +1,6 @@
-## codebrain
+## graphbrain
 
-This repo has a codebrain wiki at `.brain/`. The wiki is an LLM-maintained, folder-mirrored markdown knowledge base of this codebase. **The operator reads; the agent writes.** Source code is never modified by codebrain — only the wiki is.
+This repo has a graphbrain wiki at `.brain/`. The wiki is an LLM-maintained, folder-mirrored markdown knowledge base of this codebase. **The operator reads; the agent writes.** Source code is never modified by graphbrain — only the wiki is.
 
 ### Vault layout
 
@@ -14,7 +14,7 @@ This repo has a codebrain wiki at `.brain/`. The wiki is an LLM-maintained, fold
 ├── log.md            # Recent Patterns (semantic) + Activity History (append-only)
 ├── decisions.md      # active + superseded ADR summary index
 ├── status.md         # derived lifecycle view (regenerated; never the source of truth)
-└── .codebrain-version  # marker file for upgrade detection
+└── .graphbrain-version  # marker file for upgrade detection
 ```
 
 ### Page-type frontmatter
@@ -73,10 +73,10 @@ Agents working in this repo should **Read the Prompt Defense Baseline section of
 
 ### Continuous learning
 
-Codebrain observes tool-use on tracked source files and prompts that reference codebase symbols. Observations consolidate into project-scoped instincts at `~/.local/share/codebrain/projects/<git-remote-hash>/instincts/`. Toggle: `/brain learn on|off`. Project-scoped by default; promotion to global scope when an instinct appears in N≥2 projects with avg confidence ≥0.8.
+Graphbrain observes tool-use on tracked source files and prompts that reference codebase symbols. Observations consolidate into project-scoped instincts at `~/.local/share/graphbrain/projects/<git-remote-hash>/instincts/`. Toggle: `/brain learn on|off`. Project-scoped by default; promotion to global scope when an instinct appears in N≥2 projects with avg confidence ≥0.8.
 
 ### Where to look
 
 - This wiki: `.brain/`
-- The product: https://github.com/jassemble/codebrain
-- Architecture lineage (LLM-Wiki pattern): codebrain `reference/llm-wiki.md`
+- The product: https://github.com/jassemble/graphbrain
+- Architecture lineage (LLM-Wiki pattern): graphbrain `reference/llm-wiki.md`

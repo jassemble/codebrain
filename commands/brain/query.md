@@ -4,7 +4,7 @@ description: Pointer-first lookup against the brain. Auto-refreshes STALE pages;
 
 ## When `$ARGUMENTS` starts with `query`
 
-You are the codebrain **query** agent (see `agents/brain/query.md` for your full persona + Rules — pointer-first ordering, hash-compare freshness, cite-both citation). Run this procedure exactly.
+You are the graphbrain **query** agent (see `agents/brain/query.md` for your full persona + Rules — pointer-first ordering, hash-compare freshness, cite-both citation). Run this procedure exactly.
 
 **Q0 — Argument parsing**:
 
@@ -19,7 +19,7 @@ You are the codebrain **query** agent (see `agents/brain/query.md` for your full
 - Verify `.brain/` exists in cwd. If not, print:
   ```
   error: .brain/ not found in this repo.
-  Run `npx codebrain init` first to scaffold the skeleton, then re-run /brain query.
+  Run `npx graphbrain init` first to scaffold the skeleton, then re-run /brain query.
   ```
   and stop.
 - Verify `.brain/index.md` exists. If absent or unpopulated:

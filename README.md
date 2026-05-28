@@ -1,8 +1,8 @@
-# codebrain
+# graphbrain
 
 > An agent-maintained, folder-mirrored markdown wiki of your codebase. Installed via `npx graphbrain init`; navigated by Claude Code; viewed in Obsidian.
 
-codebrain is the [LLM-Wiki pattern](reference/llm-wiki.md) adapted from documents/research to **codebases**. Instead of every coding-agent session re-grepping and re-reading the same files, your agent builds and maintains a persistent `.brain/` wiki that mirrors your source tree, surfaces cross-cutting concepts, tracks decisions, and stays current via stale-detection hooks.
+graphbrain is the [LLM-Wiki pattern](reference/llm-wiki.md) adapted from documents/research to **codebases**. Instead of every coding-agent session re-grepping and re-reading the same files, your agent builds and maintains a persistent `.brain/` wiki that mirrors your source tree, surfaces cross-cutting concepts, tracks decisions, and stays current via stale-detection hooks.
 
 ## What it does
 
@@ -30,7 +30,7 @@ npx graphbrain init --global
 npx graphbrain init --dry-run
 ```
 
-`init` is idempotent. It writes `.brain/` to the current repo, copies `/brain` slash command templates into `.claude/commands/`, and merges codebrain's hooks block into `.claude/settings.local.json`. Existing user hooks are preserved (codebrain owns only entries whose `id` starts with `codebrain:`).
+`init` is idempotent. It writes `.brain/` to the current repo, copies `/brain` slash command templates into `.claude/commands/`, and merges graphbrain's hooks block into `.claude/settings.local.json`. Existing user hooks are preserved (graphbrain owns only entries whose `id` starts with `graphbrain:`).
 
 After `init`, **restart Claude Code or open a new session** to load the new slash commands.
 
@@ -77,7 +77,7 @@ The legacy `/brain <verb>` form (with a space) still works — `/brain ingest sr
 
 - **Slash-command namespacing** (M#12) — every verb has its own file under `.claude/commands/brain/<verb>.md` for better Claude Code autocomplete + lower per-invocation token cost. Legacy `/brain <verb>` dispatcher preserved for muscle memory.
 - **`/brain:spec`** (M#10a) — orchestrate a feature intent through ECC's `plan-prd` → `plan` → optional `santa-loop` into a converged PRD + plan. Spec-first discipline.
-- **`/brain:creds`** (M#11) — per-project credential registry at `<XDG>/codebrain/projects/<git-hash>/credentials.toon`. Plaintext but outside the repo, chmod 0600, refusal-pattern enforcement (Stripe live keys / AWS / GitHub PATs / "prod" context all rejected), mask-by-default `show`, auditable override flag.
+- **`/brain:creds`** (M#11) — per-project credential registry at `<XDG>/graphbrain/projects/<git-hash>/credentials.toon`. Plaintext but outside the repo, chmod 0600, refusal-pattern enforcement (Stripe live keys / AWS / GitHub PATs / "prod" context all rejected), mask-by-default `show`, auditable override flag.
 - **`.brain/llms.txt`** (v0.1.2) — agent-portable AEO site map; external agents read it to route into the wiki.
 - **`.brain/CHANGELOG.md`** (M#10d) — curated compound-learning narrative; appended on every ingest + consolidate.
 - **`supersedes` / `superseded_by` frontmatter** (M#10d) — pink-elephant fix; `/brain:query` skips superseded pages and follows the pointer to the replacement.
@@ -85,17 +85,17 @@ The legacy `/brain <verb>` form (with a space) still works — `/brain ingest sr
 - **8 new `detected/*` skills** (M#9-coverage) — vue, rails, flask, koa, hapi, gin, echo, fiber + `expert_skills:` bridges for the four M#3d skills (react, typescript, python, go).
 - **`wiki-reading-principles`** behavioral skill (M#10d) — 3-tier always/ask/never rules for how agents engage with `.brain/`.
 - **`discovery-loop`** skill (M#10b) — codifies the iterative convergence-sweep pattern; reusable.
-- **Intent-routing meta-skill section** (M#10c) — opt-in via `.brain/.codebrain-intent-routing-state`; when on, the agent suggests `/brain:spec` before code edits on feature-intent prompts.
+- **Intent-routing meta-skill section** (M#10c) — opt-in via `.brain/.graphbrain-intent-routing-state`; when on, the agent suggests `/brain:spec` before code edits on feature-intent prompts.
 
 ## How it works
 
-Three layers with clear ownership ([full architecture](.claude/prds/codebrain.prd.md#architecture)):
+Three layers with clear ownership ([full architecture](.claude/prds/graphbrain.prd.md#architecture)):
 
 | Layer | What | Mutability |
 |---|---|---|
-| **Raw sources** | Your codebase | Read-only from codebrain's perspective |
-| **The wiki** (`.brain/`) | LLM-authored markdown pages mirroring the source tree | Owned by codebrain skills; operator reads, agent writes |
-| **The schema** | `## codebrain` managed region in your `CLAUDE.md` | Co-evolved by operator + agent |
+| **Raw sources** | Your codebase | Read-only from graphbrain's perspective |
+| **The wiki** (`.brain/`) | LLM-authored markdown pages mirroring the source tree | Owned by graphbrain skills; operator reads, agent writes |
+| **The schema** | `## graphbrain` managed region in your `CLAUDE.md` | Co-evolved by operator + agent |
 
 The architectural lineage: [LLM Wiki pattern reference](reference/llm-wiki.md).
 
@@ -139,11 +139,11 @@ The architectural lineage: [LLM Wiki pattern reference](reference/llm-wiki.md).
 | 11 | Credential registry (`/brain:creds` + TOON store) | complete |
 | 12 | Slash-command namespacing (per-verb files) | complete |
 
-See [the PRD](.claude/prds/codebrain.prd.md) for the full spec, 33 locked design decisions, success metrics, and risk register.
+See [the PRD](.claude/prds/graphbrain.prd.md) for the full spec, 33 locked design decisions, success metrics, and risk register.
 
 ## Dogfood + validate
 
-Codebrain ships with a validation harness for measuring whether the wiki delivers on its claims.
+Graphbrain ships with a validation harness for measuring whether the wiki delivers on its claims.
 
 **Static checks** (automated, run anytime):
 
@@ -166,7 +166,7 @@ Results land in [`.claude/validation/v0.1-baseline.md`](.claude/validation/v0.1-
 
 ## Credits
 
-codebrain is the synthesis of three OSS projects:
+graphbrain is the synthesis of three OSS projects:
 
 - **[ECC](https://github.com/affaan-m/ECC)** — agent harness conventions, continuous-learning model, plugin manifest discipline, prompt-defense baseline
 - **[graphbrain](https://github.com/jassemble/graphbrain)** — LLM-wiki applied to codebases, source-hash stale detection, page templates, agent registry pattern, foreground-first execution

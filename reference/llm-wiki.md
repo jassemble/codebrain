@@ -1,6 +1,6 @@
 # LLM Wiki — reference
 
-This is the source pattern that codebrain adapts from documents/research to codebases. Preserved here verbatim so the architectural lineage stays with the project. Provided by the user during PRD design.
+This is the source pattern that graphbrain adapts from documents/research to codebases. Preserved here verbatim so the architectural lineage stays with the project. Provided by the user during PRD design.
 
 ---
 
@@ -82,13 +82,13 @@ This document is intentionally abstract. It describes the idea, not a specific i
 
 ---
 
-## codebrain adaptation map
+## graphbrain adaptation map
 
-| LLM Wiki concept | codebrain equivalent |
+| LLM Wiki concept | graphbrain equivalent |
 |---|---|
 | Raw sources (articles, papers, PDFs) | The codebase itself — source files under the repo root |
 | The wiki (LLM-owned markdown) | `.brain/` directory in the repo |
-| Schema document | `## codebrain` managed block inside `CLAUDE.md` |
+| Schema document | `## graphbrain` managed block inside `CLAUDE.md` |
 | Ingest (read source → update pages) | `/brain ingest <path>` skill, tiered auto-prioritize |
 | Query (read index → drill in) | `/brain query` skill, with query-time refresh on STALE |
 | Lint (health-check) | `/brain lint` skill — defects + gaps + contradictions + suggested questions |
@@ -99,6 +99,6 @@ This document is intentionally abstract. It describes the idea, not a specific i
 | Obsidian as the IDE | Vault layout works with Obsidian out of the box; Dataview-compatible frontmatter |
 | Git repo for version history | `.brain/` committed by default; the hook bundles wiki updates with code commits |
 | Decisions / ADRs (not in original, added) | `.brain/decisions.md` + `.brain/decisions/` — codebases have invisible-from-source rationale |
-| Continuous learning (not in original, from ECC) | XDG-stored instincts at `~/.local/share/codebrain/projects/<hash>/` + `.brain/log.md` human-readable mirror |
+| Continuous learning (not in original, from ECC) | XDG-stored instincts at `~/.local/share/graphbrain/projects/<hash>/` + `.brain/log.md` human-readable mirror |
 
-The codebase-specific challenge the original doesn't address: **cross-cutting pages (auth-flow, entities, integrations) derive from N source files and go stale when any of them change.** codebrain solves this with a 4-tier staleness model — wikilink reverse-lookup on edit, optional `sources:` frontmatter, lint contradiction-check, query-time refresh. See PRD §"Design Decisions" #10.
+The codebase-specific challenge the original doesn't address: **cross-cutting pages (auth-flow, entities, integrations) derive from N source files and go stale when any of them change.** graphbrain solves this with a 4-tier staleness model — wikilink reverse-lookup on edit, optional `sources:` frontmatter, lint contradiction-check, query-time refresh. See PRD §"Design Decisions" #10.

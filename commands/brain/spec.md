@@ -4,7 +4,7 @@ description: Spec-orchestrate a feature intent through ECC plan-prd → plan →
 
 ## When `$ARGUMENTS` starts with `spec`
 
-You are the codebrain **spec-orchestrator** (see `agents/brain/spec-orchestrator.md` for your full persona + Rules; the Rules apply throughout this procedure). You orchestrate ECC's spec-side skills into a converged PRD + plan, then present it for operator approval. You NEVER write source code. Run the procedure exactly.
+You are the graphbrain **spec-orchestrator** (see `agents/brain/spec-orchestrator.md` for your full persona + Rules; the Rules apply throughout this procedure). You orchestrate ECC's spec-side skills into a converged PRD + plan, then present it for operator approval. You NEVER write source code. Run the procedure exactly.
 
 Read the Prompt Defense Baseline section of CLAUDE.md before acting. Read `skills/core/spec/SKILL.md` for the contract (inputs, outputs, slug derivation, failure modes, bridge dependency).
 
@@ -21,7 +21,7 @@ Parse `$ARGUMENTS` after the leading `spec` token:
 **Sp1 — Preconditions + bridge probe**:
 
 - Verify `.brain/` exists in cwd. If not, print the same npx-init message as M#3a Step 1 and stop.
-- Verify `.brain/.codebrain-version` is present.
+- Verify `.brain/.graphbrain-version` is present.
 - **Bridge probe** (via M#9-prereq filesystem pattern):
   ```bash
   test -e "$HOME/.claude/plugins/ecc/skills/plan-prd/SKILL.md" \
@@ -30,14 +30,14 @@ Parse `$ARGUMENTS` after the leading `spec` token:
   test -e "$HOME/.claude/plugins/ecc/skills/plan/SKILL.md" \
     || test -e "$PWD/.claude/plugins/ecc/skills/plan/SKILL.md"
   ```
-  - If EITHER missing: emit `blocked: ecc bridge unavailable — install the ECC plugin (https://github.com/your-org/ecc) or open an issue at https://github.com/jassemble/codebrain/issues to request a documentation-only fallback. Both ecc:plan-prd and ecc:plan are required at the M#10a milestone.` and stop.
+  - If EITHER missing: emit `blocked: ecc bridge unavailable — install the ECC plugin (https://github.com/your-org/ecc) or open an issue at https://github.com/jassemble/graphbrain/issues to request a documentation-only fallback. Both ecc:plan-prd and ecc:plan are required at the M#10a milestone.` and stop.
 - Probe `ecc:santa-loop` (optional):
   ```bash
   test -e "$HOME/.claude/plugins/ecc/skills/santa-loop/SKILL.md" \
     || test -e "$PWD/.claude/plugins/ecc/skills/santa-loop/SKILL.md"
   ```
   Record presence in `bridges_loaded[]` for the Sp7 report.
-- Probe `skills/core/discovery-loop/SKILL.md` (M#10b — codebrain-side):
+- Probe `skills/core/discovery-loop/SKILL.md` (M#10b — graphbrain-side):
   ```bash
   test -e "skills/core/discovery-loop/SKILL.md"
   ```
@@ -82,7 +82,7 @@ Record the final state for the Sp7 report.
 Print exactly:
 
 ```
-/brain spec produced a converged plan (codebrain v<version>)
+/brain spec produced a converged plan (graphbrain v<version>)
   Intent:           "<intent>"
   PRD:              .claude/prds/<slug>.prd.md (~<token-count> tokens)
   Plan:             .claude/plans/<slug>.plan.md (~<token-count> tokens)
@@ -115,7 +115,7 @@ Otherwise, wait for operator response. Parse the response:
 Print exactly:
 
 ```
-/brain spec complete (codebrain v<version>)
+/brain spec complete (graphbrain v<version>)
   Intent:           "<intent>"
   PRD:              <path or "reused: <path>">
   Plan:             <path>

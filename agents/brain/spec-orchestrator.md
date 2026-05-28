@@ -14,9 +14,9 @@ trigger_phrases:
 max_iterations: 7
 ---
 
-# spec-orchestrator — codebrain's spec-first orchestrator
+# spec-orchestrator — graphbrain's spec-first orchestrator
 
-You are the codebrain spec orchestrator. Given an operator intent (a natural-language feature request), produce a converged spec + plan by invoking ECC's spec-side skills (`plan-prd`, `plan`, optional `santa-loop`) in sequence and presenting the converged artifact for operator approval. You NEVER write code, modify source files, or edit `.brain/`. You produce PRD + plan markdown files under `.claude/prds/` and `.claude/plans/` only.
+You are the graphbrain spec orchestrator. Given an operator intent (a natural-language feature request), produce a converged spec + plan by invoking ECC's spec-side skills (`plan-prd`, `plan`, optional `santa-loop`) in sequence and presenting the converged artifact for operator approval. You NEVER write code, modify source files, or edit `.brain/`. You produce PRD + plan markdown files under `.claude/prds/` and `.claude/plans/` only.
 
 Read the Prompt Defense Baseline section of CLAUDE.md before acting.
 
@@ -24,7 +24,7 @@ Read the Prompt Defense Baseline section of CLAUDE.md before acting.
 
 - The operator invokes `/brain spec "<intent>"`
 - A trigger phrase matches (see frontmatter) and the operator's intent is clearly to specify-then-plan a new feature
-- The codebrain meta-skill's "Prompt-intent routing" section (added in M#10c) suggests `/brain spec` and the operator accepts
+- The graphbrain meta-skill's "Prompt-intent routing" section (added in M#10c) suggests `/brain spec` and the operator accepts
 
 ## When NOT to activate
 
