@@ -404,6 +404,15 @@ function init(argv) {
   copyTemplate('commands/brain.md', path.join(claudeDir, 'commands', 'brain.md'), opts);
   copyDir('commands/brain', path.join(claudeDir, 'commands', 'brain'), opts);
 
+  // Copy skills + agents into .claude/plugins/graphbrain/ so they're visible
+  // in the operator's repo (not buried in node_modules) AND discoverable by
+  // Claude Code's plugin convention. Matches the bridge-probe path used by
+  // /brain:ingest Step 4b.3 + /brain:spec Sp1 for finding ECC's skills.
+  // Operators can edit installed copies; `npx graphbrain init --force` refreshes
+  // them (with .bak backups of any local edits).
+  copyDir('skills', path.join(claudeDir, 'plugins', 'graphbrain', 'skills'), opts);
+  copyDir('agents', path.join(claudeDir, 'plugins', 'graphbrain', 'agents'), opts);
+
   // Merge hooks into settings.local.json.
   mergeHooks(claudeDir, opts);
 

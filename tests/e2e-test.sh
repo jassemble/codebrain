@@ -2345,6 +2345,57 @@ for stack in vue rails flask koa hapi gin echo fiber; do
     || nope "T45: detected/${stack}/SKILL.md missing from npm pack"
 done
 
+# === Test 46: v1.0.4 — skills + agents copied to .claude/plugins/graphbrain/ ===
+
+T46_DIR="$(mktemp -d)"
+( cd "$T46_DIR" && git init -q . ) >/dev/null 2>&1
+( cd "$T46_DIR" && HOME="$HOME" node "$CB" init >/dev/null 2>&1 )
+
+[ -d "$T46_DIR/.claude/plugins/graphbrain/skills" ] \
+  && ok "T46: .claude/plugins/graphbrain/skills/ directory scaffolded" \
+  || nope "T46: skills directory missing"
+
+[ -d "$T46_DIR/.claude/plugins/graphbrain/agents" ] \
+  && ok "T46: .claude/plugins/graphbrain/agents/ directory scaffolded" \
+  || nope "T46: agents directory missing"
+
+# A behavioral skill should land
+[ -f "$T46_DIR/.claude/plugins/graphbrain/skills/behavioral/graphbrain/SKILL.md" ] \
+  && ok "T46: behavioral/graphbrain SKILL.md copied" \
+  || nope "T46: behavioral/graphbrain SKILL.md missing"
+
+# A core skill (the spec verb's contract)
+[ -f "$T46_DIR/.claude/plugins/graphbrain/skills/core/spec/SKILL.md" ] \
+  && ok "T46: core/spec SKILL.md copied" \
+  || nope "T46: core/spec SKILL.md missing"
+
+# A detected-tier skill (the framework-specific extras)
+[ -f "$T46_DIR/.claude/plugins/graphbrain/skills/detected/react/SKILL.md" ] \
+  && ok "T46: detected/react SKILL.md copied" \
+  || nope "T46: detected/react SKILL.md missing"
+
+# An agent file
+[ -f "$T46_DIR/.claude/plugins/graphbrain/agents/brain/ingester.md" ] \
+  && ok "T46: agents/brain/ingester.md copied" \
+  || nope "T46: agents/brain/ingester.md missing"
+
+# Spec-orchestrator (v0.2 agent)
+[ -f "$T46_DIR/.claude/plugins/graphbrain/agents/brain/spec-orchestrator.md" ] \
+  && ok "T46: agents/brain/spec-orchestrator.md copied" \
+  || nope "T46: agents/brain/spec-orchestrator.md missing"
+
+# Plugin path matches the bridge-probe convention used by /brain:spec Sp1
+# and /brain:ingest Step 4b.3 (~/.claude/plugins/<vendor>/skills/<name>/...)
+[ -d "$T46_DIR/.claude/plugins/graphbrain/skills" ] \
+  && ok "T46: plugin path matches M#9-prereq bridge-probe convention" \
+  || nope "T46: plugin path inconsistent with bridge probe"
+
+# Idempotency: second init produces SKIP lines for the plugin files
+second_out="$( cd "$T46_DIR" && HOME="$HOME" node "$CB" init 2>&1 )"
+echo "$second_out" | grep -q 'plugins/graphbrain/skills.*already current' \
+  && ok "T46: second init produces SKIP for skill files (idempotent)" \
+  || nope "T46: idempotency broken for skill files"
+
 # === Test 38: SKILL.md reciprocity — every related_skills entry resolves =====
 # Bidirectional-links lint, run statically over the shipped skill set.
 node -e "
