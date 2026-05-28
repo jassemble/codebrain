@@ -1,4 +1,4 @@
-<!-- codebrain v0.2.0 -->
+<!-- graphbrain v1.0.0 -->
 ---
 description: codebrain — spec-orchestrate an intent into a converged PRD + plan via ECC's plan-prd / plan / santa-loop (Milestone #10a)
 ---

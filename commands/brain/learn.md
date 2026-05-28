@@ -1,4 +1,4 @@
-<!-- codebrain v0.2.0 -->
+<!-- graphbrain v1.0.0 -->
 ---
 description: codebrain — toggle continuous-learning observer (Milestone #7)
 ---

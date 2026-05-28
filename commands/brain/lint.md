@@ -1,4 +1,4 @@
-<!-- codebrain v0.2.0 -->
+<!-- graphbrain v1.0.0 -->
 ---
 description: codebrain — wiki health-check; --fix batch-refreshes STALE pages (Milestone #6)
 ---

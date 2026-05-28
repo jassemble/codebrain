@@ -1,4 +1,4 @@
-<!-- codebrain v0.2.0 -->
+<!-- graphbrain v1.0.0 -->
 ---
 description: codebrain — read source files → write LLM-authored wiki pages (single file, folder, or no-arg tiered)
 ---

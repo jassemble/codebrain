@@ -1,4 +1,4 @@
-<!-- codebrain v0.2.0 -->
+<!-- graphbrain v1.0.0 -->
 ---
 description: codebrain — agent-maintained codebase wiki. Dispatcher: routes to /brain:<verb> per-verb commands.
 ---

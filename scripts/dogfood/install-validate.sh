@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # codebrain dogfood — install-validate.sh
 #
-# Real-world install test. Runs `node bin/codebrain.js init` against a
+# Real-world install test. Runs `node bin/graphbrain.js init` against a
 # tmp-staged copy of codebrain itself, in a fake user repo. Verifies the
 # full scaffold + hook merge + slash-command copy + CLAUDE.md managed
 # region land correctly. Standalone variant of the e2e suite's T1 — but
@@ -14,7 +14,7 @@ set -o pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CODEBRAIN_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-CB="$CODEBRAIN_ROOT/bin/codebrain.js"
+CB="$CODEBRAIN_ROOT/bin/graphbrain.js"
 
 pass=0
 fail=0

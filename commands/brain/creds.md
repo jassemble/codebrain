@@ -1,4 +1,4 @@
-<!-- codebrain v0.2.0 -->
+<!-- graphbrain v1.0.0 -->
 ---
 description: codebrain — per-project credential registry; XDG plaintext store with refusal-pattern enforcement (Milestone #11b)
 ---

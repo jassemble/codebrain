@@ -284,7 +284,7 @@ function mergeHooks(targetDir, opts) {
         hooks: [
           {
             type: 'command',
-            command: 'npx codebrain hook verified-guard',
+            command: 'npx graphbrain hook verified-guard',
             timeout: 5,
           },
         ],
@@ -296,7 +296,7 @@ function mergeHooks(targetDir, opts) {
         hooks: [
           {
             type: 'command',
-            command: 'npx codebrain hook observe',
+            command: 'npx graphbrain hook observe',
             async: true,
             timeout: 10,
           },
@@ -311,7 +311,7 @@ function mergeHooks(targetDir, opts) {
         hooks: [
           {
             type: 'command',
-            command: 'npx codebrain hook stale-detect',
+            command: 'npx graphbrain hook stale-detect',
             timeout: 10,
           },
         ],

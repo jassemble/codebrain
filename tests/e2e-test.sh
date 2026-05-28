@@ -8,7 +8,7 @@ set -o pipefail
 # Locate the codebrain source directory (the parent of tests/).
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CODEBRAIN_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-CB="$CODEBRAIN_ROOT/bin/codebrain.js"
+CB="$CODEBRAIN_ROOT/bin/graphbrain.js"
 
 pass=0
 fail=0
@@ -59,7 +59,7 @@ grep -qF "$CB_VERSION" "$USER_REPO/.brain/.codebrain-version" 2>/dev/null \
 for v in brain; do
   f="$USER_REPO/.claude/commands/$v.md"
   [ -f "$f" ] && ok "T1: .claude/commands/$v.md present" || nope "T1: .claude/commands/$v.md missing"
-  head -1 "$f" 2>/dev/null | grep -qF "codebrain v$CB_VERSION" \
+  head -1 "$f" 2>/dev/null | grep -qF "graphbrain v$CB_VERSION" \
     && ok "T1: $v.md has version marker" \
     || nope "T1: $v.md missing version marker (expected codebrain v$CB_VERSION)"
 done
@@ -68,7 +68,7 @@ done
 for verb in init ingest query lint learn status spec creds; do
   f="$USER_REPO/.claude/commands/brain/$verb.md"
   [ -f "$f" ] && ok "T1: .claude/commands/brain/$verb.md scaffolded" || nope "T1: .claude/commands/brain/$verb.md missing"
-  head -1 "$f" 2>/dev/null | grep -qF "codebrain v$CB_VERSION" \
+  head -1 "$f" 2>/dev/null | grep -qF "graphbrain v$CB_VERSION" \
     && ok "T1: brain/$verb.md has version marker" \
     || nope "T1: brain/$verb.md missing version marker"
 done
@@ -217,7 +217,7 @@ bogus_rc=$( ( node "$CB" bogus-verb >/dev/null 2>&1 ); echo $? )
 node -e "
   const p = require('$CODEBRAIN_ROOT/package.json');
   if (!Array.isArray(p.files)) { console.error('files not an array'); process.exit(1); }
-  if (!p.bin || !p.bin.codebrain) { console.error('bin.codebrain missing'); process.exit(1); }
+  if (!p.bin || !p.bin.graphbrain) { console.error('bin.graphbrain missing'); process.exit(1); }
   if (p.license !== 'MIT') { console.error('license not MIT'); process.exit(1); }
   process.exit(0);
 " 2>/dev/null && ok "T9: package.json shape valid" || nope "T9: package.json shape invalid"
@@ -694,7 +694,7 @@ grep -q 'Three-step onboarding' "$CODEBRAIN_ROOT/README.md" \
   && ok "T19: README has Three-step onboarding section" \
   || nope "T19: README missing Three-step onboarding"
 
-grep -qE '/brain ingest[[:space:]]+# tiered' "$CODEBRAIN_ROOT/README.md" \
+grep -qE '/brain:ingest[[:space:]]+# tiered' "$CODEBRAIN_ROOT/README.md" \
   && ok "T19: README documents no-arg tiered ingest" \
   || nope "T19: README missing no-arg tiered ingest documentation"
 
@@ -723,7 +723,7 @@ head -1 "$CODEBRAIN_ROOT/scripts/hooks/verified-guard.js" | grep -q '^#!/usr/bin
   && ok "T20: verified-guard.js has Node shebang" \
   || nope "T20: verified-guard.js missing/wrong shebang"
 
-# bin/codebrain.js hook verb dispatches
+# bin/graphbrain.js hook verb dispatches
 hook_help="$(node "$CB" hook 2>&1)"
 echo "$hook_help" | grep -q 'stale-detect' \
   && ok "T20: 'codebrain hook' help lists stale-detect" \
@@ -759,7 +759,7 @@ node -e "
   const pre = (j.hooks && j.hooks.PreToolUse) || [];
   const guard = pre.find(e => e && e.id === 'codebrain:pre:verified-guard');
   if (!guard) { console.error('verified-guard entry missing'); process.exit(1); }
-  if (!guard.hooks || !guard.hooks[0] || !guard.hooks[0].command.includes('codebrain hook verified-guard')) {
+  if (!guard.hooks || !guard.hooks[0] || !guard.hooks[0].command.includes('graphbrain hook verified-guard')) {
     console.error('verified-guard command wrong:', JSON.stringify(guard.hooks)); process.exit(1);
   }
   if (guard.matcher !== 'Edit|Write|MultiEdit') { console.error('verified-guard matcher wrong'); process.exit(1); }
@@ -772,7 +772,7 @@ node -e "
   const post = (j.hooks && j.hooks.PostToolUse) || [];
   const stale = post.find(e => e && e.id === 'codebrain:post:stale-detect');
   if (!stale) { console.error('stale-detect entry missing'); process.exit(1); }
-  if (!stale.hooks[0].command.includes('codebrain hook stale-detect')) {
+  if (!stale.hooks[0].command.includes('graphbrain hook stale-detect')) {
     console.error('stale-detect command wrong'); process.exit(1);
   }
   process.exit(0);
@@ -1443,7 +1443,7 @@ node -e "
   if (!observe) { console.error('observe entry missing'); process.exit(1); }
   if (observe.matcher !== '*') { console.error('observe matcher wrong:', observe.matcher); process.exit(1); }
   if (!observe.hooks[0].async) { console.error('observe not async'); process.exit(1); }
-  if (!observe.hooks[0].command.includes('codebrain hook observe')) { console.error('observe command wrong'); process.exit(1); }
+  if (!observe.hooks[0].command.includes('graphbrain hook observe')) { console.error('observe command wrong'); process.exit(1); }
   process.exit(0);
 " 2>/dev/null && ok "T34: settings.local.json has codebrain:pre:observe with correct shape" || nope "T34: observe entry incorrect"
 

@@ -1,6 +1,6 @@
 # codebrain
 
-> An agent-maintained, folder-mirrored markdown wiki of your codebase. Installed via `npx codebrain init`; navigated by Claude Code; viewed in Obsidian.
+> An agent-maintained, folder-mirrored markdown wiki of your codebase. Installed via `npx graphbrain init`; navigated by Claude Code; viewed in Obsidian.
 
 codebrain is the [LLM-Wiki pattern](reference/llm-wiki.md) adapted from documents/research to **codebases**. Instead of every coding-agent session re-grepping and re-reading the same files, your agent builds and maintains a persistent `.brain/` wiki that mirrors your source tree, surfaces cross-cutting concepts, tracks decisions, and stays current via stale-detection hooks.
 
@@ -21,13 +21,13 @@ Requires Node.js ≥18 and [Claude Code](https://claude.com/claude-code).
 
 ```bash
 # Project-local (recommended; default)
-npx codebrain init
+npx graphbrain init
 
 # Global — slash commands available in every repo
-npx codebrain init --global
+npx graphbrain init --global
 
 # Re-run safe; --force overrides; --dry-run prints the plan
-npx codebrain init --dry-run
+npx graphbrain init --dry-run
 ```
 
 `init` is idempotent. It writes `.brain/` to the current repo, copies `/brain` slash command templates into `.claude/commands/`, and merges codebrain's hooks block into `.claude/settings.local.json`. Existing user hooks are preserved (codebrain owns only entries whose `id` starts with `codebrain:`).
@@ -38,24 +38,26 @@ After `init`, **restart Claude Code or open a new session** to load the new slas
 
 Three-step onboarding:
 
-1. **Install codebrain into the repo** (run once per repo):
+1. **Install graphbrain into the repo** (run once per repo):
    ```
-   npx codebrain init
+   npx graphbrain init
    ```
-   Scaffolds `.brain/`, copies `/brain` slash commands into `.claude/commands/`, merges hooks into `.claude/settings.local.json`.
+   Scaffolds `.brain/`, copies `/brain:*` slash commands into `.claude/commands/`, merges hooks into `.claude/settings.local.json`.
 
 2. **Restart Claude Code or open a new session**, then populate the brain:
    ```
-   /brain init
+   /brain:init
    ```
    Writes the full schema block into `CLAUDE.md`, populates `.brain/overview.md`, detects your tech stack.
 
 3. **Ingest source files** — three modes, pick what fits:
    ```
-   /brain ingest src/api/auth.ts      # single file (Milestone #3a)
-   /brain ingest src/                  # whole folder + concept pages (Milestone #3b)
-   /brain ingest                       # tiered auto-prioritize across the codebase (Milestone #3c)
+   /brain:ingest src/api/auth.ts       # single file (Milestone #3a)
+   /brain:ingest src/                  # whole folder + concept pages (Milestone #3b)
+   /brain:ingest                       # tiered auto-prioritize across the codebase (Milestone #3c)
    ```
+
+   Both forms work — `/brain init` and `/brain:init` produce identical behavior. The colon (`:`) is Claude Code's subdirectory-namespace separator; the legacy space form is preserved as a dispatcher shim for muscle memory.
 
 Then navigate the wiki in Obsidian (open the repo root as an Obsidian vault and explore `.brain/`) or query via Claude Code:
 

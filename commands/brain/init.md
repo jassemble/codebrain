@@ -1,4 +1,4 @@
-<!-- codebrain v0.2.0 -->
+<!-- graphbrain v1.0.0 -->
 ---
 description: codebrain — scaffold .brain/ + CLAUDE.md schema block + stack detection (Milestone #2)
 ---

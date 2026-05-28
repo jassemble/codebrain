@@ -1,9 +1,9 @@
 {
-  "name": "codebrain",
-  "version": "0.2.0",
-  "description": "Agent-maintained, folder-mirrored markdown wiki of your codebase. Installs into Claude Code via npx codebrain init.",
+  "name": "graphbrain",
+  "version": "1.0.0",
+  "description": "Agent-maintained, folder-mirrored markdown wiki of your codebase. Installs into Claude Code via npx graphbrain init.",
   "bin": {
-    "codebrain": "./bin/codebrain.js"
+    "graphbrain": "./bin/graphbrain.js"
   },
   "scripts": {
     "test": "bash tests/e2e-test.sh"
@@ -12,13 +12,13 @@
   "author": {
     "name": "jassemble"
   },
-  "homepage": "https://github.com/jassemble/codebrain",
+  "homepage": "https://github.com/jassemble/graphbrain",
   "repository": {
     "type": "git",
-    "url": "https://github.com/jassemble/codebrain.git"
+    "url": "https://github.com/jassemble/graphbrain.git"
   },
   "bugs": {
-    "url": "https://github.com/jassemble/codebrain/issues"
+    "url": "https://github.com/jassemble/graphbrain/issues"
   },
   "keywords": [
     "claude-code",
