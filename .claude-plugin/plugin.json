@@ -1,6 +1,6 @@
 {
   "name": "graphbrain",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Agent-maintained, folder-mirrored markdown wiki of your codebase. Scaffolds .brain/, ships hooks, agents, skills, and the /brain:<verb> slash-command family.",
   "author": {
     "name": "jassemble"
