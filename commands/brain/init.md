@@ -26,33 +26,53 @@ You are the graphbrain init agent. Run this procedure exactly. If any step's pre
 
 After preconditions, BEFORE any scaffolding or schema changes, check whether the previous `npx graphbrain init --force` run left `.bak` files. These are atomic-write safety backups created when graphbrain overwrote an existing file during an upgrade. Without this step they accumulate as silent litter; with this step the agent uses LLM judgment to merge operator edits intelligently and clear the backups.
 
-**1b-A — Detect**:
+**1b-A — Detect + pre-classify (v1.0.13 — delegates to a Node helper)**:
+
+Run the `.bak` classifier helper. It finds every `*.bak` under cwd, resolves identical / whitespace-only diffs straight away (no LLM judgment needed), and for the rest emits structured diff data (`added_in_current`, `removed_from_current`, with `version_only` flags) the LLM uses to assign the final class.
 
 ```bash
-# Glob — exclude node_modules + .git
-find .brain .claude CLAUDE.md.bak -name "*.bak" -not -path "*/node_modules/*" -not -path "*/.git/*" 2>/dev/null
+HELPER_DIR=$([ -d .claude/plugins/graphbrain/scripts/lib ] \
+  && echo .claude/plugins/graphbrain/scripts/lib \
+  || echo "$HOME/.claude/plugins/graphbrain/scripts/lib")
+node "$HELPER_DIR/classify-baks.js" .
 ```
 
-Also check repo root: `CLAUDE.md.bak`.
+Output shape:
 
-If zero matches: **skip Step 1b silently** and proceed to Step 2. No output, no log entry.
+```json
+{
+  "count": 4,
+  "files": [
+    { "path": "...", "classification": "identical", "version_only": true, "summary": "byte-identical" },
+    { "path": "...", "classification": "whitespace-only", "version_only": true, "summary": "EOL diff only" },
+    { "path": "...", "classification": "needs-llm-review", "version_only": true,
+      "summary": "version-stamp / date / hash differences only — no semantic content at risk",
+      "diff": { "added_in_current": { "count": 1, "version_only": true, "preview": ["v1.0.12"] },
+                "removed_from_current": { "count": 1, "version_only": true, "preview": ["v1.0.11"] } } },
+    { "path": "...", "classification": "needs-llm-review", "version_only": false,
+      "diff": { ... operator-content lines ... } }
+  ]
+}
+```
 
-**1b-B — Classify each pair**:
+If `count == 0`: **skip Step 1b silently** and proceed to Step 2.
 
-For each `<path>.bak`:
+**1b-B — Assign final classes**:
 
-- Verify the current `<path>` (without `.bak`) exists. If it doesn't (rare — operator deleted the current file but left the .bak), the .bak is orphaned; flag as `orphaned` and offer to either restore from .bak or delete .bak.
-- Read both files. Compute their diff.
-- Classify the diff into one of:
+For each file in `files[]`:
 
-  | Class | Definition | Default action |
+- `classification: "identical"` → final class `identical` (safe, auto-delete in 1b-E).
+- `classification: "whitespace-only"` → final class `whitespace-only` (safe, auto-delete).
+- `classification: "orphaned"` → ask operator: restore from .bak or delete .bak.
+- `classification: "needs-llm-review"` → apply LLM judgment to the structured diff:
+
+  | Final class | Diff signal | Default action |
   |---|---|---|
-  | `identical` | Files are byte-identical (legacy noise from v1.0.4 and earlier — content-equality check wasn't in atomicWrite yet) | Silently delete `.bak`; no merge needed |
-  | `whitespace-only` | Only trailing whitespace, line ending, or final-newline differences | Silently delete `.bak` |
-  | `operator-additions` | The .bak has content the current version does NOT, AND that content does NOT correspond to a section graphbrain owns (e.g., a new top-level heading, custom paragraph, or extra entry the operator added) | **Propose MERGE**: take graphbrain's new shipped content + splice in the operator's additions. Preserve operator's work. |
-  | `operator-edit-to-graphbrain-content` | The .bak modifies content graphbrain owns (e.g., changed a procedure step's wording, modified an example output, renamed a verb) | **Discard the .bak** (graphbrain's shipped version is canonical). **Warn the operator** so they know what was lost. |
-  | `mixed` | Combination of additions AND edits to graphbrain content | Apply additions, discard graphbrain-content edits. Itemize what was kept vs lost. |
-  | `unclear` | The diff is too complex / shows refactoring / cross-file moves that you can't classify confidently | **Do NOT auto-merge**. Show the diff to the operator + ask. |
+  | `operator-additions` (version-only) | both `added_in_current.version_only` and `removed_from_current.version_only` are true (i.e., the only diff is graphbrain bumping its own stamps) | Silently delete `.bak` — no operator content at risk |
+  | `operator-additions` (real content) | `removed_from_current` has semantic prose / non-version lines | **Propose MERGE**: graphbrain's shipped content + splice in operator additions. Preserve operator's work. |
+  | `operator-edit-to-graphbrain-content` | `added_in_current` shows graphbrain rewrote prose the operator had modified | **Discard the .bak** (graphbrain's shipped version is canonical). **Warn the operator**. |
+  | `mixed` | Both `added_in_current` and `removed_from_current` carry semantic content | Apply additions, discard graphbrain-content edits. Itemize what was kept vs lost. |
+  | `unclear` | Diff is too complex (cross-section refactoring, lines moved) for confident classification | **Do NOT auto-merge**. Show the diff to the operator + ask. |
 
 **1b-C — Propose**:
 
@@ -175,35 +195,29 @@ If you cannot locate these template files, ask the operator to run `npm root -g`
 - Otherwise: write the file with the new content between the markers (preserve everything outside the markers). This is the only modification to CLAUDE.md.
 - Use a write strategy that preserves the file's existing line endings and final-newline state.
 
-**Step 4 — Detect tech stack** (v1.0.12 — subtree-aware for monorepos):
+**Step 4 — Detect tech stack** (v1.0.13 — delegates to a Node helper):
 
-The detection model walks the cwd root **and one level into each immediate subdirectory**. This is the monorepo fix: in repos like `{server/, client/, packages/}`, the real `package.json` / `tsconfig.json` / framework signals live one level down, not at cwd root. Single-package repos behave identically to v1.0.11 (only the root subtree matches).
+Run the subtree-aware detection helper. It walks the cwd root + every immediate non-excluded subdir, evaluates `stack-detection.json` signals per subtree, writes `<cwd>/.brain/.graphbrain-stacks.json`, and prints the same JSON to stdout. This is the same procedure pre-v1.0.13 described in 4a/4b/4c (subtree enumerate → signal match → persist) — folded into a deterministic Node script so it doesn't burn LLM tokens.
 
-**4a — Enumerate subtrees**:
+Resolve the helper directory once (project-local plugin tree preferred; fall back to global):
 
-- Always include the root subtree (path: `""`).
-- Additionally include every immediate subdir of cwd EXCEPT excluded names: `.git`, `node_modules`, `.venv`, `__pycache__`, `dist`, `build`, `.brain`, `.claude`, `.next`, `target`, `vendor`, `.cache`.
-- Cap at 16 subtrees. If cwd has more, take the first 16 alphabetically + emit a warning in the Step 7 report.
+```bash
+HELPER_DIR=$([ -d .claude/plugins/graphbrain/scripts/lib ] \
+  && echo .claude/plugins/graphbrain/scripts/lib \
+  || echo "$HOME/.claude/plugins/graphbrain/scripts/lib")
+```
 
-**4b — Run signal match per subtree**:
+Then invoke:
 
-For each subtree `S`:
+```bash
+node "$HELPER_DIR/detect-stacks.js" .
+```
 
-- Parse `stack-detection.json`. For each entry in `stacks`, evaluate `signals` **rooted at `S`** (not at cwd):
-  - `{ "file_exists": "<path>" }` — match if `<cwd>/<S>/<path>` exists as a file
-  - `{ "file_exists": "<path>", "contains": "<substring>" }` — match if that file exists AND contains the substring
-  - `{ "dir_exists": "<path>" }` — match if `<cwd>/<S>/<path>` exists as a directory
-  - `{ "glob": "<pattern>" }` — match if at least one file matches the glob, relative to `<cwd>/<S>/`
-- A stack matches only if **all** of its `signals` match (logical AND).
-- Collect the matched stack names for `S`. Dedupe within `S`.
-
-**4c — Persist the subtree → stacks map**:
-
-Write `<cwd>/.brain/.graphbrain-stacks.json` (creating it if absent, replacing if present):
+The helper writes `.brain/.graphbrain-stacks.json` and emits the same JSON. Read its stdout. The shape is:
 
 ```json
 {
-  "version": "1.0.12",
+  "version": "1.0.13",
   "generated": "<YYYY-MM-DD>",
   "subtrees": [
     { "path": "",       "stacks": ["nodejs"] },
@@ -213,11 +227,11 @@ Write `<cwd>/.brain/.graphbrain-stacks.json` (creating it if absent, replacing i
 }
 ```
 
-This file is the **load-bearing contract** read by `/brain:ingest` Step 4b to pick the right detected-tier skills per file (subtree-routed, not cwd-routed). Without it, ingest falls back to cwd-only detection.
+`.brain/.graphbrain-stacks.json` is the **load-bearing contract** read by `/brain:ingest` Step 4b to pick the right detected-tier skills per file (subtree-routed, not cwd-routed). Without it, ingest falls back to cwd-only detection.
 
-**4d — Compute the union for reporting**:
+For Step 4e (recommendations) and Step 7 (report), use the **union of stacks across all subtrees**, deduped. The per-subtree breakdown is only consumed by `/brain:ingest`.
 
-For Step 4d (recommendations) and Step 7 (report), use the **union of stacks across all subtrees**, deduped. The per-subtree breakdown is only consumed by `/brain:ingest`.
+If the helper exits non-zero or is missing (rare — operator deleted the plugin tree), fall back to the inline subtree procedure: walk subdirs, match signals from the catalog at `.claude/plugins/graphbrain/skills/core/init/templates/stack-detection.json`, persist the same JSON shape. The fallback is the v1.0.12 prompt-side procedure.
 
 This step is reporting-only — `/brain:init` does NOT install `detected/*` skills. Those ship with the graphbrain npm package and are activated automatically by `/brain:ingest` Step 4b when the source file's owning subtree's stack set matches.
 

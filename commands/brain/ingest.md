@@ -31,12 +31,18 @@ You are the graphbrain ingester (see `agents/brain/ingester.md` for your full pe
 - Read the source file in full when it fits (<4k tokens). For larger files, Read in chunks using offset/limit; do NOT skim by sampling random lines — read sequentially.
 - The page contract (frontmatter + 5 required sections, fallback strings, page-size cap) is defined below. The verbatim template is the literal-text fenced block in Step 4. The standalone files `skills/ingestion/page-format/SKILL.md` and `skills/ingestion/page-format/templates/code-page.md` document the same contract (load them only if you need extended examples).
 
-**Step 3 — Compute output path and source hash** (format-prefixed per PRD Design Decision #32):
+**Step 3 — Compute output path and source hash** (format-prefixed per PRD Design Decision #32; v1.0.13 — delegates to a Node helper):
 
 - Mirror the source path under `.brain/code/`: `src/api/auth.ts` → `.brain/code/src/api/auth.ts.md`
-- Try `git hash-object <source-path>` via Bash. If it succeeds, the `source_hash` value is `git:<hash>`.
-- If git is unavailable or the repo isn't a git repo, fall back to SHA-256 via `shasum -a 256 <source-path> | awk '{print $1}'`. The `source_hash` value is `sha256:<hash>`.
-- If BOTH fail, emit `blocked: ingester couldn't compute source hash for <path>. Reason: neither git nor shasum produced a result. Operator action: install git or ensure shasum is on PATH.` and stop.
+- Run the hash helper:
+  ```bash
+  HELPER_DIR=$([ -d .claude/plugins/graphbrain/scripts/lib ] \
+    && echo .claude/plugins/graphbrain/scripts/lib \
+    || echo "$HOME/.claude/plugins/graphbrain/scripts/lib")
+  node "$HELPER_DIR/hash-source.js" <source-path>
+  ```
+  Output: `{"hash":"...","prefix":"git|sha256","formatted":"<prefix>:<hash>"}`. The page's `source_hash` field is the `formatted` string.
+- If the helper exits non-zero (neither git nor shasum available — rare), emit `blocked: ingester couldn't compute source hash for <path>. Reason: neither git nor shasum produced a result. Operator action: install git or ensure shasum is on PATH.` and stop.
 - **Empty-file handling**: if the source file is 0 bytes, skip the read in Step 4 and produce a minimal page with all sections marked `_(empty file)_` or per the fallback strings below; tokens estimate is 0.
 - If the output path already exists with `status: VERIFIED` in its frontmatter AND `$ARGUMENTS` does not contain `--force`: print `SKIP <output-path> (status: VERIFIED — pass --force to override)` and stop.
 - If the output path exists with current frontmatter `source_hash` matching the just-computed hash (including the format prefix) AND `$ARGUMENTS` does not contain `--force`: print `SKIP <output-path> (already current, source unchanged)` and stop.
@@ -360,17 +366,33 @@ You are orchestrating a folder ingest. Run the M#3a ingester per file, then invo
 - Verify `.brain/` exists in cwd. If not, print the same `npx graphbrain init` first message as M#3a Step 1.
 - Read `.brain/.graphbrain-version` to confirm M#1's scaffold is present.
 
-**Step 2 — Walk the folder**:
+**Step 2-3 — Walk + filter** (v1.0.13 — delegates to a Node helper):
 
-- Try `git ls-files <folder>` via Bash first (respects `.gitignore` automatically).
-- If git is unavailable or the directory isn't tracked, fall back to a manual recursive walk excluding the hardcoded blocklist: `node_modules`, `.git`, `.brain`, `.claude`, `dist`, `build`, `coverage`, `.venv`, `__pycache__`, `target`, `.next`, `.nuxt`.
+Run the walk-and-filter helper. It tries `git ls-files <folder>` first (respects `.gitignore`), falls back to a recursive walk excluding the standard dirs (`node_modules`, `.git`, `.brain`, `.claude`, `dist`, `build`, `coverage`, `.venv`, `__pycache__`, `target`, `.next`, `.nuxt`, `.cache`, `vendor`). It then filters binaries, lockfiles, and minified/generated artifacts using the same blocklists previously inlined in the prompt.
 
-**Step 3 — Filter**:
+```bash
+HELPER_DIR=$([ -d .claude/plugins/graphbrain/scripts/lib ] \
+  && echo .claude/plugins/graphbrain/scripts/lib \
+  || echo "$HOME/.claude/plugins/graphbrain/scripts/lib")
+node "$HELPER_DIR/walk-and-filter.js" <folder>
+```
 
-- Apply the M#3a binary blocklist (`.png, .jpg, .jpeg, .gif, .webp, .pdf, .exe, .bin, .so, .dylib, .o, .a, .zip, .tar, .tgz, .gz, .mp4, .mp3, .wav, .ico, .ttf, .woff, .woff2`).
-- Exclude lockfiles (`package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `poetry.lock`, `Cargo.lock`, `go.sum`, `composer.lock`, `Pipfile.lock`).
-- Exclude minified/generated artifacts (`*.min.js`, `*.min.css`, `*.bundle.js`, `*.map`).
-- Print the surviving file count and a per-extension breakdown: `Found 23 files: 14 .ts, 5 .tsx, 3 .json, 1 .md`.
+Output shape:
+
+```json
+{
+  "total": 51,
+  "files": ["server/src/main.ts", "client/src/App.tsx", ...],
+  "skipped_binary":   ["assets/logo.png"],
+  "skipped_lock":     ["package-lock.json"],
+  "skipped_minified": ["client/dist/bundle.min.js"],
+  "by_ext": { ".ts": 14, ".tsx": 5, ".json": 3, ".md": 1 }
+}
+```
+
+Read the JSON. The `files[]` array is your ingest set for Step 4 (cost gate) and Step 5 (per-file loop). Print the breakdown to the operator: `Found {files.length} files: {by_ext as comma-separated counts}`. Surface `skipped_*` totals only if any are non-zero.
+
+**Fallback (rare)**: if the helper is missing or fails, fall back to the v1.0.12 inline procedure — Bash `git ls-files` (or recursive walk) + inline blocklist matching. Same blocklists, same outcome.
 
 **Step 4 — Cost gate**:
 

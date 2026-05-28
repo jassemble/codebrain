@@ -511,6 +511,11 @@ function init(argv) {
   copyDir('.claude-plugin', path.join(claudeDir, 'plugins', 'graphbrain', '.claude-plugin'), ownedOpts(opts));
   copyDir('skills', path.join(claudeDir, 'plugins', 'graphbrain', 'skills'), ownedOpts(opts));
   copyDir('agents', path.join(claudeDir, 'plugins', 'graphbrain', 'agents'), ownedOpts(opts));
+  // OWNED: Node helpers (v1.0.13). Slash-command bodies call these via Bash to
+  // do mechanical work — walk dirs, hash files, classify .bak diffs, detect
+  // stacks — without spending LLM tokens. See scripts/lib/*.js for each
+  // helper's input/output contract.
+  copyDir('scripts/lib', path.join(claudeDir, 'plugins', 'graphbrain', 'scripts', 'lib'), ownedOpts(opts));
 
   // Merge hooks into settings.local.json.
   mergeHooks(claudeDir, opts);

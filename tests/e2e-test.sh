@@ -2765,17 +2765,20 @@ grep -qF 'Refreshed: .brain/llms.txt, .brain/status.md' "$CODEBRAIN_ROOT/command
 INIT_MD="$CODEBRAIN_ROOT/commands/brain/init.md"
 INGEST_MD="$CODEBRAIN_ROOT/commands/brain/ingest.md"
 
-grep -qF '4a — Enumerate subtrees' "$INIT_MD" \
-  && ok "T53: init.md Step 4a enumerates subtrees" \
-  || nope "T53: Step 4a (subtree enumeration) missing"
+# v1.0.13: subtree enumeration / per-subtree match / persistence now live in
+# the detect-stacks.js helper (Step 4 delegates to it). Assert the helper
+# handles all three responsibilities + the procedure references it.
+grep -qF 'walks the cwd root + every immediate non-excluded subdir' "$INIT_MD" \
+  && ok "T53: init.md Step 4 (via helper) enumerates subtrees" \
+  || nope "T53: Step 4 subtree enumeration not documented"
 
-grep -qF '4b — Run signal match per subtree' "$INIT_MD" \
-  && ok "T53: init.md Step 4b runs detection per subtree" \
-  || nope "T53: Step 4b (per-subtree match) missing"
+grep -qF 'evaluates `stack-detection.json` signals per subtree' "$INIT_MD" \
+  && ok "T53: init.md Step 4 (via helper) runs detection per subtree" \
+  || nope "T53: Step 4 per-subtree match not documented"
 
-grep -qF '4c — Persist the subtree → stacks map' "$INIT_MD" \
-  && ok "T53: init.md Step 4c persists the map" \
-  || nope "T53: Step 4c (map persistence) missing"
+grep -qF 'writes `<cwd>/.brain/.graphbrain-stacks.json`' "$INIT_MD" \
+  && ok "T53: init.md Step 4 (via helper) persists the map" \
+  || nope "T53: Step 4 map persistence not documented"
 
 grep -qF '.brain/.graphbrain-stacks.json' "$INIT_MD" \
   && ok "T53: init.md names the load-bearing stacks map file" \
@@ -2872,6 +2875,94 @@ grep -qF '/brain:init --interactive' "$INIT_MD" \
 grep -qF 'suppress the prompt entirely' "$INIT_MD" \
   && ok "T56: zero-prompt path documented when all classes auto-apply" \
   || nope "T56: zero-prompt path not documented"
+
+# === Test 57: v1.0.13 — Node helpers ship + install to plugin tree ==========
+#
+# v1.0.13 introduces scripts/lib/ — Node helpers the LLM calls via Bash to
+# do mechanical work without spending tokens. These must (a) exist in the
+# source tree, (b) land in the operator's .claude/plugins/graphbrain/...
+# install path, and (c) be executable Node files (parse-clean).
+
+for helper in walk-and-filter detect-stacks hash-source classify-baks; do
+  [ -f "$CODEBRAIN_ROOT/scripts/lib/$helper.js" ] \
+    && ok "T57: scripts/lib/$helper.js exists" \
+    || nope "T57: scripts/lib/$helper.js missing"
+done
+
+# Parse-check (node --check) — catches syntax errors before shipping
+for helper in walk-and-filter detect-stacks hash-source classify-baks; do
+  node --check "$CODEBRAIN_ROOT/scripts/lib/$helper.js" >/dev/null 2>&1 \
+    && ok "T57: scripts/lib/$helper.js is syntactically valid Node" \
+    || nope "T57: scripts/lib/$helper.js has a syntax error"
+done
+
+# Fresh install lands them in the operator's plugin tree.
+T57_DIR="$(mktemp -d)"
+( cd "$T57_DIR" && git init -q . ) >/dev/null 2>&1
+( cd "$T57_DIR" && HOME="$HOME" node "$CB" init >/dev/null 2>&1 )
+for helper in walk-and-filter detect-stacks hash-source classify-baks; do
+  [ -f "$T57_DIR/.claude/plugins/graphbrain/scripts/lib/$helper.js" ] \
+    && ok "T57: $helper.js installed under .claude/plugins/graphbrain/scripts/lib/" \
+    || nope "T57: $helper.js not installed"
+done
+
+# === Test 58: v1.0.13 — helpers produce expected JSON shapes ================
+
+# walk-and-filter scans + filters; expect a non-empty files[] for cwd repo.
+node "$CODEBRAIN_ROOT/scripts/lib/walk-and-filter.js" "$CODEBRAIN_ROOT/scripts" 2>/dev/null \
+  | node -e 'const j=JSON.parse(require("fs").readFileSync(0,"utf8")); process.exit(Array.isArray(j.files) && j.files.length > 0 && typeof j.by_ext === "object" ? 0 : 1)' \
+  && ok "T58: walk-and-filter emits {files, by_ext}" \
+  || nope "T58: walk-and-filter JSON shape unexpected"
+
+# hash-source emits {hash, prefix, formatted}.
+node "$CODEBRAIN_ROOT/scripts/lib/hash-source.js" "$CODEBRAIN_ROOT/package.json" 2>/dev/null \
+  | node -e 'const j=JSON.parse(require("fs").readFileSync(0,"utf8")); process.exit(j.hash && (j.prefix==="git"||j.prefix==="sha256") && j.formatted.startsWith(j.prefix+":") ? 0 : 1)' \
+  && ok "T58: hash-source emits {hash, prefix, formatted}" \
+  || nope "T58: hash-source JSON shape unexpected"
+
+# classify-baks on a clean repo returns count:0.
+T58_CLEAN="$(mktemp -d)"
+( cd "$T58_CLEAN" && git init -q . ) >/dev/null 2>&1
+node "$CODEBRAIN_ROOT/scripts/lib/classify-baks.js" "$T58_CLEAN" 2>/dev/null \
+  | node -e 'const j=JSON.parse(require("fs").readFileSync(0,"utf8")); process.exit(j.count===0 && Array.isArray(j.files) ? 0 : 1)' \
+  && ok "T58: classify-baks on clean repo returns count:0" \
+  || nope "T58: classify-baks clean-repo output unexpected"
+
+# classify-baks on a repo with a .bak whose only diff is whitespace pre-classifies it.
+T58_WS="$(mktemp -d)"
+echo 'hello' > "$T58_WS/a.txt"
+printf 'hello\n\n' > "$T58_WS/a.txt.bak"
+node "$CODEBRAIN_ROOT/scripts/lib/classify-baks.js" "$T58_WS" 2>/dev/null \
+  | node -e 'const j=JSON.parse(require("fs").readFileSync(0,"utf8")); process.exit(j.count===1 && j.files[0].classification==="whitespace-only" ? 0 : 1)' \
+  && ok "T58: classify-baks pre-resolves whitespace-only diffs" \
+  || nope "T58: classify-baks whitespace-only path broken"
+
+# === Test 59: v1.0.13 — slash-command bodies call the helpers ===============
+#
+# Procedure bodies must reference each helper by name so the LLM actually
+# uses them. If a refactor accidentally strips the helper reference, the LLM
+# falls back to inline prompt-side procedure and we lose the token savings.
+
+grep -qF 'node "$HELPER_DIR/detect-stacks.js"' "$CODEBRAIN_ROOT/commands/brain/init.md" \
+  && ok "T59: init.md Step 4 calls detect-stacks.js" \
+  || nope "T59: init.md Step 4 missing detect-stacks invocation"
+
+grep -qF 'node "$HELPER_DIR/classify-baks.js"' "$CODEBRAIN_ROOT/commands/brain/init.md" \
+  && ok "T59: init.md Step 1b calls classify-baks.js" \
+  || nope "T59: init.md Step 1b missing classify-baks invocation"
+
+grep -qF 'node "$HELPER_DIR/walk-and-filter.js"' "$CODEBRAIN_ROOT/commands/brain/ingest.md" \
+  && ok "T59: ingest.md folder mode calls walk-and-filter.js" \
+  || nope "T59: ingest.md folder mode missing walk-and-filter invocation"
+
+grep -qF 'node "$HELPER_DIR/hash-source.js"' "$CODEBRAIN_ROOT/commands/brain/ingest.md" \
+  && ok "T59: ingest.md per-file Step 3 calls hash-source.js" \
+  || nope "T59: ingest.md per-file Step 3 missing hash-source invocation"
+
+# Resolver shell snippet present — paths must work for both project-local + global installs.
+grep -qF '[ -d .claude/plugins/graphbrain/scripts/lib ]' "$CODEBRAIN_ROOT/commands/brain/init.md" \
+  && ok "T59: init.md uses dual-path helper resolver (project-local | global)" \
+  || nope "T59: init.md missing dual-path resolver"
 
 # === Test 38: SKILL.md reciprocity — every related_skills entry resolves =====
 # Bidirectional-links lint, run statically over the shipped skill set.
