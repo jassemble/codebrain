@@ -1,0 +1,598 @@
+<!-- codebrain v0.2.0 -->
+---
+description: codebrain — read source files → write LLM-authored wiki pages (single file, folder, or no-arg tiered)
+---
+
+## When `$ARGUMENTS` starts with `ingest <file>`
+
+You are the codebrain ingester (see `agents/brain/ingester.md` for your full persona + Rules; the Rules apply throughout this procedure). Run the procedure exactly. If any step's preconditions fail, emit a clear error and stop — do not improvise.
+
+**Step 0 — Argument parsing + path guards**:
+
+- Extract the path arg from `$ARGUMENTS` (the token after `ingest`).
+- If no path was given: print `Milestone #3c (tiered auto-prioritize, no-arg ingest) — not yet implemented in v0.1. Pass a single file path: /brain ingest src/auth.ts` and stop.
+- **Out-of-repo guard**: compute the absolute path. If it does NOT start with cwd: print `error: refused — <path> resolves outside the project root` and stop.
+- **Symlink guard**: if the resolved path is a symlink (use `Bash: test -L <path>`), print `error: refused — symlinks not supported in v0.1; pass the target path directly` and stop.
+- If the resolved path is a directory: print `Milestone #3b (folder ingest) — not yet implemented in v0.1. Pass a single file path: /brain ingest src/auth.ts` and stop.
+- If the resolved path does not exist: print `error: file not found: <path>` and stop.
+- **Binary-file guard**: check the file extension against the blocklist `[.png, .jpg, .jpeg, .gif, .webp, .pdf, .exe, .bin, .so, .dylib, .o, .a, .zip, .tar, .tgz, .gz, .mp4, .mp3, .wav, .ico, .ttf, .woff, .woff2]`. If matched, print `error: refused — <path> looks like a binary file (extension <ext>); codebrain ingests text source files only` and stop. Additionally, read the first 1024 bytes; if a null byte is present, treat as binary and refuse with the same message.
+
+**Step 1 — Preconditions**:
+
+- Verify `.brain/` exists in cwd. If not, print:
+  ```
+  error: .brain/ not found in this repo.
+  Run `npx codebrain init` first to scaffold the skeleton, then re-run /brain ingest.
+  ```
+  and stop.
+- Read `.brain/.codebrain-version` to confirm M#1's scaffold is present.
+
+**Step 2 — Read inputs**:
+
+- Read the source file in full when it fits (<4k tokens). For larger files, Read in chunks using offset/limit; do NOT skim by sampling random lines — read sequentially.
+- The page contract (frontmatter + 5 required sections, fallback strings, page-size cap) is defined below. The verbatim template is the literal-text fenced block in Step 4. The standalone files `skills/ingestion/page-format/SKILL.md` and `skills/ingestion/page-format/templates/code-page.md` document the same contract (load them only if you need extended examples).
+
+**Step 3 — Compute output path and source hash** (format-prefixed per PRD Design Decision #32):
+
+- Mirror the source path under `.brain/code/`: `src/api/auth.ts` → `.brain/code/src/api/auth.ts.md`
+- Try `git hash-object <source-path>` via Bash. If it succeeds, the `source_hash` value is `git:<hash>`.
+- If git is unavailable or the repo isn't a git repo, fall back to SHA-256 via `shasum -a 256 <source-path> | awk '{print $1}'`. The `source_hash` value is `sha256:<hash>`.
+- If BOTH fail, emit `blocked: ingester couldn't compute source hash for <path>. Reason: neither git nor shasum produced a result. Operator action: install git or ensure shasum is on PATH.` and stop.
+- **Empty-file handling**: if the source file is 0 bytes, skip the read in Step 4 and produce a minimal page with all sections marked `_(empty file)_` or per the fallback strings below; tokens estimate is 0.
+- If the output path already exists with `status: VERIFIED` in its frontmatter AND `$ARGUMENTS` does not contain `--force`: print `SKIP <output-path> (status: VERIFIED — pass --force to override)` and stop.
+- If the output path exists with current frontmatter `source_hash` matching the just-computed hash (including the format prefix) AND `$ARGUMENTS` does not contain `--force`: print `SKIP <output-path> (already current, source unchanged)` and stop.
+
+**Step 4 — Fill the template**:
+
+Use this verbatim template as the structure. Replace each `<!-- AGENT: ... -->` instruction comment with content per its directive. Do NOT omit a section; if you have no content, write the fallback string shown after each instruction:
+
+```markdown
+---
+kind: code
+status: FRESH
+source: <source-path verbatim>
+source_hash: <prefixed hash from Step 3>
+last_ingested: <today's ISO YYYY-MM-DD>
+ingested_by: <your model identifier, e.g. claude-sonnet-4-6>
+tokens: <your best estimate of page token count; informational, ±20% is fine>
+---
+
+# <source-path verbatim>
+
+## Purpose
+<!-- 1-3 sentences. What this file is responsible for. For code files,
+     describe responsibility in terms of what the code does. For non-code
+     files (config, schema, YAML, JSON, SQL, CSS, docs), describe what the
+     file configures, declares, or documents.
+     Empty file: write `_(empty file)_`.
+     Cannot infer: write `_(unclear — investigate)_`. -->
+
+## Exports
+<!-- Bullet list of exported symbols. One line per symbol: `- name: one-line purpose`.
+     File has no exports OR is a config/CSS/data file: write `_(none)_`.
+     Empty file: `_(none)_`. -->
+
+## Imports
+<!-- Bullet list grouped by source module: `- from \`<module>\`: <names> — <why>`.
+     Skip stdlib imports unless load-bearing.
+     Nothing notable: `_(none)_`.
+     Empty file: `_(none)_`. -->
+
+## Key behaviors
+<!-- Bullet list of 3-7 notable behaviors, error paths, side effects, I/O.
+     NOT a line-by-line transcription.
+     Trivial file (re-export shim): `_(trivial — see Exports above)_`.
+     Empty file: `_(empty file)_`. -->
+
+## Cross-references
+<!-- Wikilinks to other .brain/code/ pages: `- [[code/<path>]] — <why linked>`.
+     Milestone #3a single-file ingest: usually `_(none yet — see Milestone #3b for cross-page linking)_`. -->
+```
+
+**Page-size self-check**:
+- Aim for <4k tokens (soft warn). If the rendered page approaches 4k, summarize more aggressively.
+- If approaching 8k (hard error per PRD #7), emit `blocked: ingester couldn't fit page for <source-path> under the 8k cap. Reason: source file is too large for a single page. Operator action: split the source into smaller modules, then re-ingest.` and stop.
+
+**Step 4b — Stack-aware extras** (M#3d):
+
+After writing the generic 5 sections above, check whether any installed `detected/*` skills apply to this source file. A skill applies when BOTH:
+
+1. **Project signal matches**: the project's detected stack list (read from `.brain/overview.md` Active State; fall back to a fresh `skills/registry.json` detect-rule evaluation if cache is missing) includes the skill's stack name (`react`, `typescript`, `python`, `go`).
+2. **File signal matches**: the source file's extension is in the skill's `applies_to_extensions` list (e.g., `.tsx` matches React's `[".tsx", ".jsx"]`).
+
+For each matching skill, APPEND its extra sections to the page AFTER `## Cross-references`. Never replace the generic 5 sections.
+
+When multiple skills apply (e.g., a `.tsx` file in a React + TypeScript project), append in **registry order** from `skills/registry.json`. The current registry order is: TypeScript first, React second, Python third, Go fourth. So a `.tsx` page reads: generic 5 → TypeScript extras → React extras.
+
+The verbatim extras for each detected stack are inlined below. The standalone template files at `skills/detected/<stack>/templates/code-page-<stack>-extras.md` are documentation copies — these inlined versions are the load-bearing contract.
+
+#### detected/react extras (matches `.tsx`, `.jsx` in React projects)
+
+```
+## Component
+<!-- AGENT: if this file exports a React component, describe it in 1-3 sentences:
+     - functional vs class component
+     - what the component renders (high-level)
+     - any HOC or render-prop pattern, if applicable
+     If no component export: write `_(no component export)_`. -->
+
+## Props
+<!-- AGENT: bullet list of props. For typed components, capture the prop type.
+     Format: `- propName: type — purpose`.
+     If no props or no component: `_(none)_`. -->
+
+## State
+<!-- AGENT: bullet list of internal state (useState, useReducer, class state).
+     Format: `- stateName: type — what it represents`.
+     If stateless: `_(stateless)_`. -->
+
+## Hooks
+<!-- AGENT: bullet list of hooks used. Distinguish built-in vs custom:
+     - useState, useEffect, useCallback (built-in)
+     - useAuth (custom — from src/hooks/use-auth.ts)
+     If no hooks: `_(none)_`. -->
+
+## Effects
+<!-- AGENT: bullet list of side effects (useEffect bodies). Format:
+     - on mount: <what happens>
+     - on prop change: <what triggers + what runs>
+     - on unmount: <cleanup>
+     If no effects: `_(none)_`. -->
+```
+
+#### detected/typescript extras (matches `.ts`, `.tsx` in TypeScript projects)
+
+```
+## Types & Interfaces
+<!-- AGENT: bullet list of types and interfaces declared in this file.
+     Format: `- TypeName: <object | union | intersection | utility> — purpose`.
+     If none (runtime-only file): `_(none)_`. -->
+
+## Module declarations
+<!-- AGENT: any `declare module`, `namespace`, or `declare global` blocks.
+     If none: `_(none)_`. -->
+
+## Exports (named/default/re-export)
+<!-- AGENT: organize exports by kind:
+     - Named: foo, bar, Baz
+     - Default: <symbol name>
+     - Re-exports: from `./other`
+     If file has no exports: `_(none)_`. -->
+
+## Generics
+<!-- AGENT: brief summary of generic usage. Are there exported generic
+     types/functions? Constrained generics? Default type parameters?
+     `_(none)_` if not generic-heavy. -->
+```
+
+#### detected/python extras (matches `.py` in Python projects)
+
+```
+## Public API
+<!-- AGENT: bullet list of public symbols (no leading underscore).
+     Format: `- name: <function | class | constant> — purpose`.
+     If `__all__` is defined, use it as the source of truth. -->
+
+## Dunder methods
+<!-- AGENT: bullet list of dunder methods defined in classes in this file.
+     Format: `- ClassName.__init__: <one-line note>`.
+     If none defined: `_(none)_`. -->
+
+## Decorators
+<!-- AGENT: decorators used or defined in this file.
+     Format: `- @decorator_name (from <module>) — applied to <symbols>`.
+     Examples: @dataclass, @property, @classmethod, @pytest.fixture, custom.
+     If none: `_(none)_`. -->
+
+## Type hints
+<!-- AGENT: brief assessment: fully typed, partially typed, untyped.
+     Note any TypedDict, Protocol, Literal, Generic[T] usage.
+     One-line summary; if untyped: `_(untyped)_`. -->
+```
+
+#### detected/go extras (matches `.go` in Go projects)
+
+```
+## Package
+<!-- AGENT: package declaration + brief role of this file in the package.
+     Examples:
+       "main package — CLI entry point"
+       "package auth — middleware for JWT validation"
+     Note related files in the same package if known. -->
+
+## Receivers
+<!-- AGENT: bullet list of methods grouped by receiver type.
+     Format: `- (s *Server) Method(...) — purpose`.
+     If no methods: `_(none)_`. -->
+
+## Interfaces satisfied
+<!-- AGENT: bullet list of interfaces this file's types satisfy.
+     Format: `- TypeName satisfies io.Reader, fmt.Stringer`.
+     Inferred from method sets; if uncertain: `_(none observed)_`. -->
+
+## init() functions
+<!-- AGENT: any init() functions in this file. Describe what they do
+     (registration, env-var loading, etc.).
+     If none: `_(none)_`. -->
+
+## Build tags
+<!-- AGENT: any `//go:build` or legacy `// +build` tags at the top of the file.
+     If none: `_(none)_`. -->
+```
+
+Skip Step 4b entirely if no detected/* skill matches this source file. The generic 5 sections always apply.
+
+**Step 4b.2 — Expert skill bridge** (v0.1.1):
+
+After resolving which `detected/*` skills apply for this source file, check each matched skill's `expert_skills:` field in `skills/registry.json`. For every named expert skill:
+
+1. **Probe availability**: check whether the named skill (e.g., `ecc:nestjs-patterns`, `ecc:django-patterns`, `ecc:springboot-patterns`) is available in the current harness. The ECC plugin ships many of these; codebrain does NOT vendor or re-implement them — it bridges to them.
+2. **If available**: load that expert skill and apply its code-writing / code-reviewing guidance throughout this ingest (and throughout any code-writing the agent does in this repo after ingest). The expert skill's patterns become the codebase's idiomatic conventions for the agent.
+3. **If unavailable**: proceed without that expert skill; the page still gets the codebrain-side extras above. The agent works without framework-expert guidance for this stack. Document in the report which `expert_skills:` were declared but unavailable.
+
+The bridge is the load-bearing v0.1.1 architectural contract: codebrain detects stacks + ships the page-format extras; ECC (or another expert-skill source) provides the code-writing expertise. No duplication.
+
+Currently shipped `detected/*` skills with `expert_skills:` declarations (post-v0.1.1):
+
+| detected/* skill | expert_skills bridge target(s) |
+|---|---|
+| `detected/nestjs` | `ecc:nestjs-patterns` |
+| `detected/nextjs` | `ecc:nextjs-turbopack` |
+| `detected/express` | `ecc:backend-patterns` |
+| `detected/django` | `ecc:django-patterns`, `ecc:django-security` |
+| `detected/fastapi` | `ecc:fastapi-patterns` |
+| `detected/springboot` | `ecc:springboot-patterns`, `ecc:springboot-security` |
+
+The four M#3d skills (`react`, `typescript`, `python`, `go`) do NOT yet declare `expert_skills:` — v0.2 may add them or leave them as page-format-only.
+
+**Step 4b.3 — Active bridge probe + activation** (M#9-prereq):
+
+Operationalizes the declarative contract from Step 4b.2. For each matched `detected/*` skill's `expert_skills:` array, probe filesystem availability + load each available skill into context for the remainder of this ingest.
+
+1. **Compute the probe set**: gather every `expert_skill` entry from every `detected/*` skill that matched this source file in Step 4b.1. Each entry is shaped `<vendor>:<skill-name>` (e.g., `ecc:nestjs-patterns`).
+
+2. **Probe each entry** via Bash, in order. Two candidate paths per skill (user-global, then project-local):
+
+   ```bash
+   # Probe candidates for <vendor>:<skill-name>:
+   test -e "$HOME/.claude/plugins/<vendor>/skills/<skill-name>/SKILL.md" \
+     || test -e "$PWD/.claude/plugins/<vendor>/skills/<skill-name>/SKILL.md"
+   ```
+
+   Use `2>/dev/null` to suppress noise; the exit code is the signal. If either path exists, the skill is **available**; record the winning absolute path. Otherwise **unavailable**.
+
+3. **Load each available skill**: Read the resolved `SKILL.md` path. Treat the body as authoritative code-writing / code-reviewing guidance for the remainder of this ingest (and any code-writing the agent does in this repo immediately after). The expert skill's patterns become the codebase's idiomatic conventions.
+
+4. **Track for the report**: build two arrays:
+   - `bridges_loaded[]` — entries shaped `<vendor>:<skill-name> @ <resolved-path>`
+   - `bridges_unavailable[]` — entries shaped `<vendor>:<skill-name> (declared by <detected-skill> but no SKILL.md at either probe path)`
+
+5. **Idempotency + caching**: if the same `<vendor>:<skill-name>` appears in multiple `detected/*` matches (e.g., a `.ts` file in a NestJS project loads both `detected/nestjs` and `detected/typescript`, and both list `ecc:typescript-patterns`), probe + load it ONCE. Dedupe by the colon-separated key.
+
+6. **Failure modes**:
+   - Bash unavailable (rare): skip Step 4b.3 entirely; add a single `bridges_unavailable: [all (Bash unavailable for probe)]` entry to the report; continue with the codebrain-side extras only.
+   - Probe path resolves but Read fails (permission denied, broken symlink): treat as unavailable for that entry; log a one-line warning in the report (`bridges_unavailable: <key> (path exists but Read failed: <reason>)`); continue.
+
+7. **Never** invoke the skill via a Skill() tool call — the probe-and-Read pattern is intentionally portable across harnesses that do not expose cross-plugin Skill() invocation. Reading the SKILL.md body and treating it as authoritative is the load-bearing primitive.
+
+**Step 5 — Write the page**:
+
+- Ensure `.brain/code/<dir-of-source>/` exists (create directories as needed).
+- Write the filled template to `.brain/code/<source-path>.md`. Use Write (full file content), not Edit — we're replacing whatever was there.
+
+**Step 6 — Update derived files**:
+
+- `.brain/index.md`: append a one-line entry under `## Code pages`. If the section does not exist yet (M#1's init.js ships a generic `index.md` without subsections), CREATE the section with that exact heading as your first edit, then append. Entry format:
+  ```
+  - [[code/<source-path>]] — <one-line summary from your Purpose section, no leading "This file"/"This module">
+  ```
+  Dedupe if an entry for this `code/<source-path>` already exists; update it in place.
+- `.brain/status.md`: append/update a row in the status table:
+  ```
+  | code/<source-path>.md | FRESH | <ISO date> | <source-hash with format prefix> |
+  ```
+  Dedupe / update by page path.
+- `.brain/log.md`: append under `## Activity History` using the grep-parseable prefix (PRD Design Decision #15):
+  ```
+  ## [YYYY-MM-DD] ingest | <source-path> → .brain/code/<source-path>.md
+  ```
+- `.brain/llms.txt`: refresh per the procedure in `skills/ingestion/llms-txt/SKILL.md`. Read that skill before refreshing. Deterministic, no LLM call.
+
+**Step 7 — Report**:
+
+Print exactly:
+
+```
+/brain ingest complete (codebrain v<version-from-.codebrain-version>)
+  Source:        <source-path>
+  Page:          .brain/code/<source-path>.md (~<token-count> tokens)
+  Source hash:   <prefixed hash>
+  Updated:       .brain/index.md, .brain/status.md, .brain/log.md, .brain/llms.txt, .brain/CHANGELOG.md, .brain/CHANGELOG.md
+  Active bridges:
+    loaded:      <comma-separated bridges_loaded, or "(none)" if all unavailable, or "(none declared)" if no detected/* matched>
+    unavailable: <comma-separated bridges_unavailable, or "(none)">
+Next: ingest more files individually for now.
+      /brain ingest <folder/> is Milestone #3b; /brain ingest (no args) is Milestone #3c.
+```
+
+The `Active bridges` block is the M#9-prereq runtime evidence — operators see at a glance which expert skills loaded during this ingest. If no `detected/*` skill matched the source (e.g., a Markdown file in a TypeScript repo), print `loaded: (none declared)` to distinguish from the case where bridges were declared but unavailable.
+
+If you encountered any failures during the procedure, replace the success report with `FAILED at Step <N>: <reason>` and exit. Do not partially complete and report success.
+
+**Error recovery** (per the ingester agent's Rules, PRD Design Decision #26): if a step fails for a transient reason (e.g., a Read returned partial content), retry that step ONCE with fresh context. If it fails again, emit a `blocked: ...` report and stop. Do not exceed `max_iterations: 5` total retries across the procedure.
+
+## When `$ARGUMENTS` starts with `ingest <folder>`
+
+You are orchestrating a folder ingest. Run the M#3a ingester per file, then invoke the linker. Follow the procedure exactly.
+
+**Step 0 — Argument parsing + path guards**:
+
+- Extract the folder arg from `$ARGUMENTS`.
+- **Out-of-repo guard**: compute the absolute path. If it does NOT start with cwd, print `error: refused — <path> resolves outside the project root` and stop.
+- If the resolved path is a file (not a directory), print `error: <path> is a file, not a folder. Use /brain ingest <file-path> for single-file ingest.` and stop.
+- If the resolved path does not exist, print `error: folder not found: <path>` and stop.
+
+**Step 1 — Preconditions**:
+
+- Verify `.brain/` exists in cwd. If not, print the same `npx codebrain init` first message as M#3a Step 1.
+- Read `.brain/.codebrain-version` to confirm M#1's scaffold is present.
+
+**Step 2 — Walk the folder**:
+
+- Try `git ls-files <folder>` via Bash first (respects `.gitignore` automatically).
+- If git is unavailable or the directory isn't tracked, fall back to a manual recursive walk excluding the hardcoded blocklist: `node_modules`, `.git`, `.brain`, `.claude`, `dist`, `build`, `coverage`, `.venv`, `__pycache__`, `target`, `.next`, `.nuxt`.
+
+**Step 3 — Filter**:
+
+- Apply the M#3a binary blocklist (`.png, .jpg, .jpeg, .gif, .webp, .pdf, .exe, .bin, .so, .dylib, .o, .a, .zip, .tar, .tgz, .gz, .mp4, .mp3, .wav, .ico, .ttf, .woff, .woff2`).
+- Exclude lockfiles (`package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `poetry.lock`, `Cargo.lock`, `go.sum`, `composer.lock`, `Pipfile.lock`).
+- Exclude minified/generated artifacts (`*.min.js`, `*.min.css`, `*.bundle.js`, `*.map`).
+- Print the surviving file count and a per-extension breakdown: `Found 23 files: 14 .ts, 5 .tsx, 3 .json, 1 .md`.
+
+**Step 4 — Cost gate**:
+
+- Estimate `cost ≈ count × $0.006` (rough heuristic: ~2000 tokens per file × $0.003/1k input tokens, doubled for output).
+- If count > 50 AND `$ARGUMENTS` does NOT contain `--yes`: print `Will ingest <count> files (~$<cost> estimated). This exceeds the 50-file auto-confirm threshold. Re-run with --yes to proceed.` and stop.
+- If count is 20–50 AND `$ARGUMENTS` does NOT contain `--yes`: print `Will ingest <count> files (~$<cost> estimated). Proceed? (yes/no/show-files)` and wait for operator. On `yes`: continue. On `no`: stop. On `show-files`: print the list, then re-prompt.
+- If count < 20: proceed without prompting.
+
+**Step 5 — Per-file ingest loop**:
+
+- For each filtered file, invoke the **M#3a single-file procedure** (Steps 0–7 of `## When $ARGUMENTS starts with ingest <file>`). Treat each file as if the operator typed `/brain ingest <file>`.
+- Collect results: `ingested[]`, `skipped[]` (source unchanged), `failed[]` (with reason).
+- On any per-file FAIL, log the reason and continue. **Skip-and-report** behavior — do not abort the folder.
+
+**Step 6 — Invoke the linker procedure**:
+
+- After the per-file loop completes, jump to the `## Linker procedure (invoked after folder ingest)` section below. Pass the list of ingested code-page paths.
+
+**Step 7 — Final report**:
+
+```
+/brain ingest <folder> complete (codebrain v<version>)
+  Files found:    <total before filter>
+  Files filtered: <count after filter>
+  Ingested:       <ingested.length> ([<one path per line>])
+  Skipped:        <skipped.length>  (sources unchanged)
+  Failed:         <failed.length>   ([<path: reason> per line])
+  Linker result:  <wired N code-page cross-references, M concept pages created/updated>
+  Logged:         .brain/log.md
+Next: try `/brain query "..."` (Milestone #5 — not yet implemented).
+      For tiered no-arg ingest, see Milestone #3c.
+```
+
+If linker emitted partial-completion warning (because per-file failures), include it before the `Next:` line.
+
+## Linker procedure (invoked after folder ingest)
+
+You are the codebrain **linker** (see `agents/brain/linker.md` for your full persona + Rules; the Rules apply throughout). This procedure runs at Step 6 of the folder-ingest procedure, with the list of ingested code-page paths.
+
+**L1 — Load inputs**:
+
+- Read all `.brain/code/**/*.md` pages (the just-ingested set + any prior pages — they may participate in cross-references).
+- Read all existing `.brain/concepts/**/*.md` pages (for idempotency: update rather than duplicate).
+- The concept-extraction criteria are inlined in this body (see L3); the standalone documentation lives at `skills/ingestion/concept-extraction/SKILL.md`.
+
+**L2 — Wire bidirectional Cross-references between code pages**:
+
+- For each code page, scan its `## Imports` section. For every imported module that resolves to another `.brain/code/<path>.md` page:
+  - Verify the target page EXISTS in `.brain/code/` before writing the wikilink (per linker Rule on dangling wikilinks).
+  - Add `- [[code/<target-path>]] — <one-line why imported>` under the importing page's `## Cross-references` section.
+  - Add the reverse link on the target page: `- [[code/<importing-path>]] — imported by`.
+- Dedupe: if a `[[code/<path>]]` link is already present, skip rather than duplicate.
+
+**L3 — Discover concept candidates**:
+
+Apply the concept-extraction criteria:
+
+DO promote when:
+- A named idea is referenced across ≥2 code pages (domain entity, integration boundary, convention, glossary term)
+- A single code page explicitly declares architectural significance (top-level docstring labelling itself a boundary; README excerpt; ADR reference)
+
+DO NOT promote when:
+- Utility functions, single-use helpers, one-off implementations
+- Type aliases used only in their defining file
+- Wrappers around standard library
+- A name that already has a code page (don't double up `auth.ts` with `concepts/auth`)
+
+When uncertain: defer. M#6 lint surfaces "concept mentioned but lacking page" as a hint.
+
+Produce a candidate list: `[{ name, sources: [{path, hash}], evidence: "..." }]`. Discard candidates with <2 sources unless evidence is strong (top-level architectural declaration).
+
+**L4 — Materialize concept pages**:
+
+For each surviving candidate:
+
+- If a concept page with that name already exists at `.brain/concepts/<name>.md`:
+  - **UPDATE**: extend the `sources:` frontmatter array with any new entries (per-source-hash format below); refresh the Spans and Examples sections; bump `status: RESYNCED`; update `last_ingested`.
+- If new:
+  - **WRITE** using this verbatim template:
+
+```markdown
+---
+kind: concept
+status: FRESH
+name: <kebab-case name>
+last_ingested: <today YYYY-MM-DD>
+ingested_by: <your model id>
+tokens: <best estimate>
+sources:
+  - path: <source path 1>
+    hash: <git:<hash> or sha256:<hash>>
+  - path: <source path 2>
+    hash: <git:<hash> or sha256:<hash>>
+---
+
+# <Human-readable concept name>
+
+## Definition
+<1-3 sentences in domain terms; explain the idea, not the implementation>
+
+## Spans
+- [[code/<source path 1>]] — <role this file plays in the concept>
+- [[code/<source path 2>]] — <role this file plays in the concept>
+
+## Examples
+1. **<short heading>** ([[code/<path>]]):
+   <1-2 sentence explanation; optional snippet <5 lines>
+
+## Related
+- [[concepts/<name>]] — <one-line relation>
+<or `_(none yet)_` if no related concepts exist>
+```
+
+Per-source-hash format (PRD Design Decision #32): for each source, compute `git hash-object <path>` (→ `hash: git:<hash>`) or `shasum -a 256 <path>` (→ `hash: sha256:<hash>`). The M#4 staleness hook iterates `sources:` and checks each `hash` to flip the concept page to STALE when any source drifts.
+
+Page-size cap: concept pages 6k soft warn / 12k hard error (per PRD Design Decision #7). If a concept exceeds 12k, split into multiple narrower concepts.
+
+**L5 — Update derived files**:
+
+- `.brain/index.md`: append under `## Concept pages`. If the section does not exist, CREATE it as your first edit (mirror M#3a's `## Code pages` pattern). Entry format: `- [[concepts/<name>]] — <one-line summary from Definition section>`. Dedupe by `[[concepts/<name>]]` link.
+- `.brain/status.md`: append/update a row for each concept page: `| concepts/<name>.md | FRESH | <ISO date> | <count> sources |`.
+- `.brain/log.md`: append under `## Activity History` with the grep-parseable prefix: `## [YYYY-MM-DD] link | <folder>: <N code pages wired, M concept pages>`.
+- `.brain/llms.txt`: refresh per the procedure in `skills/ingestion/llms-txt/SKILL.md`. Read that skill before refreshing. Deterministic, no LLM call.
+- `.brain/CHANGELOG.md` (M#10d): append a one-line narrative entry summarizing the linker's net contribution — concept pages created/refreshed + cross-references wired. Shape: `- <YYYY-MM-DD>: linked <folder> → <N concept pages created/updated>, <M cross-references wired> (concepts: <comma-separated names>)`. Append under the current month's `## YYYY-MM` heading.
+
+**L6 — Linker report**:
+
+Produce a structured summary the folder-ingest Step 7 includes in its final report:
+
+```
+Linker:
+  Cross-references wired: <count> (bidirectional)
+  Concepts created:       <count> ([<concept-name per line>])
+  Concepts updated:       <count> ([<concept-name per line>])
+  Dangling wikilinks:     <count> (downgraded to plain mentions)
+```
+
+If any per-file ingest failed (passed in from Step 5's `failed[]`), prepend:
+
+```
+WARNING: linker analyzed <M> of <N> requested files; concepts may be missing sources. Re-run after addressing failed files.
+```
+
+**Error recovery** (per linker Rules + PRD #26): Tier 1 retry once; Tier 2 structured blocked report; do not exceed `max_iterations: 5`.
+
+## When `$ARGUMENTS` is just `ingest`
+
+You are the codebrain **planner** (see `agents/brain/planner.md` for your full persona + Rules; orchestrate, do not write). The operator invoked `/brain ingest` with no path argument. Run this procedure exactly.
+
+**T0 — Argument parsing**:
+
+- If `$ARGUMENTS` is `ingest` (alone) or `ingest --yes`: proceed.
+- If `$ARGUMENTS` has any other token after `ingest`: this is not your case — return control to the dispatch table.
+
+**T1 — Preconditions**:
+
+- Verify `.brain/` exists; `.brain/.codebrain-version` is present. If not, error and tell the operator to run `npx codebrain init` first.
+- Verify `.brain/overview.md` exists. If it's missing or appears unpopulated (`status: UNENRICHED`), print:
+  ```
+  WARN: .brain/overview.md isn't populated. Stack detection results aren't cached.
+        Run /brain init first for better tier assignment. Proceeding with fresh detection.
+  ```
+  and continue.
+
+**T2 — Load stack detection**:
+
+- Read `.brain/overview.md`. Extract the "Detected stack:" line from the `## Active State` section.
+- If absent or empty, re-run stack detection: read `skills/core/init/templates/stack-detection.json` and evaluate each stack's signals against cwd (same logic M#2's init skill uses).
+- Record the detected stack list for the plan report.
+
+**T3 — Walk + filter** (re-uses M#3b Steps 2–3):
+
+- Try `git ls-files` first (respects `.gitignore`).
+- Fallback to manual recursive walk excluding the hardcoded blocklist (`node_modules .git .brain .claude dist build coverage .venv __pycache__ target .next .nuxt`).
+- Apply M#3a binary blocklist + M#3b lockfile + minified/generated exclusions.
+
+**T4 — Group files into 3 tiers** using generic glob heuristics (stack-aware overrides arrive in M#3d):
+
+- **Tier 1** (core): files matching `src/**`, `lib/**`, `app/**`, `pkg/**`, `cmd/**`
+- **Tier 2** (api / services / top-level): files matching `api/**`, `services/**`, `internal/**`, OR top-level source files (no parent directory match for any other tier)
+- **Tier 3** (tests / scripts / docs): files matching `tests/**`, `__tests__/**`, `spec/**`, `e2e/**`, `scripts/**`, `docs/**`, `examples/**`
+- **Uncategorized**: anything not matching the above. These files will NOT be ingested automatically — the operator must pass them individually via M#3a or place them under a recognized prefix.
+
+A file matches the FIRST tier whose glob set it satisfies (precedence: 1 → 2 → 3 → uncategorized).
+
+**T5 — Present plan**:
+
+```
+Codebrain tiered ingest plan (codebrain v<version>)
+  Detected stack: <comma-separated list>
+
+  Tier  Files  Cost(~)  Locations (top entries)
+  ----  -----  -------  ----------------------------------
+  1     <N>    $<X.XX>  <dir1> (<count>), <dir2> (<count>)
+  2     <N>    $<X.XX>  <dir1> (<count>), top-level (<count>)
+  3     <N>    $<X.XX>  <dir1> (<count>)
+  --
+  Total <N>    $<X.XX>
+  Uncategorized: <N> files (will NOT be ingested; pass them via /brain ingest <file>)
+
+Proceed tier-by-tier? Type `yes` to start with Tier 1, or `cancel` to stop.
+```
+
+If `$ARGUMENTS` contains `--yes`: skip the prompt; proceed directly to T6 with auto-confirmation enabled for all tiers.
+
+On `cancel`: jump to T7 with no ingestion performed.
+
+Cost-per-tier formula: `cost = count × $0.006` (per M#3b cost-gate heuristic).
+
+**T6 — Per-tier loop** (Tier 1, then 2, then 3):
+
+For each tier:
+
+- If `$ARGUMENTS` contains `--yes`: auto-confirm; skip prompt.
+- Otherwise print: `Tier <N>: <count> files (~$<cost>). Proceed? (yes/no/show-files)`
+  - On `no`: skip tier; record `skipped_tier_<N>`; continue to next tier.
+  - On `show-files`: print the file list; re-prompt with the same `yes/no/show-files`.
+  - On `yes`: continue.
+- Invoke the **M#3b folder-ingest procedure** (`## When $ARGUMENTS starts with ingest <folder>` Steps 0–7) treating this tier's file list as the input. The linker runs at M#3b Step 6 after this tier's files complete — incremental visibility per tier rather than once at end.
+- Record per-tier results: `ingested[]`, `skipped[]`, `failed[]`, linker counts.
+
+**T7 — Final report**:
+
+```
+/brain ingest (tiered) complete (codebrain v<version>)
+  Detected stack: <comma-separated list>
+
+  Tier 1: <ingested>/<filtered> ingested, <skipped> skipped (unchanged), <failed> failed
+          Linker: <N cross-refs wired, M concepts created/updated>
+  Tier 2: <...>
+  Tier 3: <...>
+  Uncategorized: <N> files NOT ingested
+
+  Logged: .brain/log.md
+Next: try `/brain query "..."` (Milestone #5 — not yet implemented).
+      For stack-aware page templates (React components, Python modules, etc.),
+      see Milestone #3d.
+```
+
+Append to `.brain/log.md` under `## Activity History` with the grep-parseable prefix:
+```
+## [YYYY-MM-DD] plan | tiered ingest: T1=<count>, T2=<count>, T3=<count>; operator declined: <none|T1|T2|T3>; ingested: <N> total
+```
+
+If the operator typed `cancel` or declined all three tiers, still write the plan log entry — the plan presentation itself is historical data.
+
+**Error recovery** (per planner Rules + PRD #26): Tier 1 retry once; Tier 2 structured blocked report; do not exceed `max_iterations: 5`.
+

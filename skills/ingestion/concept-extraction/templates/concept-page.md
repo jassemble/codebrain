@@ -5,6 +5,10 @@ name: <!-- AGENT: short kebab-case identifier matching the file name, e.g. "auth
 last_ingested: <!-- AGENT: today's ISO date YYYY-MM-DD -->
 ingested_by: <!-- AGENT: your model identifier, e.g. claude-sonnet-4-6 -->
 tokens: <!-- AGENT: best estimate of page token count; informational, ±20% is fine, not enforced -->
+# Optional M#10d supersession fields — set ONLY when the concept is replaced by a renamed/refactored concept.
+# Once `superseded_by:` is set, /brain query SKIPS this page and follows the pointer to the replacement.
+# superseded_by: <slug of the replacement concept page, e.g. tenant-context>
+# supersedes: [<list of slugs this concept replaces, e.g. tenant, organization>]
 sources:
   <!-- AGENT: one entry per source file that contributes to this concept.
        Format (YAML list of objects with per-source-hash per PRD #32):

@@ -19,6 +19,8 @@ CB="$CODEBRAIN_ROOT/bin/codebrain.js"
 pass=0
 fail=0
 
+CB_VERSION="$(node -p "require('$CODEBRAIN_ROOT/package.json').version")"
+
 ok()   { pass=$((pass+1)); echo "PASS: $*"; }
 nope() { fail=$((fail+1)); echo "FAIL: $*"; }
 
@@ -37,26 +39,30 @@ for d in code concepts decisions; do
   [ -d "$USER_REPO/.brain/$d" ] && ok "dogfood: .brain/$d/ exists" || nope "dogfood: .brain/$d/ missing"
 done
 
-for f in index.md log.md overview.md decisions.md status.md .codebrain-version; do
+for f in index.md log.md overview.md decisions.md status.md .codebrain-version llms.txt; do
   [ -f "$USER_REPO/.brain/$f" ] && ok "dogfood: .brain/$f exists" || nope "dogfood: .brain/$f missing"
 done
 
 # Version marker
-grep -q '^0\.1\.0$' "$USER_REPO/.brain/.codebrain-version" 2>/dev/null \
-  && ok "dogfood: .codebrain-version is 0.1.0" \
-  || nope "dogfood: .codebrain-version content wrong"
+grep -qF "$CB_VERSION" "$USER_REPO/.brain/.codebrain-version" 2>/dev/null \
+  && ok "dogfood: .codebrain-version is $CB_VERSION" \
+  || nope "dogfood: .codebrain-version content wrong (expected $CB_VERSION)"
 
-# Slash commands copied + match source byte-for-byte
-for v in brain codebrain; do
-  src="$CODEBRAIN_ROOT/commands/$v.md"
-  dst="$USER_REPO/.claude/commands/$v.md"
-  [ -f "$dst" ] && ok "dogfood: .claude/commands/$v.md copied" || nope "dogfood: .claude/commands/$v.md missing"
-  if [ -f "$src" ] && [ -f "$dst" ]; then
-    diff -q "$src" "$dst" >/dev/null 2>&1 \
-      && ok "dogfood: .claude/commands/$v.md matches source byte-for-byte" \
-      || nope "dogfood: .claude/commands/$v.md differs from source"
-  fi
+# Per-verb namespaced files (M#12b)
+for verb in init ingest query lint learn status spec creds; do
+  dst="$USER_REPO/.claude/commands/brain/$verb.md"
+  [ -f "$dst" ] && ok "dogfood: .claude/commands/brain/$verb.md copied" || nope "dogfood: .claude/commands/brain/$verb.md missing"
 done
+
+# Top-level dispatcher copied + matches source byte-for-byte
+src="$CODEBRAIN_ROOT/commands/brain.md"
+dst="$USER_REPO/.claude/commands/brain.md"
+[ -f "$dst" ] && ok "dogfood: .claude/commands/brain.md copied" || nope "dogfood: .claude/commands/brain.md missing"
+if [ -f "$src" ] && [ -f "$dst" ]; then
+  diff -q "$src" "$dst" >/dev/null 2>&1 \
+    && ok "dogfood: .claude/commands/brain.md matches source byte-for-byte" \
+    || nope "dogfood: .claude/commands/brain.md differs from source"
+fi
 
 # settings.local.json: codebrain hook entries land in correct shape
 sj="$USER_REPO/.claude/settings.local.json"

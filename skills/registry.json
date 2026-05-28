@@ -5,87 +5,298 @@
       "tier": "detected",
       "version": "0.1.0",
       "detect": [
-        { "file_exists": "tsconfig.json" }
+        {
+          "file_exists": "tsconfig.json"
+        }
       ],
-      "applies_to_extensions": [".ts", ".tsx"]
+      "applies_to_extensions": [
+        ".ts",
+        ".tsx"
+      ],
+      "expert_skills": [
+        "ecc:typescript-patterns"
+      ]
     },
     "detected/react": {
       "tier": "detected",
       "version": "0.1.0",
       "detect": [
-        { "file_exists": "package.json", "contains": "\"react\"" }
+        {
+          "file_exists": "package.json",
+          "contains": "\"react\""
+        }
       ],
-      "applies_to_extensions": [".tsx", ".jsx"]
+      "applies_to_extensions": [
+        ".tsx",
+        ".jsx"
+      ],
+      "expert_skills": [
+        "ecc:react-patterns"
+      ]
     },
     "detected/python": {
       "tier": "detected",
       "version": "0.1.0",
       "detect": [
-        { "file_exists": "pyproject.toml" }
+        {
+          "file_exists": "pyproject.toml"
+        }
       ],
-      "applies_to_extensions": [".py"]
+      "applies_to_extensions": [
+        ".py"
+      ],
+      "expert_skills": [
+        "ecc:python-patterns"
+      ]
     },
     "detected/go": {
       "tier": "detected",
       "version": "0.1.0",
       "detect": [
-        { "file_exists": "go.mod" }
+        {
+          "file_exists": "go.mod"
+        }
       ],
-      "applies_to_extensions": [".go"]
+      "applies_to_extensions": [
+        ".go"
+      ],
+      "expert_skills": [
+        "ecc:golang-patterns"
+      ]
     },
     "detected/nestjs": {
       "tier": "detected",
       "version": "0.1.1",
       "detect": [
-        { "file_exists": "package.json", "contains": "\"@nestjs/core\"" }
+        {
+          "file_exists": "package.json",
+          "contains": "\"@nestjs/core\""
+        }
       ],
-      "applies_to_extensions": [".ts"],
-      "expert_skills": ["ecc:nestjs-patterns"]
+      "applies_to_extensions": [
+        ".ts"
+      ],
+      "expert_skills": [
+        "ecc:nestjs-patterns"
+      ]
     },
     "detected/nextjs": {
       "tier": "detected",
       "version": "0.1.1",
       "detect": [
-        { "file_exists": "package.json", "contains": "\"next\"" }
+        {
+          "file_exists": "package.json",
+          "contains": "\"next\""
+        }
       ],
-      "applies_to_extensions": [".tsx", ".jsx", ".ts", ".js"],
-      "expert_skills": ["ecc:nextjs-turbopack"]
+      "applies_to_extensions": [
+        ".tsx",
+        ".jsx",
+        ".ts",
+        ".js"
+      ],
+      "expert_skills": [
+        "ecc:nextjs-turbopack"
+      ]
     },
     "detected/express": {
       "tier": "detected",
       "version": "0.1.1",
       "detect": [
-        { "file_exists": "package.json", "contains": "\"express\"" }
+        {
+          "file_exists": "package.json",
+          "contains": "\"express\""
+        }
       ],
-      "applies_to_extensions": [".ts", ".js"],
-      "expert_skills": ["ecc:backend-patterns"]
+      "applies_to_extensions": [
+        ".ts",
+        ".js"
+      ],
+      "expert_skills": [
+        "ecc:backend-patterns"
+      ]
     },
     "detected/django": {
       "tier": "detected",
       "version": "0.1.1",
       "detect": [
-        { "file_exists": "manage.py" }
+        {
+          "file_exists": "manage.py"
+        }
       ],
-      "applies_to_extensions": [".py"],
-      "expert_skills": ["ecc:django-patterns", "ecc:django-security"]
+      "applies_to_extensions": [
+        ".py"
+      ],
+      "expert_skills": [
+        "ecc:django-patterns",
+        "ecc:django-security"
+      ]
     },
     "detected/fastapi": {
       "tier": "detected",
       "version": "0.1.1",
       "detect": [
-        { "file_exists": "pyproject.toml", "contains": "fastapi" }
+        {
+          "file_exists": "pyproject.toml",
+          "contains": "fastapi"
+        }
       ],
-      "applies_to_extensions": [".py"],
-      "expert_skills": ["ecc:fastapi-patterns"]
+      "applies_to_extensions": [
+        ".py"
+      ],
+      "expert_skills": [
+        "ecc:fastapi-patterns"
+      ]
     },
     "detected/springboot": {
       "tier": "detected",
       "version": "0.1.1",
       "detect": [
-        { "file_exists": "pom.xml", "contains": "spring-boot" }
+        {
+          "file_exists": "pom.xml",
+          "contains": "spring-boot"
+        }
       ],
-      "applies_to_extensions": [".java", ".kt"],
-      "expert_skills": ["ecc:springboot-patterns", "ecc:springboot-security"]
+      "applies_to_extensions": [
+        ".java",
+        ".kt"
+      ],
+      "expert_skills": [
+        "ecc:springboot-patterns",
+        "ecc:springboot-security"
+      ]
+    },
+    "detected/vue": {
+      "tier": "detected",
+      "version": "0.1.0",
+      "detect": [
+        {
+          "file_exists": "package.json",
+          "contains": "\"vue\""
+        }
+      ],
+      "applies_to_extensions": [
+        ".vue",
+        ".ts",
+        ".js"
+      ],
+      "expert_skills": [
+        "ecc:vue-patterns"
+      ]
+    },
+    "detected/rails": {
+      "tier": "detected",
+      "version": "0.1.0",
+      "detect": [
+        {
+          "file_exists": "Gemfile",
+          "contains": "rails"
+        }
+      ],
+      "applies_to_extensions": [
+        ".rb"
+      ],
+      "expert_skills": [
+        "ecc:rails-patterns"
+      ]
+    },
+    "detected/flask": {
+      "tier": "detected",
+      "version": "0.1.0",
+      "detect": [
+        {
+          "file_exists": "pyproject.toml",
+          "contains": "flask"
+        }
+      ],
+      "applies_to_extensions": [
+        ".py"
+      ],
+      "expert_skills": [
+        "ecc:flask-patterns"
+      ]
+    },
+    "detected/koa": {
+      "tier": "detected",
+      "version": "0.1.0",
+      "detect": [
+        {
+          "file_exists": "package.json",
+          "contains": "\"koa\""
+        }
+      ],
+      "applies_to_extensions": [
+        ".ts",
+        ".js"
+      ],
+      "expert_skills": [
+        "ecc:backend-patterns"
+      ]
+    },
+    "detected/hapi": {
+      "tier": "detected",
+      "version": "0.1.0",
+      "detect": [
+        {
+          "file_exists": "package.json",
+          "contains": "\"@hapi/hapi\""
+        }
+      ],
+      "applies_to_extensions": [
+        ".ts",
+        ".js"
+      ],
+      "expert_skills": [
+        "ecc:backend-patterns"
+      ]
+    },
+    "detected/gin": {
+      "tier": "detected",
+      "version": "0.1.0",
+      "detect": [
+        {
+          "file_exists": "go.mod",
+          "contains": "gin-gonic/gin"
+        }
+      ],
+      "applies_to_extensions": [
+        ".go"
+      ],
+      "expert_skills": [
+        "ecc:golang-patterns"
+      ]
+    },
+    "detected/echo": {
+      "tier": "detected",
+      "version": "0.1.0",
+      "detect": [
+        {
+          "file_exists": "go.mod",
+          "contains": "labstack/echo"
+        }
+      ],
+      "applies_to_extensions": [
+        ".go"
+      ],
+      "expert_skills": [
+        "ecc:golang-patterns"
+      ]
+    },
+    "detected/fiber": {
+      "tier": "detected",
+      "version": "0.1.0",
+      "detect": [
+        {
+          "file_exists": "go.mod",
+          "contains": "gofiber/fiber"
+        }
+      ],
+      "applies_to_extensions": [
+        ".go"
+      ],
+      "expert_skills": [
+        "ecc:golang-patterns"
+      ]
     }
   }
 }

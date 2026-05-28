@@ -13,6 +13,11 @@ CB="$CODEBRAIN_ROOT/bin/codebrain.js"
 pass=0
 fail=0
 
+# Source the current codebrain version from package.json once, so per-release
+# bumps don't require touching test assertions. Used by T1 (.codebrain-version
+# scaffold), T1 (slash-command version marker), and T8 (CLI version output).
+CB_VERSION="$(node -p "require('$CODEBRAIN_ROOT/package.json').version")"
+
 ok()   { pass=$((pass+1)); echo "PASS: $*"; }
 nope() { fail=$((fail+1)); echo "FAIL: $*"; }
 
@@ -46,17 +51,26 @@ done
 
 # .codebrain-version marker (PRD #33)
 [ -f "$USER_REPO/.brain/.codebrain-version" ] && ok "T1: .codebrain-version marker present" || nope "T1: .codebrain-version missing"
-grep -q '^0\.1\.0$' "$USER_REPO/.brain/.codebrain-version" 2>/dev/null \
-  && ok "T1: .codebrain-version contains 0.1.0" \
-  || nope "T1: .codebrain-version content wrong"
+grep -qF "$CB_VERSION" "$USER_REPO/.brain/.codebrain-version" 2>/dev/null \
+  && ok "T1: .codebrain-version contains $CB_VERSION" \
+  || nope "T1: .codebrain-version content wrong (expected $CB_VERSION)"
 
-# Slash-command templates with version marker
-for v in brain codebrain; do
+# Slash-command templates with version marker (top-level dispatchers)
+for v in brain; do
   f="$USER_REPO/.claude/commands/$v.md"
   [ -f "$f" ] && ok "T1: .claude/commands/$v.md present" || nope "T1: .claude/commands/$v.md missing"
-  head -1 "$f" 2>/dev/null | grep -q 'codebrain v0\.1\.0' \
+  head -1 "$f" 2>/dev/null | grep -qF "codebrain v$CB_VERSION" \
     && ok "T1: $v.md has version marker" \
-    || nope "T1: $v.md missing version marker"
+    || nope "T1: $v.md missing version marker (expected codebrain v$CB_VERSION)"
+done
+
+# Per-verb namespaced files (M#12b — /brain:<verb> layout)
+for verb in init ingest query lint learn status spec creds; do
+  f="$USER_REPO/.claude/commands/brain/$verb.md"
+  [ -f "$f" ] && ok "T1: .claude/commands/brain/$verb.md scaffolded" || nope "T1: .claude/commands/brain/$verb.md missing"
+  head -1 "$f" 2>/dev/null | grep -qF "codebrain v$CB_VERSION" \
+    && ok "T1: brain/$verb.md has version marker" \
+    || nope "T1: brain/$verb.md missing version marker"
 done
 
 # settings.local.json valid JSON
@@ -183,7 +197,7 @@ node -e "
 # === Test 8: CLI verbs =======================================================
 
 vers="$(node "$CB" version 2>&1)"
-[ "$vers" = "0.1.0" ] && ok "T8: 'codebrain version' prints 0.1.0" || nope "T8: version output was '$vers'"
+[ "$vers" = "$CB_VERSION" ] && ok "T8: 'codebrain version' prints $CB_VERSION" || nope "T8: version output was '$vers' (expected $CB_VERSION)"
 
 help_out="$(node "$CB" help 2>&1)"
 echo "$help_out" | grep -q 'codebrain' && ok "T8: 'codebrain help' prints usage" || nope "T8: help missing"
@@ -267,9 +281,6 @@ grep -q "AGENT:" "$CODEBRAIN_ROOT/skills/core/init/templates/overview-starter.md
   && ok "T11: brain.md init verb no longer stubbed as 'Milestone #2 not yet implemented'" \
   || nope "T11: brain.md init still stubbed"
 
-! grep -q 'init.*Milestone #2.*not yet implemented' "$CODEBRAIN_ROOT/commands/codebrain.md" \
-  && ok "T11: codebrain.md init verb no longer stubbed" \
-  || nope "T11: codebrain.md init still stubbed"
 
 # Other Milestone-N verbs ARE still stubbed
 for milestone in 3 5 6 7; do
@@ -279,31 +290,20 @@ for milestone in 3 5 6 7; do
 done
 
 # brain.md has the full When-init procedure
-grep -q "When \`\$ARGUMENTS\` is \`init\`" "$CODEBRAIN_ROOT/commands/brain.md" \
+grep -q "When \`\$ARGUMENTS\` is \`init\`" "$CODEBRAIN_ROOT/commands/brain/init.md" \
   && ok "T11: brain.md has 'When \$ARGUMENTS is init' section" \
   || nope "T11: brain.md missing init agent procedure section"
 
-grep -q "Step 1 — Preconditions" "$CODEBRAIN_ROOT/commands/brain.md" \
+grep -q "Step 1 — Preconditions" "$CODEBRAIN_ROOT/commands/brain/init.md" \
   && ok "T11: brain.md has Step 1 (Preconditions)" \
   || nope "T11: brain.md missing Step 1"
 
-grep -q "Step 7 — Report" "$CODEBRAIN_ROOT/commands/brain.md" \
+grep -q "Step 7 — Report" "$CODEBRAIN_ROOT/commands/brain/init.md" \
   && ok "T11: brain.md has Step 7 (Report)" \
   || nope "T11: brain.md missing Step 7"
 
-# === Test 12: alias parity — init agent procedure identical between brain.md
-# and codebrain.md. (The /brand-specific help text above the procedure
-# intentionally differs — brain.md says "/brain ..." and codebrain.md says
-# "/codebrain ..." — so we compare only the H2 procedure section, anchored at
-# the section header, to end of file.)
+# === Test 12: (removed in v0.2.0 — /codebrain alias was dropped) ============
 
-brain_proc=$(sed -n '/^## When `\$ARGUMENTS` is `init`$/,$p' "$CODEBRAIN_ROOT/commands/brain.md")
-cb_proc=$(sed -n '/^## When `\$ARGUMENTS` is `init`$/,$p' "$CODEBRAIN_ROOT/commands/codebrain.md")
-if [ "$brain_proc" = "$cb_proc" ] && [ -n "$brain_proc" ]; then
-  ok "T12: brain.md and codebrain.md init agent procedure is byte-identical"
-else
-  nope "T12: alias drift in init agent procedure"
-fi
 
 # === Test 13: npm pack includes new M#2 templates ============================
 
@@ -402,62 +402,51 @@ agent_directive_count=$(grep -c 'AGENT:' "$CODEBRAIN_ROOT/skills/ingestion/page-
   && ok "T15: brain.md old M#3 ingest stub is gone" \
   || nope "T15: brain.md old M#3 stub still present"
 
-! grep -q '| `ingest` | not implemented | `Milestone #3 (Ingest pipeline)' "$CODEBRAIN_ROOT/commands/codebrain.md" \
-  && ok "T15: codebrain.md old M#3 ingest stub is gone" \
-  || nope "T15: codebrain.md old M#3 stub still present"
 
-# Single-file row is wired
-grep -q 'ingest <single-file-path>` | \*\*implemented (M#3a)\*\*' "$CODEBRAIN_ROOT/commands/brain.md" \
-  && ok "T15: brain.md single-file ingest wired (M#3a)" \
-  || nope "T15: brain.md single-file ingest not wired"
+# Dispatch table mentions the namespaced ingest forms (post-M#12b)
+grep -qF '/brain:ingest <file>' "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T15: brain.md dispatch table mentions /brain:ingest <file>" \
+  || nope "T15: brain.md dispatch table missing /brain:ingest <file>"
 
-# Folder + no-arg rows still stubbed with correct M#3b/M#3c pointers
-grep -q 'Milestone #3b (folder ingest' "$CODEBRAIN_ROOT/commands/brain.md" \
-  && ok "T15: brain.md folder-ingest stubbed → M#3b" \
-  || nope "T15: brain.md folder pointer missing"
+grep -qF '/brain:ingest <folder>' "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T15: brain.md dispatch table mentions /brain:ingest <folder>" \
+  || nope "T15: brain.md dispatch table missing /brain:ingest <folder>"
 
-grep -q 'Milestone #3c (tiered auto-prioritize' "$CODEBRAIN_ROOT/commands/brain.md" \
-  && ok "T15: brain.md no-arg ingest stubbed → M#3c" \
-  || nope "T15: brain.md no-arg pointer missing"
+grep -qF '/brain:ingest`' "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T15: brain.md dispatch table mentions /brain:ingest (no-arg)" \
+  || nope "T15: brain.md dispatch table missing /brain:ingest (no-arg)"
 
 # Procedure section present with required headers
-grep -qF '## When `$ARGUMENTS` starts with `ingest <file>`' "$CODEBRAIN_ROOT/commands/brain.md" \
+grep -qF '## When `$ARGUMENTS` starts with `ingest <file>`' "$CODEBRAIN_ROOT/commands/brain/ingest.md" \
   && ok "T15: brain.md has 'When \$ARGUMENTS starts with ingest <file>' section" \
   || nope "T15: brain.md missing ingest procedure section"
 
-grep -qF 'Step 0 — Argument parsing + path guards' "$CODEBRAIN_ROOT/commands/brain.md" \
+grep -qF 'Step 0 — Argument parsing + path guards' "$CODEBRAIN_ROOT/commands/brain/ingest.md" \
   && ok "T15: brain.md ingest has Step 0 (Argument parsing + path guards)" \
   || nope "T15: brain.md missing Step 0"
 
-grep -qF 'Step 7 — Report' "$CODEBRAIN_ROOT/commands/brain.md" \
+grep -qF 'Step 7 — Report' "$CODEBRAIN_ROOT/commands/brain/ingest.md" \
   && ok "T15: brain.md ingest has Step 7 (Report)" \
   || nope "T15: brain.md missing Step 7"
 
 # Critical sweep findings present in procedure
-grep -qF 'Out-of-repo guard' "$CODEBRAIN_ROOT/commands/brain.md" \
+grep -qF 'Out-of-repo guard' "$CODEBRAIN_ROOT/commands/brain/ingest.md" \
   && ok "T15: brain.md has out-of-repo guard" \
   || nope "T15: brain.md missing out-of-repo guard"
 
-grep -qF 'Symlink guard' "$CODEBRAIN_ROOT/commands/brain.md" \
+grep -qF 'Symlink guard' "$CODEBRAIN_ROOT/commands/brain/ingest.md" \
   && ok "T15: brain.md has symlink guard" \
   || nope "T15: brain.md missing symlink guard"
 
-grep -qF 'Binary-file guard' "$CODEBRAIN_ROOT/commands/brain.md" \
+grep -qF 'Binary-file guard' "$CODEBRAIN_ROOT/commands/brain/ingest.md" \
   && ok "T15: brain.md has binary-file guard" \
   || nope "T15: brain.md missing binary-file guard"
 
-grep -qF 'format-prefixed' "$CODEBRAIN_ROOT/commands/brain.md" \
+grep -qF 'format-prefixed' "$CODEBRAIN_ROOT/commands/brain/ingest.md" \
   && ok "T15: brain.md mentions format-prefixed source hash" \
   || nope "T15: brain.md missing format-prefixed hash docs"
 
 # Alias parity: ingest procedure section is byte-identical
-brain_proc=$(sed -n '/^## When `\$ARGUMENTS` starts with `ingest <file>`$/,$p' "$CODEBRAIN_ROOT/commands/brain.md")
-cb_proc=$(sed -n '/^## When `\$ARGUMENTS` starts with `ingest <file>`$/,$p' "$CODEBRAIN_ROOT/commands/codebrain.md")
-if [ "$brain_proc" = "$cb_proc" ] && [ -n "$brain_proc" ]; then
-  ok "T15: brain.md and codebrain.md ingest procedure byte-identical"
-else
-  nope "T15: alias drift in ingest procedure"
-fi
 
 # npm pack includes new M#3a files
 pack_list="$(cd "$CODEBRAIN_ROOT" && npm pack --dry-run 2>&1)"
@@ -565,16 +554,16 @@ grep -qE 'hash:[[:space:]]*git:' "$CODEBRAIN_ROOT/skills/ingestion/concept-extra
 
 # === Test 17: M#3b — folder + linker procedure wiring =======================
 
-grep -q 'ingest <folder/>` | \*\*implemented (M#3b)\*\*' "$CODEBRAIN_ROOT/commands/brain.md" \
-  && ok "T17: brain.md folder dispatch wired (M#3b)" \
-  || nope "T17: brain.md folder dispatch not wired"
+grep -qF '/brain:ingest <folder>' "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T17: brain.md dispatch table mentions /brain:ingest <folder>" \
+  || nope "T17: brain.md dispatch table missing /brain:ingest <folder>"
 
-grep -q 'Milestone #3c (tiered auto-prioritize' "$CODEBRAIN_ROOT/commands/brain.md" \
-  && ok "T17: brain.md no-arg ingest still M#3c stub" \
-  || nope "T17: brain.md no-arg pointer missing"
+grep -qF '/brain:ingest`' "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T17: brain.md dispatch table mentions /brain:ingest (no-arg)" \
+  || nope "T17: brain.md dispatch table missing /brain:ingest (no-arg)"
 
 # Folder procedure section
-grep -qF '## When `$ARGUMENTS` starts with `ingest <folder>`' "$CODEBRAIN_ROOT/commands/brain.md" \
+grep -qF '## When `$ARGUMENTS` starts with `ingest <folder>`' "$CODEBRAIN_ROOT/commands/brain/ingest.md" \
   && ok "T17: brain.md has folder-ingest procedure section" \
   || nope "T17: brain.md missing folder-ingest procedure"
 
@@ -586,46 +575,32 @@ for needle in \
   'auto-confirm threshold' \
   'Skip-and-report'
 do
-  grep -qF "$needle" "$CODEBRAIN_ROOT/commands/brain.md" \
+  grep -qF "$needle" "$CODEBRAIN_ROOT/commands/brain/ingest.md" \
     && ok "T17: brain.md folder procedure mentions '$needle'" \
     || nope "T17: brain.md folder procedure missing '$needle'"
 done
 
 # Linker procedure section
-grep -qF '## Linker procedure (invoked after folder ingest)' "$CODEBRAIN_ROOT/commands/brain.md" \
+grep -qF '## Linker procedure (invoked after folder ingest)' "$CODEBRAIN_ROOT/commands/brain/ingest.md" \
   && ok "T17: brain.md has linker procedure section" \
   || nope "T17: brain.md missing linker procedure"
 
 # Linker procedure L1-L6
 for step in 'L1 — Load inputs' 'L2 — Wire bidirectional' 'L3 — Discover concept' 'L4 — Materialize concept' 'L5 — Update derived files' 'L6 — Linker report'; do
-  grep -qF "$step" "$CODEBRAIN_ROOT/commands/brain.md" \
+  grep -qF "$step" "$CODEBRAIN_ROOT/commands/brain/ingest.md" \
     && ok "T17: brain.md linker procedure has '$step'" \
     || nope "T17: brain.md linker procedure missing '$step'"
 done
 
 # Inlined concept-page template + per-source-hash
-grep -qF 'kind: concept' "$CODEBRAIN_ROOT/commands/brain.md" \
+grep -qF 'kind: concept' "$CODEBRAIN_ROOT/commands/brain/ingest.md" \
   && ok "T17: brain.md linker procedure inlines concept template (kind: concept)" \
   || nope "T17: brain.md linker procedure missing inlined concept template"
 
 # Alias parity: folder section (cross-platform — awk handles the boundary cleanly;
 # macOS BSD head rejects `head -n -1`, GNU-only feature)
-brain_folder=$(awk '/^## When `\$ARGUMENTS` starts with `ingest <folder>`$/{flag=1; print; next} /^## Linker procedure/{flag=0} flag' "$CODEBRAIN_ROOT/commands/brain.md")
-cb_folder=$(awk '/^## When `\$ARGUMENTS` starts with `ingest <folder>`$/{flag=1; print; next} /^## Linker procedure/{flag=0} flag' "$CODEBRAIN_ROOT/commands/codebrain.md")
-if [ "$brain_folder" = "$cb_folder" ] && [ -n "$brain_folder" ]; then
-  ok "T17: brain.md and codebrain.md folder-ingest procedure byte-identical"
-else
-  nope "T17: alias drift in folder-ingest procedure"
-fi
 
 # Alias parity: linker section
-brain_linker=$(sed -n '/^## Linker procedure (invoked after folder ingest)$/,$p' "$CODEBRAIN_ROOT/commands/brain.md")
-cb_linker=$(sed -n '/^## Linker procedure (invoked after folder ingest)$/,$p' "$CODEBRAIN_ROOT/commands/codebrain.md")
-if [ "$brain_linker" = "$cb_linker" ] && [ -n "$brain_linker" ]; then
-  ok "T17: brain.md and codebrain.md linker procedure byte-identical"
-else
-  nope "T17: alias drift in linker procedure"
-fi
 
 # npm pack includes new files
 pack_list="$(cd "$CODEBRAIN_ROOT" && npm pack --dry-run 2>&1)"
@@ -681,45 +656,38 @@ planner_rules=$(grep -cE '^- \*\*(NEVER|ALWAYS)' "$CODEBRAIN_ROOT/agents/brain/p
 
 # === Test 19: M#3c — no-arg tiered ingest wiring ============================
 
-grep -qF '**implemented (M#3c)**' "$CODEBRAIN_ROOT/commands/brain.md" \
-  && ok "T19: brain.md no-arg ingest wired (M#3c)" \
-  || nope "T19: brain.md no-arg ingest not wired"
+grep -qF '/brain:ingest`' "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T19: brain.md dispatch table mentions /brain:ingest (no-arg)" \
+  || nope "T19: brain.md dispatch table missing /brain:ingest (no-arg)"
 
-grep -qF '## When `$ARGUMENTS` is just `ingest`' "$CODEBRAIN_ROOT/commands/brain.md" \
+grep -qF '## When `$ARGUMENTS` is just `ingest`' "$CODEBRAIN_ROOT/commands/brain/ingest.md" \
   && ok "T19: brain.md has tiered-ingest procedure section" \
   || nope "T19: brain.md missing tiered-ingest procedure"
 
 # Step headers T0–T7
 for step in 'T0 — Argument parsing' 'T1 — Preconditions' 'T2 — Load stack detection' 'T3 — Walk + filter' 'T4 — Group files into 3 tiers' 'T5 — Present plan' 'T6 — Per-tier loop' 'T7 — Final report'; do
-  grep -qF "$step" "$CODEBRAIN_ROOT/commands/brain.md" \
+  grep -qF "$step" "$CODEBRAIN_ROOT/commands/brain/ingest.md" \
     && ok "T19: brain.md tiered procedure has '$step'" \
     || nope "T19: brain.md tiered procedure missing '$step'"
 done
 
 # Tier keywords + heuristics documented
 for needle in 'Tier 1' 'Tier 2' 'Tier 3' 'Uncategorized' 'src/**' 'tests/**' 'cost = count'; do
-  grep -qF "$needle" "$CODEBRAIN_ROOT/commands/brain.md" \
+  grep -qF "$needle" "$CODEBRAIN_ROOT/commands/brain/ingest.md" \
     && ok "T19: brain.md tiered procedure mentions '$needle'" \
     || nope "T19: brain.md tiered procedure missing '$needle'"
 done
 
 # Cancel + --yes paths documented
-grep -qF '`cancel`' "$CODEBRAIN_ROOT/commands/brain.md" \
+grep -qF '`cancel`' "$CODEBRAIN_ROOT/commands/brain/ingest.md" \
   && ok "T19: brain.md tiered procedure documents cancel path" \
   || nope "T19: brain.md tiered procedure missing cancel path"
 
-grep -qF -- '--yes' "$CODEBRAIN_ROOT/commands/brain.md" \
+grep -qF -- '--yes' "$CODEBRAIN_ROOT/commands/brain/ingest.md" \
   && ok "T19: brain.md tiered procedure documents --yes path" \
   || nope "T19: brain.md tiered procedure missing --yes path"
 
 # Alias parity (awk for cross-platform)
-brain_tiered=$(awk '/^## When `\$ARGUMENTS` is just `ingest`$/{flag=1} flag' "$CODEBRAIN_ROOT/commands/brain.md")
-cb_tiered=$(awk '/^## When `\$ARGUMENTS` is just `ingest`$/{flag=1} flag' "$CODEBRAIN_ROOT/commands/codebrain.md")
-if [ "$brain_tiered" = "$cb_tiered" ] && [ -n "$brain_tiered" ]; then
-  ok "T19: brain.md and codebrain.md tiered-ingest procedure byte-identical"
-else
-  nope "T19: alias drift in tiered-ingest procedure"
-fi
 
 # README onboarding updated (sweep finding C4)
 grep -q 'Three-step onboarding' "$CODEBRAIN_ROOT/README.md" \
@@ -1066,32 +1034,25 @@ grep -qF 'applies_to_extensions' "$CODEBRAIN_ROOT/skills/README.md" \
 
 # === Test 25: M#3d — brain.md Step 4b + alias parity ========================
 
-grep -qF 'Step 4b — Stack-aware extras' "$CODEBRAIN_ROOT/commands/brain.md" \
+grep -qF 'Step 4b — Stack-aware extras' "$CODEBRAIN_ROOT/commands/brain/ingest.md" \
   && ok "T25: brain.md has Step 4b (Stack-aware extras)" \
   || nope "T25: brain.md missing Step 4b"
 
 # All 4 detected sub-sections present
 for stack in react typescript python go; do
-  grep -qF "detected/${stack} extras" "$CODEBRAIN_ROOT/commands/brain.md" \
+  grep -qF "detected/${stack} extras" "$CODEBRAIN_ROOT/commands/brain/ingest.md" \
     && ok "T25: brain.md Step 4b has detected/${stack} sub-section" \
     || nope "T25: brain.md Step 4b missing detected/${stack} sub-section"
 done
 
 # Critical sections per stack present in the inlined block
 for section in 'Component' 'Hooks' 'Effects' 'Public API' 'Dunder methods' 'Receivers' 'Build tags' 'Types & Interfaces' 'Generics'; do
-  grep -qF "$section" "$CODEBRAIN_ROOT/commands/brain.md" \
+  grep -qF "$section" "$CODEBRAIN_ROOT/commands/brain/ingest.md" \
     && ok "T25: brain.md Step 4b inlines '$section' section" \
     || nope "T25: brain.md Step 4b missing '$section' section"
 done
 
 # Alias parity — Step 4b through end of Step 5 boundary
-brain_4b=$(awk '/^\*\*Step 4b — Stack-aware extras\*\*/{flag=1} /^\*\*Step 5 — Write the page\*\*/{flag=0} flag' "$CODEBRAIN_ROOT/commands/brain.md")
-cb_4b=$(awk '/^\*\*Step 4b — Stack-aware extras\*\*/{flag=1} /^\*\*Step 5 — Write the page\*\*/{flag=0} flag' "$CODEBRAIN_ROOT/commands/codebrain.md")
-if [ "$brain_4b" = "$cb_4b" ] && [ -n "$brain_4b" ]; then
-  ok "T25: brain.md and codebrain.md Step 4b byte-identical"
-else
-  nope "T25: alias drift in Step 4b"
-fi
 
 # === Test 26: M#5 — query agent + core/query skill ==========================
 
@@ -1169,50 +1130,43 @@ echo "$pack_list" | grep -q 'skills/core/query/SKILL.md' \
 
 # === Test 27: M#5 — query procedure wiring ==================================
 
-grep -qF '**implemented (M#5)**' "$CODEBRAIN_ROOT/commands/brain.md" \
-  && ok "T27: brain.md query wired (M#5)" \
-  || nope "T27: brain.md query not wired"
+grep -qF '/brain:query' "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T27: brain.md dispatch table mentions /brain:query" \
+  || nope "T27: brain.md dispatch table missing /brain:query"
 
-grep -qF '## When `$ARGUMENTS` starts with `query`' "$CODEBRAIN_ROOT/commands/brain.md" \
+grep -qF '## When `$ARGUMENTS` starts with `query`' "$CODEBRAIN_ROOT/commands/brain/query.md" \
   && ok "T27: brain.md has query procedure section" \
   || nope "T27: brain.md missing query procedure"
 
 # Step headers Q0-Q7
 for q in 'Q0 — Argument parsing' 'Q1 — Preconditions' 'Q2 — Read the index' 'Q3 — Select 1' 'Q4 — Freshness check' 'Q5 — Refresh STALE' 'Q6 — Read the candidate' 'Q7 — Output'; do
-  grep -qF "$q" "$CODEBRAIN_ROOT/commands/brain.md" \
+  grep -qF "$q" "$CODEBRAIN_ROOT/commands/brain/query.md" \
     && ok "T27: brain.md query procedure has '$q'" \
     || nope "T27: brain.md query procedure missing '$q'"
 done
 
 # Critical keywords/concepts
 for needle in 'pointer-first' 'hash compare' 'promote' '[[code/' 'src/api/auth.ts:42' 'NEVER fabricate'; do
-  grep -qF "$needle" "$CODEBRAIN_ROOT/commands/brain.md" \
+  grep -qF "$needle" "$CODEBRAIN_ROOT/commands/brain/query.md" \
     && ok "T27: brain.md query procedure mentions '$needle'" \
     || nope "T27: brain.md query procedure missing '$needle'"
 done
 
 # Flags documented
-grep -qF -- '--thorough' "$CODEBRAIN_ROOT/commands/brain.md" \
+grep -qF -- '--thorough' "$CODEBRAIN_ROOT/commands/brain/query.md" \
   && ok "T27: brain.md query procedure documents --thorough" \
   || nope "T27: brain.md query procedure missing --thorough"
 
-grep -qF -- '--no-refresh' "$CODEBRAIN_ROOT/commands/brain.md" \
+grep -qF -- '--no-refresh' "$CODEBRAIN_ROOT/commands/brain/query.md" \
   && ok "T27: brain.md query procedure documents --no-refresh" \
   || nope "T27: brain.md query procedure missing --no-refresh"
 
 # Log prefix
-grep -qF '[YYYY-MM-DD] query |' "$CODEBRAIN_ROOT/commands/brain.md" \
+grep -qF '[YYYY-MM-DD] query |' "$CODEBRAIN_ROOT/commands/brain/query.md" \
   && ok "T27: brain.md query procedure documents grep-parseable log prefix" \
   || nope "T27: brain.md query procedure missing log prefix"
 
 # Alias parity for query section
-brain_query=$(awk '/^## When `\$ARGUMENTS` starts with `query`$/{flag=1} flag' "$CODEBRAIN_ROOT/commands/brain.md")
-cb_query=$(awk '/^## When `\$ARGUMENTS` starts with `query`$/{flag=1} flag' "$CODEBRAIN_ROOT/commands/codebrain.md")
-if [ "$brain_query" = "$cb_query" ] && [ -n "$brain_query" ]; then
-  ok "T27: brain.md and codebrain.md query procedure byte-identical"
-else
-  nope "T27: alias drift in query procedure"
-fi
 
 # === Test 28: M#6 — verifier agent + core/lint skill ========================
 
@@ -1290,24 +1244,24 @@ echo "$pack_list" | grep -q 'skills/core/lint/SKILL.md' \
 
 # === Test 29: M#6 — lint procedure wiring ===================================
 
-grep -qF '**implemented (M#6)**' "$CODEBRAIN_ROOT/commands/brain.md" \
-  && ok "T29: brain.md lint wired (M#6)" \
-  || nope "T29: brain.md lint not wired"
+grep -qF '/brain:lint' "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T29: brain.md dispatch table mentions /brain:lint" \
+  || nope "T29: brain.md dispatch table missing /brain:lint"
 
-grep -qF '## When `$ARGUMENTS` starts with `lint`' "$CODEBRAIN_ROOT/commands/brain.md" \
+grep -qF '## When `$ARGUMENTS` starts with `lint`' "$CODEBRAIN_ROOT/commands/brain/lint.md" \
   && ok "T29: brain.md has lint procedure section" \
   || nope "T29: brain.md missing lint procedure"
 
 # Step headers L0-L7 + L6b
 for l in 'L0 — Argument parsing' 'L1 — Preconditions' 'L2 — Inventory' 'L3 — Defects' 'L4 — Gaps' 'L5 — Contradictions' 'L6 — Suggested questions' 'L6b' 'L7 — Output'; do
-  grep -qF "$l" "$CODEBRAIN_ROOT/commands/brain.md" \
+  grep -qF "$l" "$CODEBRAIN_ROOT/commands/brain/lint.md" \
     && ok "T29: brain.md lint procedure has '$l'" \
     || nope "T29: brain.md lint procedure missing '$l'"
 done
 
 # Critical keywords
 for needle in 'hash compare' 'schema' 'wikilink' 'orphan' 'stub' 'contradiction' 'false-positive'; do
-  grep -qF "$needle" "$CODEBRAIN_ROOT/commands/brain.md" \
+  grep -qF "$needle" "$CODEBRAIN_ROOT/commands/brain/lint.md" \
     && ok "T29: brain.md lint procedure mentions '$needle'" \
     || nope "T29: brain.md lint procedure missing '$needle'"
 done
@@ -1315,24 +1269,17 @@ done
 # Flags documented
 for flag in -- '--fix' '--yes' '--include-contradictions'; do
   if [ "$flag" = "--" ]; then continue; fi
-  grep -qF -- "$flag" "$CODEBRAIN_ROOT/commands/brain.md" \
+  grep -qF -- "$flag" "$CODEBRAIN_ROOT/commands/brain/lint.md" \
     && ok "T29: brain.md lint procedure documents $flag" \
     || nope "T29: brain.md lint procedure missing $flag"
 done
 
 # Log prefix
-grep -qF '[YYYY-MM-DD] lint |' "$CODEBRAIN_ROOT/commands/brain.md" \
+grep -qF '[YYYY-MM-DD] lint |' "$CODEBRAIN_ROOT/commands/brain/lint.md" \
   && ok "T29: brain.md lint procedure documents grep-parseable log prefix" \
   || nope "T29: brain.md lint procedure missing log prefix"
 
 # Alias parity
-brain_lint=$(awk '/^## When `\$ARGUMENTS` starts with `lint`$/{flag=1} flag' "$CODEBRAIN_ROOT/commands/brain.md")
-cb_lint=$(awk '/^## When `\$ARGUMENTS` starts with `lint`$/{flag=1} flag' "$CODEBRAIN_ROOT/commands/codebrain.md")
-if [ "$brain_lint" = "$cb_lint" ] && [ -n "$brain_lint" ]; then
-  ok "T29: brain.md and codebrain.md lint procedure byte-identical"
-else
-  nope "T29: alias drift in lint procedure"
-fi
 
 # === Test 30: M#8 — dogfood scripts + validation framework ==================
 
@@ -1579,46 +1526,46 @@ node -e "
   && ok "T35: observations have only whitelisted fields (ts, tool, path, status)" \
   || nope "T35: observations include extra fields (privacy guard broken)"
 
-# Dispatch table updated — markdown escapes table-pipes with backslash, so match on the verb token alone
-grep -qE 'learn \{on\\?\|off\\?\|status\\?\|consolidate\}' "$CODEBRAIN_ROOT/commands/brain.md" \
-  && ok "T35: brain.md learn dispatch row updated" \
-  || nope "T35: brain.md learn dispatch not updated"
+# Dispatch table mentions the namespaced learn + status forms (post-M#12b)
+grep -qF '/brain:learn' "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T35: brain.md dispatch table mentions /brain:learn" \
+  || nope "T35: brain.md dispatch table missing /brain:learn"
 
-grep -qE '\| ``?status``? \| \*\*implemented \(M#7\)\*\*' "$CODEBRAIN_ROOT/commands/brain.md" \
-  && ok "T35: brain.md status dispatch row updated" \
-  || nope "T35: brain.md status dispatch not updated"
+grep -qF '/brain:status' "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T35: brain.md dispatch table mentions /brain:status" \
+  || nope "T35: brain.md dispatch table missing /brain:status"
 
-# Procedure sections
-grep -qF '## When `$ARGUMENTS` starts with `learn`' "$CODEBRAIN_ROOT/commands/brain.md" \
-  && ok "T35: brain.md has learn procedure section" \
-  || nope "T35: brain.md missing learn procedure"
+# Procedure sections (per-verb files)
+grep -qF '## When `$ARGUMENTS` starts with `learn`' "$CODEBRAIN_ROOT/commands/brain/learn.md" \
+  && ok "T35: brain/learn.md has learn procedure section" \
+  || nope "T35: brain/learn.md missing learn procedure"
 
-grep -qF '## When `$ARGUMENTS` is just `status`' "$CODEBRAIN_ROOT/commands/brain.md" \
-  && ok "T35: brain.md has status procedure section" \
-  || nope "T35: brain.md missing status procedure"
+grep -qF '## When `$ARGUMENTS` is just `status`' "$CODEBRAIN_ROOT/commands/brain/status.md" \
+  && ok "T35: brain/status.md has status procedure section" \
+  || nope "T35: brain/status.md missing status procedure"
 
-# Step headers
-for s in 'Le0' 'Le3' 'Le6' 'Le7' 'S0' 'S1' 'S2' 'S3'; do
-  grep -qF "$s" "$CODEBRAIN_ROOT/commands/brain.md" \
-    && ok "T35: brain.md has $s step header" \
-    || nope "T35: brain.md missing $s"
+# Step headers — learn has Le*, status has S*
+for s in 'Le0' 'Le3' 'Le6' 'Le7'; do
+  grep -qF "$s" "$CODEBRAIN_ROOT/commands/brain/learn.md" \
+    && ok "T35: brain/learn.md has $s step header" \
+    || nope "T35: brain/learn.md missing $s"
+done
+
+for s in 'S0' 'S1' 'S2' 'S3'; do
+  grep -qF "$s" "$CODEBRAIN_ROOT/commands/brain/status.md" \
+    && ok "T35: brain/status.md has $s step header" \
+    || nope "T35: brain/status.md missing $s"
 done
 
 # Critical keywords
 for needle in 'Privacy notice' 'XDG' 'consolidate' 'instinct' 'pattern' 'toggle' 'observations.jsonl'; do
-  grep -qF "$needle" "$CODEBRAIN_ROOT/commands/brain.md" \
-    && ok "T35: brain.md mentions '$needle'" \
-    || nope "T35: brain.md missing '$needle'"
+  grep -qF "$needle" "$CODEBRAIN_ROOT/commands/brain/learn.md" \
+    && ok "T35: brain/learn.md mentions '$needle'" \
+    || nope "T35: brain/learn.md missing '$needle'"
 done
 
-# Alias parity for both new sections
-brain_learn=$(awk '/^## When `\$ARGUMENTS` starts with `learn`$/{flag=1} /^## When `\$ARGUMENTS` is just `status`$/{flag=0} flag' "$CODEBRAIN_ROOT/commands/brain.md")
-cb_learn=$(awk '/^## When `\$ARGUMENTS` starts with `learn`$/{flag=1} /^## When `\$ARGUMENTS` is just `status`$/{flag=0} flag' "$CODEBRAIN_ROOT/commands/codebrain.md")
-[ "$brain_learn" = "$cb_learn" ] && [ -n "$brain_learn" ] && ok "T35: brain.md / codebrain.md learn procedure byte-identical" || nope "T35: alias drift in learn procedure"
+# Alias parity for both per-verb files (procedure bodies byte-identical)
 
-brain_status=$(awk '/^## When `\$ARGUMENTS` is just `status`$/{flag=1} flag' "$CODEBRAIN_ROOT/commands/brain.md")
-cb_status=$(awk '/^## When `\$ARGUMENTS` is just `status`$/{flag=1} flag' "$CODEBRAIN_ROOT/commands/codebrain.md")
-[ "$brain_status" = "$cb_status" ] && [ -n "$brain_status" ] && ok "T35: brain.md / codebrain.md status procedure byte-identical" || nope "T35: alias drift in status procedure"
 
 # npm pack includes the new files
 echo "$pack_list" | grep -q 'scripts/hooks/observe.js' && ok "T35: observe.js in npm pack" || nope "T35: observe.js missing from npm pack"
@@ -1688,26 +1635,17 @@ node -e "
   || nope "T36: expert_skills assignments wrong"
 
 # brain.md has Step 4b.2 — Expert skill bridge
-grep -qF 'Step 4b.2 — Expert skill bridge' "$CODEBRAIN_ROOT/commands/brain.md" \
+grep -qF 'Step 4b.2 — Expert skill bridge' "$CODEBRAIN_ROOT/commands/brain/ingest.md" \
   && ok "T36: brain.md has Step 4b.2 (Expert skill bridge)" \
   || nope "T36: brain.md missing Step 4b.2"
 
 # brain.md mentions all 6 bridge targets
 for target in 'ecc:nestjs-patterns' 'ecc:nextjs-turbopack' 'ecc:backend-patterns' 'ecc:django-patterns' 'ecc:fastapi-patterns' 'ecc:springboot-patterns'; do
-  grep -qF "$target" "$CODEBRAIN_ROOT/commands/brain.md" \
+  grep -qF "$target" "$CODEBRAIN_ROOT/commands/brain/ingest.md" \
     && ok "T36: brain.md Step 4b.2 mentions '$target'" \
     || nope "T36: brain.md Step 4b.2 missing '$target'"
 done
 
-# Alias parity for Step 4b.2 — brain.md and codebrain.md byte-identical from
-# "**Step 4b.2 — Expert skill bridge**" through "**Step 5 — Write the page**"
-brain_4b2=$(awk '/^\*\*Step 4b\.2 — Expert skill bridge\*\*/{flag=1} /^\*\*Step 5 — Write the page\*\*/{flag=0} flag' "$CODEBRAIN_ROOT/commands/brain.md")
-cb_4b2=$(awk '/^\*\*Step 4b\.2 — Expert skill bridge\*\*/{flag=1} /^\*\*Step 5 — Write the page\*\*/{flag=0} flag' "$CODEBRAIN_ROOT/commands/codebrain.md")
-if [ "$brain_4b2" = "$cb_4b2" ] && [ -n "$brain_4b2" ]; then
-  ok "T36: brain.md and codebrain.md Step 4b.2 byte-identical"
-else
-  nope "T36: alias drift in Step 4b.2"
-fi
 
 # npm pack includes the 6 new SKILL.md files
 pack_list="$(cd "$CODEBRAIN_ROOT" && npm pack --dry-run 2>&1)"
@@ -1721,6 +1659,718 @@ done
 grep -qF 'Operator-discovered gaps' "$CODEBRAIN_ROOT/.claude/validation/v0.1-baseline.md" \
   && ok "T36: v0.1-baseline.md has Operator-discovered gaps section (M#8 evidence)" \
   || nope "T36: v0.1-baseline.md missing Operator-discovered gaps section"
+
+# === Test 37: v0.1.2 — llms.txt scaffold + refresh wiring (AEO convention) ===
+
+# init.js scaffolds .brain/llms.txt
+[ -f "$USER_REPO/.brain/llms.txt" ] \
+  && ok "T37: .brain/llms.txt scaffolded by init" \
+  || nope "T37: .brain/llms.txt missing after init"
+
+# llms.txt has expected AEO header lines
+grep -qF '# llms.txt — agent-readable site map' "$USER_REPO/.brain/llms.txt" \
+  && ok "T37: llms.txt declares AEO convention in header" \
+  || nope "T37: llms.txt header missing AEO declaration"
+
+grep -qF '# codebrain v' "$USER_REPO/.brain/llms.txt" \
+  && ok "T37: llms.txt header has codebrain version line" \
+  || nope "T37: llms.txt missing version line"
+
+grep -qF '## Top-level' "$USER_REPO/.brain/llms.txt" \
+  && ok "T37: llms.txt has Top-level section" \
+  || nope "T37: llms.txt missing Top-level section"
+
+grep -qE '^## Code pages \(0\)' "$USER_REPO/.brain/llms.txt" \
+  && ok "T37: llms.txt has empty Code pages section" \
+  || nope "T37: llms.txt missing Code pages section"
+
+grep -qE '^## Concept pages \(0\)' "$USER_REPO/.brain/llms.txt" \
+  && ok "T37: llms.txt has empty Concept pages section" \
+  || nope "T37: llms.txt missing Concept pages section"
+
+grep -qE '^## Decision pages \(0\)' "$USER_REPO/.brain/llms.txt" \
+  && ok "T37: llms.txt has empty Decision pages section" \
+  || nope "T37: llms.txt missing Decision pages section"
+
+# M#12a: refresh procedure lives in skills/ingestion/llms-txt/SKILL.md (single source of truth)
+test -f "$CODEBRAIN_ROOT/skills/ingestion/llms-txt/SKILL.md" \
+  && ok "T37: skills/ingestion/llms-txt/SKILL.md exists" \
+  || nope "T37: skills/ingestion/llms-txt/SKILL.md missing"
+
+# Skill has required frontmatter
+for field in name description origin version tier pattern related_skills; do
+  grep -q "^${field}:" "$CODEBRAIN_ROOT/skills/ingestion/llms-txt/SKILL.md" \
+    && ok "T37: llms-txt SKILL.md has '$field' field" \
+    || nope "T37: llms-txt SKILL.md missing '$field' field"
+done
+
+grep -q "^tier: ingestion$" "$CODEBRAIN_ROOT/skills/ingestion/llms-txt/SKILL.md" \
+  && ok "T37: llms-txt SKILL.md is tier:ingestion" \
+  || nope "T37: llms-txt SKILL.md wrong tier"
+
+# Refresh algorithm + format documented in the skill
+grep -qF 'Refresh algorithm' "$CODEBRAIN_ROOT/skills/ingestion/llms-txt/SKILL.md" \
+  && ok "T37: llms-txt SKILL.md documents refresh algorithm" \
+  || nope "T37: llms-txt SKILL.md missing refresh algorithm"
+
+grep -qF 'llmstxt.org' "$CODEBRAIN_ROOT/skills/ingestion/llms-txt/SKILL.md" \
+  && ok "T37: llms-txt SKILL.md cites AEO convention (llmstxt.org)" \
+  || nope "T37: llms-txt SKILL.md missing AEO citation"
+
+# Inline section was removed from both slash-command files (M#12a cleanup)
+for v in brain; do
+  ! grep -qF '## How to refresh `.brain/llms.txt`' "$CODEBRAIN_ROOT/commands/$v.md" \
+    && ok "T37: $v.md inline refresh section removed (M#12a)" \
+    || nope "T37: $v.md still has obsolete inline refresh section"
+done
+
+# M#3a Step 6 wires llms.txt refresh (now in per-verb ingest.md)
+for v in brain; do
+  awk '/\*\*Step 6 — Update derived files\*\*/{flag=1} /\*\*Step 7 — Report\*\*/{flag=0} flag' "$CODEBRAIN_ROOT/commands/$v/ingest.md" \
+    | grep -qF 'skills/ingestion/llms-txt/SKILL.md' \
+    && ok "T37: $v/ingest.md M#3a Step 6 wires llms-txt skill reference" \
+    || nope "T37: $v/ingest.md M#3a Step 6 missing skills/ingestion/llms-txt/SKILL.md reference"
+done
+
+# M#3b L5 (linker) wires llms.txt refresh (linker procedure also in per-verb ingest.md)
+for v in brain; do
+  awk '/\*\*L5 — Update derived files\*\*/{flag=1} /\*\*L6 — Linker report\*\*/{flag=0} flag' "$CODEBRAIN_ROOT/commands/$v/ingest.md" \
+    | grep -qF 'skills/ingestion/llms-txt/SKILL.md' \
+    && ok "T37: $v/ingest.md M#3b L5 wires llms-txt skill reference" \
+    || nope "T37: $v/ingest.md M#3b L5 missing skills/ingestion/llms-txt/SKILL.md reference"
+done
+
+# /brain lint L7 wires llms.txt refresh (now in per-verb lint.md)
+for v in brain; do
+  awk '/\*\*L7 — Output \+ log\*\*/{flag=1} /^## /{flag=0} flag' "$CODEBRAIN_ROOT/commands/$v/lint.md" \
+    | grep -qF 'skills/ingestion/llms-txt/SKILL.md' \
+    && ok "T37: $v/lint.md lint L7 wires llms-txt skill reference" \
+    || nope "T37: $v/lint.md lint L7 missing skills/ingestion/llms-txt/SKILL.md reference"
+done
+
+# Ingest report includes llms.txt in "Updated:" line (single-file ingest Step 7 — per-verb ingest.md)
+for v in brain; do
+  grep -qF '.brain/log.md, .brain/llms.txt' "$CODEBRAIN_ROOT/commands/$v/ingest.md" \
+    && ok "T37: $v/ingest.md ingest Step 7 report mentions llms.txt in Updated: line" \
+    || nope "T37: $v/ingest.md ingest Step 7 report missing llms.txt in Updated: line"
+done
+
+# === Test 39: M#9-prereq — runtime bridge probe + Active bridges report =====
+
+# Step 4b.3 exists in both ingest.md files (per-verb, post-M#12b)
+for v in brain; do
+  grep -qF '**Step 4b.3 — Active bridge probe + activation**' "$CODEBRAIN_ROOT/commands/$v/ingest.md" \
+    && ok "T39: $v/ingest.md has Step 4b.3 (Active bridge probe + activation)" \
+    || nope "T39: $v/ingest.md missing Step 4b.3"
+done
+
+# Step 4b.3 mentions the filesystem probe path (both candidates)
+for v in brain; do
+  grep -qF '$HOME/.claude/plugins' "$CODEBRAIN_ROOT/commands/$v/ingest.md" \
+    && ok "T39: $v/ingest.md Step 4b.3 includes user-global probe path" \
+    || nope "T39: $v/ingest.md missing user-global probe path"
+  grep -qF '$PWD/.claude/plugins' "$CODEBRAIN_ROOT/commands/$v/ingest.md" \
+    && ok "T39: $v/ingest.md Step 4b.3 includes project-local probe path" \
+    || nope "T39: $v/ingest.md missing project-local probe path"
+done
+
+# Step 4b.3 defines the bridges_loaded[] and bridges_unavailable[] arrays
+for v in brain; do
+  grep -qF 'bridges_loaded' "$CODEBRAIN_ROOT/commands/$v/ingest.md" \
+    && ok "T39: $v/ingest.md defines bridges_loaded array" \
+    || nope "T39: $v/ingest.md missing bridges_loaded"
+  grep -qF 'bridges_unavailable' "$CODEBRAIN_ROOT/commands/$v/ingest.md" \
+    && ok "T39: $v/ingest.md defines bridges_unavailable array" \
+    || nope "T39: $v/ingest.md missing bridges_unavailable"
+done
+
+# Step 7 report includes the "Active bridges" block
+for v in brain; do
+  grep -qF 'Active bridges:' "$CODEBRAIN_ROOT/commands/$v/ingest.md" \
+    && ok "T39: $v/ingest.md Step 7 report has Active bridges block" \
+    || nope "T39: $v/ingest.md Step 7 report missing Active bridges block"
+done
+
+# Probe-and-Read pattern is documented as the portable primitive (no cross-plugin Skill() invocation)
+for v in brain; do
+  grep -qF 'probe-and-Read pattern is intentionally portable' "$CODEBRAIN_ROOT/commands/$v/ingest.md" \
+    && ok "T39: $v/ingest.md documents probe-and-Read portability rationale" \
+    || nope "T39: $v/ingest.md missing portability rationale"
+done
+
+# Alias parity — brain/ingest.md and codebrain/ingest.md byte-identical
+
+# === Test 40: M#10a — /brain spec verb (spec-orchestrator agent + spec skill + spec.md per-verb) ===
+
+# spec-orchestrator agent exists with proper frontmatter
+test -f "$CODEBRAIN_ROOT/agents/brain/spec-orchestrator.md" \
+  && ok "T40: agents/brain/spec-orchestrator.md exists" \
+  || nope "T40: spec-orchestrator agent missing"
+
+for field in name description tools model pattern trigger_phrases max_iterations; do
+  grep -q "^${field}:" "$CODEBRAIN_ROOT/agents/brain/spec-orchestrator.md" \
+    && ok "T40: spec-orchestrator has '$field' field" \
+    || nope "T40: spec-orchestrator missing '$field' field"
+done
+
+grep -q "^pattern: Orchestrator$" "$CODEBRAIN_ROOT/agents/brain/spec-orchestrator.md" \
+  && ok "T40: spec-orchestrator pattern is Orchestrator" \
+  || nope "T40: spec-orchestrator wrong pattern"
+
+grep -qF '/brain spec' "$CODEBRAIN_ROOT/agents/brain/spec-orchestrator.md" \
+  && ok "T40: spec-orchestrator references /brain spec invocation" \
+  || nope "T40: spec-orchestrator missing /brain spec reference"
+
+# Agent rules forbid writing source code or .brain/
+grep -qF 'Never write source code' "$CODEBRAIN_ROOT/agents/brain/spec-orchestrator.md" \
+  && ok "T40: spec-orchestrator forbids writing source code" \
+  || nope "T40: spec-orchestrator missing 'no source code' rule"
+
+grep -qF "Never edit \`.brain/\`" "$CODEBRAIN_ROOT/agents/brain/spec-orchestrator.md" \
+  && ok "T40: spec-orchestrator forbids editing .brain/" \
+  || nope "T40: spec-orchestrator missing 'no .brain/' rule"
+
+# core/spec skill exists with proper frontmatter
+test -f "$CODEBRAIN_ROOT/skills/core/spec/SKILL.md" \
+  && ok "T40: skills/core/spec/SKILL.md exists" \
+  || nope "T40: core/spec skill missing"
+
+for field in name description origin version tier pattern related_skills; do
+  grep -q "^${field}:" "$CODEBRAIN_ROOT/skills/core/spec/SKILL.md" \
+    && ok "T40: core/spec SKILL.md has '$field' field" \
+    || nope "T40: core/spec SKILL.md missing '$field' field"
+done
+
+grep -q "^tier: core$" "$CODEBRAIN_ROOT/skills/core/spec/SKILL.md" \
+  && ok "T40: core/spec is tier:core" \
+  || nope "T40: core/spec wrong tier"
+
+# Skill documents bridge dependency on M#9-prereq
+grep -qF 'M#9-prereq' "$CODEBRAIN_ROOT/skills/core/spec/SKILL.md" \
+  && ok "T40: core/spec SKILL.md cites M#9-prereq bridge dependency" \
+  || nope "T40: core/spec SKILL.md missing M#9-prereq reference"
+
+# Per-verb spec.md exists in both brain/ and codebrain/
+for v in brain; do
+  test -f "$CODEBRAIN_ROOT/commands/$v/spec.md" \
+    && ok "T40: commands/$v/spec.md exists" \
+    || nope "T40: commands/$v/spec.md missing"
+done
+
+# spec.md has Sp0-Sp7 steps
+for sp in 'Sp0 — Argument parsing' 'Sp1 — Preconditions + bridge probe' 'Sp2 — Generate PRD' 'Sp3 — Generate plan' 'Sp4 — Sweep loop' 'Sp5 — Present + gate on approval' 'Sp6 — Mark the plan ready' 'Sp7 — Report + log'; do
+  grep -qF "$sp" "$CODEBRAIN_ROOT/commands/brain/spec.md" \
+    && ok "T40: brain/spec.md has '$sp'" \
+    || nope "T40: brain/spec.md missing '$sp'"
+done
+
+# Bridge probe paths in Sp1 (M#9-prereq pattern)
+grep -qF '$HOME/.claude/plugins/ecc/skills/plan-prd' "$CODEBRAIN_ROOT/commands/brain/spec.md" \
+  && ok "T40: brain/spec.md Sp1 probes ecc:plan-prd via user-global path" \
+  || nope "T40: brain/spec.md missing user-global plan-prd probe"
+
+grep -qF '$HOME/.claude/plugins/ecc/skills/plan/SKILL.md' "$CODEBRAIN_ROOT/commands/brain/spec.md" \
+  && ok "T40: brain/spec.md Sp1 probes ecc:plan via user-global path" \
+  || nope "T40: brain/spec.md missing user-global plan probe"
+
+# Top-level dispatcher mentions /brain:spec
+grep -qF '/brain:spec' "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T40: brain.md dispatch table mentions /brain:spec" \
+  || nope "T40: brain.md dispatch table missing /brain:spec"
+
+
+# Legacy dispatcher routes 'spec' to the per-verb file
+grep -qF "'init', \`ingest\`, \`query\`, \`lint\`, \`learn\`, \`status\`, \`spec\`" "$CODEBRAIN_ROOT/commands/brain.md" 2>/dev/null \
+  || grep -q '`init`, `ingest`, `query`, `lint`, `learn`, `status`, `spec`' "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T40: brain.md legacy dispatcher knows 'spec' verb" \
+  || nope "T40: brain.md legacy dispatcher missing 'spec' in verb list"
+
+# Alias parity — brain/spec.md and codebrain/spec.md byte-identical
+
+# npm pack ships the new files
+pack_list="$(cd "$CODEBRAIN_ROOT" && npm pack --dry-run 2>&1)"
+echo "$pack_list" | grep -q 'agents/brain/spec-orchestrator.md' \
+  && ok "T40: spec-orchestrator.md in npm pack" \
+  || nope "T40: spec-orchestrator.md missing from npm pack"
+
+echo "$pack_list" | grep -q 'skills/core/spec/SKILL.md' \
+  && ok "T40: core/spec SKILL.md in npm pack" \
+  || nope "T40: core/spec SKILL.md missing from npm pack"
+
+echo "$pack_list" | grep -q 'commands/brain/spec.md' \
+  && ok "T40: brain/spec.md in npm pack" \
+  || nope "T40: brain/spec.md missing from npm pack"
+
+
+# === Test 41: M#10b — discovery-loop skill ==================================
+
+test -f "$CODEBRAIN_ROOT/skills/core/discovery-loop/SKILL.md" \
+  && ok "T41: skills/core/discovery-loop/SKILL.md exists" \
+  || nope "T41: discovery-loop skill missing"
+
+for field in name description origin version tier pattern related_skills; do
+  grep -q "^${field}:" "$CODEBRAIN_ROOT/skills/core/discovery-loop/SKILL.md" \
+    && ok "T41: discovery-loop SKILL.md has '$field' field" \
+    || nope "T41: discovery-loop SKILL.md missing '$field' field"
+done
+
+grep -q "^tier: core$" "$CODEBRAIN_ROOT/skills/core/discovery-loop/SKILL.md" \
+  && ok "T41: discovery-loop is tier:core" \
+  || nope "T41: discovery-loop wrong tier"
+
+grep -q "^pattern: Pipeline$" "$CODEBRAIN_ROOT/skills/core/discovery-loop/SKILL.md" \
+  && ok "T41: discovery-loop pattern is Pipeline" \
+  || nope "T41: discovery-loop wrong pattern"
+
+# Procedure steps D0-D4 documented
+for d in 'D0 — Inputs' 'D1 — Initialize' 'D2 — Sweep round' 'D3 — Convergence check' 'D4 — Output'; do
+  grep -qF "$d" "$CODEBRAIN_ROOT/skills/core/discovery-loop/SKILL.md" \
+    && ok "T41: discovery-loop has '$d'" \
+    || nope "T41: discovery-loop missing '$d'"
+done
+
+# Severity tags documented (operational definitions)
+for sev in 'BLOCKER' 'DRIFT' 'GAP' 'QUESTION'; do
+  grep -qF "**$sev**" "$CODEBRAIN_ROOT/skills/core/discovery-loop/SKILL.md" \
+    && ok "T41: discovery-loop documents $sev severity" \
+    || nope "T41: discovery-loop missing $sev severity"
+done
+
+# Convergence criteria explicit
+grep -qF 'convergence_threshold' "$CODEBRAIN_ROOT/skills/core/discovery-loop/SKILL.md" \
+  && ok "T41: discovery-loop documents convergence_threshold parameter" \
+  || nope "T41: discovery-loop missing convergence_threshold"
+
+grep -qF 'max_rounds' "$CODEBRAIN_ROOT/skills/core/discovery-loop/SKILL.md" \
+  && ok "T41: discovery-loop documents max_rounds parameter" \
+  || nope "T41: discovery-loop missing max_rounds"
+
+grep -qF 'Convergence criteria' "$CODEBRAIN_ROOT/skills/core/discovery-loop/SKILL.md" \
+  && ok "T41: discovery-loop has 'Convergence criteria' section" \
+  || nope "T41: discovery-loop missing Convergence criteria section"
+
+# /brain spec Sp4 fallback path now resolvable
+grep -qF 'skills/core/discovery-loop/SKILL.md' "$CODEBRAIN_ROOT/commands/brain/spec.md" \
+  && ok "T41: brain/spec.md Sp4 references discovery-loop skill" \
+  || nope "T41: brain/spec.md missing discovery-loop fallback"
+
+# npm pack ships discovery-loop
+pack_list_t41="$(cd "$CODEBRAIN_ROOT" && npm pack --dry-run 2>&1)"
+echo "$pack_list_t41" | grep -q 'skills/core/discovery-loop/SKILL.md' \
+  && ok "T41: discovery-loop SKILL.md in npm pack" \
+  || nope "T41: discovery-loop SKILL.md missing from npm pack"
+
+# === Test 42: M#10d — supersedes frontmatter + CHANGELOG + reading-principles ===
+
+# Page-format templates document the optional supersedes fields
+grep -qF 'superseded_by' "$CODEBRAIN_ROOT/skills/ingestion/page-format/templates/code-page.md" \
+  && ok "T42: code-page template documents superseded_by field" \
+  || nope "T42: code-page template missing superseded_by"
+
+grep -qF 'supersedes:' "$CODEBRAIN_ROOT/skills/ingestion/page-format/templates/code-page.md" \
+  && ok "T42: code-page template documents supersedes field" \
+  || nope "T42: code-page template missing supersedes"
+
+grep -qF 'superseded_by' "$CODEBRAIN_ROOT/skills/ingestion/concept-extraction/templates/concept-page.md" \
+  && ok "T42: concept-page template documents superseded_by field" \
+  || nope "T42: concept-page template missing superseded_by"
+
+# /brain query Q4 skips superseded pages
+grep -qF 'M#10d supersession check' "$CODEBRAIN_ROOT/commands/brain/query.md" \
+  && ok "T42: brain/query.md Q4 has supersession check" \
+  || nope "T42: brain/query.md missing supersession check"
+
+
+# /brain lint L3/L4 has supersession checks
+grep -qF 'Superseded pages still linked' "$CODEBRAIN_ROOT/commands/brain/lint.md" \
+  && ok "T42: brain/lint.md L3 has superseded-pages-linked check" \
+  || nope "T42: brain/lint.md missing superseded-pages-linked check"
+
+grep -qF 'Asymmetric supersession' "$CODEBRAIN_ROOT/commands/brain/lint.md" \
+  && ok "T42: brain/lint.md L4 has asymmetric supersession check" \
+  || nope "T42: brain/lint.md missing asymmetric supersession check"
+
+# init.js scaffolds CHANGELOG.md
+T42_DIR="$(mktemp -d)"
+( cd "$T42_DIR" && git init -q && node "$CB" init >/dev/null 2>&1 )
+[ -f "$T42_DIR/.brain/CHANGELOG.md" ] \
+  && ok "T42: init scaffolds .brain/CHANGELOG.md" \
+  || nope "T42: .brain/CHANGELOG.md missing after init"
+
+grep -qF '# CHANGELOG — what the brain learned' "$T42_DIR/.brain/CHANGELOG.md" \
+  && ok "T42: CHANGELOG.md has expected header" \
+  || nope "T42: CHANGELOG.md header malformed"
+
+# llms.txt scaffold mentions CHANGELOG.md as a top-level file
+grep -qF 'CHANGELOG.md' "$T42_DIR/.brain/llms.txt" \
+  && ok "T42: llms.txt scaffold lists CHANGELOG.md" \
+  || nope "T42: llms.txt scaffold missing CHANGELOG.md reference"
+
+# Ingest report mentions CHANGELOG in Updated: line
+grep -qF '.brain/llms.txt, .brain/CHANGELOG.md' "$CODEBRAIN_ROOT/commands/brain/ingest.md" \
+  && ok "T42: brain/ingest.md Step 7 report mentions CHANGELOG.md" \
+  || nope "T42: brain/ingest.md Step 7 report missing CHANGELOG.md"
+
+# Learn consolidate appends to CHANGELOG (Le6 Task 8)
+grep -qF 'CHANGELOG entry' "$CODEBRAIN_ROOT/commands/brain/learn.md" \
+  && ok "T42: brain/learn.md Le6 has CHANGELOG entry step" \
+  || nope "T42: brain/learn.md missing CHANGELOG entry step"
+
+# wiki-reading-principles skill exists
+test -f "$CODEBRAIN_ROOT/skills/behavioral/wiki-reading-principles/SKILL.md" \
+  && ok "T42: skills/behavioral/wiki-reading-principles/SKILL.md exists" \
+  || nope "T42: wiki-reading-principles skill missing"
+
+for field in name description origin version tier pattern related_skills; do
+  grep -q "^${field}:" "$CODEBRAIN_ROOT/skills/behavioral/wiki-reading-principles/SKILL.md" \
+    && ok "T42: wiki-reading-principles has '$field' field" \
+    || nope "T42: wiki-reading-principles missing '$field' field"
+done
+
+grep -q "^tier: behavioral$" "$CODEBRAIN_ROOT/skills/behavioral/wiki-reading-principles/SKILL.md" \
+  && ok "T42: wiki-reading-principles is tier:behavioral" \
+  || nope "T42: wiki-reading-principles wrong tier"
+
+grep -q "^pattern: Behavioral-Constraint$" "$CODEBRAIN_ROOT/skills/behavioral/wiki-reading-principles/SKILL.md" \
+  && ok "T42: wiki-reading-principles pattern is Behavioral-Constraint" \
+  || nope "T42: wiki-reading-principles wrong pattern"
+
+# Skill has the 3-tier always/ask/never structure
+for section in '## ALWAYS' '## ASK' '## NEVER'; do
+  grep -qF "$section" "$CODEBRAIN_ROOT/skills/behavioral/wiki-reading-principles/SKILL.md" \
+    && ok "T42: wiki-reading-principles has '$section' section" \
+    || nope "T42: wiki-reading-principles missing '$section'"
+done
+
+# npm pack ships M#10d additions
+pack_list_t42="$(cd "$CODEBRAIN_ROOT" && npm pack --dry-run 2>&1)"
+echo "$pack_list_t42" | grep -q 'skills/behavioral/wiki-reading-principles/SKILL.md' \
+  && ok "T42: wiki-reading-principles SKILL.md in npm pack" \
+  || nope "T42: wiki-reading-principles SKILL.md missing from npm pack"
+
+# === Test 43: M#10c — intent-routing behavioral update ======================
+
+# behavioral/codebrain SKILL.md has the new section
+grep -qF '## Prompt-intent routing (M#10c)' "$CODEBRAIN_ROOT/skills/behavioral/codebrain/SKILL.md" \
+  && ok "T43: behavioral/codebrain has Prompt-intent routing section" \
+  || nope "T43: behavioral/codebrain missing Prompt-intent routing section"
+
+# Default is OFF (safety-critical — must be opt-in)
+grep -qF '**Default: OFF.**' "$CODEBRAIN_ROOT/skills/behavioral/codebrain/SKILL.md" \
+  && ok "T43: intent routing default is OFF (opt-in)" \
+  || nope "T43: intent routing default not declared OFF"
+
+# Toggle file is .brain/.codebrain-intent-routing-state
+grep -qF '.brain/.codebrain-intent-routing-state' "$CODEBRAIN_ROOT/skills/behavioral/codebrain/SKILL.md" \
+  && ok "T43: intent routing toggle file is .codebrain-intent-routing-state" \
+  || nope "T43: intent routing toggle file path missing"
+
+# Feature-intent verbs listed
+for verb in 'add' 'build' 'create' 'implement' "let me" "we should"; do
+  grep -qF "\`$verb\`" "$CODEBRAIN_ROOT/skills/behavioral/codebrain/SKILL.md" \
+    && ok "T43: intent routing detects '$verb' verb" \
+    || nope "T43: intent routing missing '$verb' verb"
+done
+
+# Operator overrides documented
+for ovr in 'just do it' 'skip the spec' 'no-spec'; do
+  grep -qF -- "$ovr" "$CODEBRAIN_ROOT/skills/behavioral/codebrain/SKILL.md" \
+    && ok "T43: intent routing documents '$ovr' override" \
+    || nope "T43: intent routing missing '$ovr' override"
+done
+
+# /brain status surfaces intent-routing state
+grep -qF 'Intent routing:' "$CODEBRAIN_ROOT/commands/brain/status.md" \
+  && ok "T43: brain/status.md surfaces Intent routing state" \
+  || nope "T43: brain/status.md missing Intent routing line"
+
+grep -qF '.codebrain-intent-routing-state' "$CODEBRAIN_ROOT/commands/brain/status.md" \
+  && ok "T43: brain/status.md reads the intent-routing toggle file" \
+  || nope "T43: brain/status.md doesn't reference toggle file"
+
+# Alias parity for status.md after M#10c edit
+
+# init.js does NOT create the toggle file (default off = file absent)
+T43_DIR="$(mktemp -d)"
+( cd "$T43_DIR" && git init -q && node "$CB" init >/dev/null 2>&1 )
+[ ! -f "$T43_DIR/.brain/.codebrain-intent-routing-state" ] \
+  && ok "T43: init does NOT scaffold .codebrain-intent-routing-state (default off via absence)" \
+  || nope "T43: init unexpectedly created .codebrain-intent-routing-state"
+
+# Suggestion-text uses /brain:spec (namespaced form per M#12)
+grep -qF '/brain:spec' "$CODEBRAIN_ROOT/skills/behavioral/codebrain/SKILL.md" \
+  && ok "T43: intent routing suggests /brain:spec (namespaced form)" \
+  || nope "T43: intent routing missing /brain:spec reference"
+
+# === Test 44: M#11 — credential registry (file format + slash command + behavioral) ===
+
+# M#11a — agent + skill + template + parser
+test -f "$CODEBRAIN_ROOT/agents/brain/cred-registrar.md" \
+  && ok "T44: agents/brain/cred-registrar.md exists" \
+  || nope "T44: cred-registrar agent missing"
+
+for field in name description tools model pattern trigger_phrases max_iterations; do
+  grep -q "^${field}:" "$CODEBRAIN_ROOT/agents/brain/cred-registrar.md" \
+    && ok "T44: cred-registrar has '$field' field" \
+    || nope "T44: cred-registrar missing '$field' field"
+done
+
+grep -q "^pattern: Registrar$" "$CODEBRAIN_ROOT/agents/brain/cred-registrar.md" \
+  && ok "T44: cred-registrar pattern is Registrar" \
+  || nope "T44: cred-registrar wrong pattern"
+
+# Rules forbid writing under repo root + forbid echoing values
+grep -qF 'write the credential file to any path under the project root' "$CODEBRAIN_ROOT/agents/brain/cred-registrar.md" \
+  && ok "T44: cred-registrar forbids writing under repo root" \
+  || nope "T44: cred-registrar missing 'no under repo' rule"
+
+grep -qF 'Never echo a credential value' "$CODEBRAIN_ROOT/agents/brain/cred-registrar.md" \
+  && ok "T44: cred-registrar forbids echoing credential values" \
+  || nope "T44: cred-registrar missing 'no echo' rule"
+
+# core/creds skill exists
+test -f "$CODEBRAIN_ROOT/skills/core/creds/SKILL.md" \
+  && ok "T44: skills/core/creds/SKILL.md exists" \
+  || nope "T44: core/creds skill missing"
+
+grep -q "^tier: core$" "$CODEBRAIN_ROOT/skills/core/creds/SKILL.md" \
+  && ok "T44: core/creds is tier:core" \
+  || nope "T44: core/creds wrong tier"
+
+# Refusal patterns documented (single source of truth)
+for pat in 'sk-live_' 'sk_live_' 'pk_live_' 'AKIA' 'ghp_' 'gho_' 'xoxb-' 'xoxp-' 'sk-ant-'; do
+  grep -qF "$pat" "$CODEBRAIN_ROOT/skills/core/creds/SKILL.md" \
+    && ok "T44: core/creds documents '$pat' refusal pattern" \
+    || nope "T44: core/creds missing '$pat' refusal pattern"
+done
+
+# Same-prompt-context guard documented
+grep -qF 'Same-prompt-context guard' "$CODEBRAIN_ROOT/skills/core/creds/SKILL.md" \
+  && ok "T44: core/creds documents same-prompt-context guard" \
+  || nope "T44: core/creds missing same-prompt-context guard"
+
+# Override flag is auditable
+grep -qF -- 'i-understand-this-is-plaintext-production' "$CODEBRAIN_ROOT/skills/core/creds/SKILL.md" \
+  && ok "T44: core/creds documents auditable override flag" \
+  || nope "T44: core/creds missing override flag"
+
+# Cross-platform path resolution
+grep -qF 'XDG_DATA_HOME' "$CODEBRAIN_ROOT/skills/core/creds/SKILL.md" \
+  && ok "T44: core/creds documents POSIX (XDG) path resolution" \
+  || nope "T44: core/creds missing POSIX path resolution"
+
+grep -qF 'LOCALAPPDATA' "$CODEBRAIN_ROOT/skills/core/creds/SKILL.md" \
+  && ok "T44: core/creds documents Windows path resolution" \
+  || nope "T44: core/creds missing Windows path resolution"
+
+# Starter template
+test -f "$CODEBRAIN_ROOT/skills/core/creds/templates/credentials.toon" \
+  && ok "T44: credentials.toon template exists" \
+  || nope "T44: credentials.toon template missing"
+
+grep -qF 'WARNING: plaintext file' "$CODEBRAIN_ROOT/skills/core/creds/templates/credentials.toon" \
+  && ok "T44: credentials.toon template has plaintext warning" \
+  || nope "T44: credentials.toon template missing warning"
+
+# TOON parser
+test -f "$CODEBRAIN_ROOT/scripts/lib/toon.js" \
+  && ok "T44: scripts/lib/toon.js exists" \
+  || nope "T44: TOON parser missing"
+
+# Parser exposes the documented API
+node -e "
+  const t = require('$CODEBRAIN_ROOT/scripts/lib/toon.js');
+  for (const fn of ['parse', 'serialize', 'parseValue', 'serializeValue', 'readFile', 'writeFile']) {
+    if (typeof t[fn] !== 'function') { console.error('missing fn:', fn); process.exit(1); }
+  }
+  process.exit(0);
+" 2>/dev/null \
+  && ok "T44: toon.js exports parse/serialize/readFile/writeFile + helpers" \
+  || nope "T44: toon.js missing required exports"
+
+# Parser round-trip
+node -e "
+  const t = require('$CODEBRAIN_ROOT/scripts/lib/toon.js');
+  const input = '# header line 1\n# header line 2\n\n[staging-db]\nhost = \"db.example.com\"\nport = 5432\nuser = \"readonly\"\nnote = \"test\"\n';
+  const parsed = t.parse(input);
+  if (!parsed._sections['staging-db']) { console.error('parse failed: no section'); process.exit(1); }
+  if (parsed._sections['staging-db'].host !== 'db.example.com') { console.error('parse failed: host wrong'); process.exit(1); }
+  if (parsed._sections['staging-db'].port !== 5432) { console.error('parse failed: port not int'); process.exit(1); }
+  if (parsed._header.length !== 2) { console.error('parse failed: header wrong'); process.exit(1); }
+  const out = t.serialize(parsed);
+  if (!out.includes('[staging-db]')) { console.error('serialize failed: no section'); process.exit(1); }
+  if (!out.includes('host = \"db.example.com\"')) { console.error('serialize failed: host wrong'); process.exit(1); }
+  process.exit(0);
+" 2>/dev/null \
+  && ok "T44: toon.js round-trip preserves sections, types, header" \
+  || nope "T44: toon.js round-trip failed"
+
+# M#11b — slash command (per-verb file in both dirs)
+for v in brain; do
+  test -f "$CODEBRAIN_ROOT/commands/$v/creds.md" \
+    && ok "T44: commands/$v/creds.md exists" \
+    || nope "T44: commands/$v/creds.md missing"
+done
+
+# Procedure has Cr0-Cr7
+for cr in 'Cr0 — Argument parsing' 'Cr1 — Preconditions + path resolution' 'Cr2 — Dispatch' 'Cr3 — list' 'Cr4 — show' 'Cr5 — add' 'Cr6 — remove' 'Cr7 — forget-all'; do
+  grep -qF "$cr" "$CODEBRAIN_ROOT/commands/brain/creds.md" \
+    && ok "T44: brain/creds.md has '$cr'" \
+    || nope "T44: brain/creds.md missing '$cr'"
+done
+
+# Alias parity
+
+# Top-level dispatchers know /brain:creds
+grep -qF '/brain:creds' "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T44: brain.md dispatch table mentions /brain:creds" \
+  || nope "T44: brain.md missing /brain:creds"
+
+
+# Legacy dispatcher knows 'creds' verb
+grep -qF 'creds`' "$CODEBRAIN_ROOT/commands/brain.md" \
+  && ok "T44: brain.md legacy dispatcher includes 'creds' verb" \
+  || nope "T44: brain.md legacy dispatcher missing 'creds'"
+
+# M#11c — behavioral integration
+grep -qF 'Credential-handling protocol (M#11c)' "$CODEBRAIN_ROOT/skills/behavioral/codebrain/SKILL.md" \
+  && ok "T44: behavioral/codebrain has Credential-handling protocol section" \
+  || nope "T44: behavioral/codebrain missing Credential-handling protocol"
+
+grep -qF '/brain:creds' "$CODEBRAIN_ROOT/skills/behavioral/codebrain/SKILL.md" \
+  && ok "T44: Credential-handling protocol references /brain:creds (namespaced form)" \
+  || nope "T44: Credential-handling protocol missing /brain:creds reference"
+
+# npm pack ships M#11 additions
+pack_list_t44="$(cd "$CODEBRAIN_ROOT" && npm pack --dry-run 2>&1)"
+for path in 'agents/brain/cred-registrar.md' 'skills/core/creds/SKILL.md' 'skills/core/creds/templates/credentials.toon' 'scripts/lib/toon.js' 'commands/brain/creds.md'; do
+  echo "$pack_list_t44" | grep -q "$path" \
+    && ok "T44: $path in npm pack" \
+    || nope "T44: $path missing from npm pack"
+done
+
+# Refusal-pattern enforcement test: parser correctly handles a refused value (we don't actually invoke /brain creds, just verify the regex would catch it)
+node -e "
+  const refusalPatterns = [/^sk-live_/, /^sk_live_/, /^pk_live_/, /^AKIA[A-Z0-9]{16}\$/, /^ghp_[A-Za-z0-9]{36}\$/];
+  const samples = ['sk-live_51HABCDXYZ', 'AKIAIOSFODNN7EXAMPLE', 'ghp_abcdefghijklmnopqrstuvwxyz0123456789'];
+  for (const s of samples) {
+    if (!refusalPatterns.some(p => p.test(s))) { console.error('pattern miss:', s); process.exit(1); }
+  }
+  process.exit(0);
+" 2>/dev/null \
+  && ok "T44: refusal patterns correctly match production-secret samples (static check)" \
+  || nope "T44: refusal patterns failed to match production-secret samples"
+
+# === Test 45: M#9-coverage — 8 new detected/* skills + M#3d bridges ===========
+
+# 8 new detected/* SKILL.md files
+for stack in vue rails flask koa hapi gin echo fiber; do
+  skill="$CODEBRAIN_ROOT/skills/detected/${stack}/SKILL.md"
+  [ -f "$skill" ] && ok "T45: detected/${stack}/SKILL.md exists" || nope "T45: detected/${stack}/SKILL.md missing"
+
+  for field in name description origin version tier pattern related_skills detect applies_to_extensions expert_skills; do
+    grep -q "^${field}:" "$skill" \
+      && ok "T45: detected/${stack} SKILL.md has '$field' field" \
+      || nope "T45: detected/${stack} SKILL.md missing '$field' field"
+  done
+
+  grep -q "^tier: detected$" "$skill" \
+    && ok "T45: detected/${stack} is tier:detected" \
+    || nope "T45: detected/${stack} wrong tier"
+done
+
+# registry.json has all 8 new entries with expert_skills
+node -e "
+  const r = require('$CODEBRAIN_ROOT/skills/registry.json');
+  const expected = ['detected/vue', 'detected/rails', 'detected/flask', 'detected/koa', 'detected/hapi', 'detected/gin', 'detected/echo', 'detected/fiber'];
+  for (const k of expected) {
+    if (!r.skills[k]) { console.error('missing skill:', k); process.exit(1); }
+    if (r.skills[k].tier !== 'detected') { console.error('wrong tier:', k); process.exit(1); }
+    if (!Array.isArray(r.skills[k].expert_skills) || r.skills[k].expert_skills.length === 0) {
+      console.error('expert_skills empty or missing:', k); process.exit(1);
+    }
+  }
+  process.exit(0);
+" 2>/dev/null \
+  && ok "T45: registry.json has 8 new detected entries with expert_skills" \
+  || nope "T45: registry.json M#9-coverage entries malformed or missing"
+
+# The 4 M#3d skills (react/typescript/python/go) gained expert_skills bridges
+node -e "
+  const r = require('$CODEBRAIN_ROOT/skills/registry.json');
+  const m3d = {
+    'detected/react': 'ecc:react-patterns',
+    'detected/typescript': 'ecc:typescript-patterns',
+    'detected/python': 'ecc:python-patterns',
+    'detected/go': 'ecc:golang-patterns',
+  };
+  for (const [k, target] of Object.entries(m3d)) {
+    if (!r.skills[k]) { console.error('missing:', k); process.exit(1); }
+    if (!Array.isArray(r.skills[k].expert_skills)) { console.error('expert_skills not array:', k); process.exit(1); }
+    if (!r.skills[k].expert_skills.includes(target)) { console.error('missing bridge', target, 'in', k); process.exit(1); }
+  }
+  process.exit(0);
+" 2>/dev/null \
+  && ok "T45: M#3d skills (react/typescript/python/go) gained expert_skills bridges" \
+  || nope "T45: M#3d skills missing expert_skills bridges"
+
+# stack-detection.json has the new framework detect rules (those not already present)
+for stack in flask koa hapi gin echo fiber; do
+  node -e "
+    const j = require('$CODEBRAIN_ROOT/skills/core/init/templates/stack-detection.json');
+    const match = j.stacks.find(s => s.name === '${stack}');
+    if (!match) { console.error('missing stack:', '${stack}'); process.exit(1); }
+    if (match.detected_skill !== 'detected/${stack}') { console.error('wrong detected_skill for ${stack}'); process.exit(1); }
+    process.exit(0);
+  " 2>/dev/null \
+    && ok "T45: stack-detection.json has '${stack}' entry → detected/${stack}" \
+    || nope "T45: stack-detection.json missing or malformed '${stack}'"
+done
+
+# npm pack ships the 8 new SKILL.md files
+pack_list_t45="$(cd "$CODEBRAIN_ROOT" && npm pack --dry-run 2>&1)"
+for stack in vue rails flask koa hapi gin echo fiber; do
+  echo "$pack_list_t45" | grep -q "skills/detected/${stack}/SKILL.md" \
+    && ok "T45: detected/${stack}/SKILL.md in npm pack" \
+    || nope "T45: detected/${stack}/SKILL.md missing from npm pack"
+done
+
+# === Test 38: SKILL.md reciprocity — every related_skills entry resolves =====
+# Bidirectional-links lint, run statically over the shipped skill set.
+node -e "
+  const fs = require('fs');
+  const path = require('path');
+  const root = '$CODEBRAIN_ROOT/skills';
+  const errors = [];
+  function walk(dir) {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const p = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(p);
+      else if (entry.name === 'SKILL.md') checkSkill(p);
+    }
+  }
+  function checkSkill(file) {
+    const raw = fs.readFileSync(file, 'utf8');
+    if (!raw.startsWith('---\n')) return;
+    const end = raw.indexOf('\n---\n', 4);
+    if (end === -1) return;
+    const fm = raw.slice(4, end);
+    const m = fm.match(/^related_skills:\s*\[([^\]]*)\]/m);
+    if (!m) return;
+    const entries = m[1].split(',').map(s => s.trim()).filter(Boolean);
+    for (const e of entries) {
+      const target = path.join(root, e, 'SKILL.md');
+      if (!fs.existsSync(target)) {
+        errors.push(path.relative(root, file) + ' → ' + e + ' (target not found)');
+      }
+    }
+  }
+  walk(root);
+  if (errors.length) { console.error(errors.join('\n')); process.exit(1); }
+  process.exit(0);
+" 2>/dev/null \
+  && ok "T38: every related_skills entry resolves to a real SKILL.md" \
+  || nope "T38: related_skills entries point to nonexistent skills"
 
 # === Summary ==================================================================
 

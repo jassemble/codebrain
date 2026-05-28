@@ -4,133 +4,307 @@
   "stacks": [
     {
       "name": "nodejs",
-      "signals": [{ "file_exists": "package.json" }],
+      "signals": [
+        {
+          "file_exists": "package.json"
+        }
+      ],
       "detected_skill": "detected/nodejs"
     },
     {
       "name": "typescript",
-      "signals": [{ "file_exists": "tsconfig.json" }],
+      "signals": [
+        {
+          "file_exists": "tsconfig.json"
+        }
+      ],
       "detected_skill": "detected/typescript"
     },
     {
       "name": "react",
-      "signals": [{ "file_exists": "package.json", "contains": "\"react\"" }],
+      "signals": [
+        {
+          "file_exists": "package.json",
+          "contains": "\"react\""
+        }
+      ],
       "detected_skill": "detected/react"
     },
     {
       "name": "nextjs",
-      "signals": [{ "file_exists": "package.json", "contains": "\"next\"" }],
+      "signals": [
+        {
+          "file_exists": "package.json",
+          "contains": "\"next\""
+        }
+      ],
       "detected_skill": "detected/nextjs"
     },
     {
       "name": "nestjs",
-      "signals": [{ "file_exists": "package.json", "contains": "\"@nestjs/core\"" }],
+      "signals": [
+        {
+          "file_exists": "package.json",
+          "contains": "\"@nestjs/core\""
+        }
+      ],
       "detected_skill": "detected/nestjs"
     },
     {
       "name": "express",
-      "signals": [{ "file_exists": "package.json", "contains": "\"express\"" }],
+      "signals": [
+        {
+          "file_exists": "package.json",
+          "contains": "\"express\""
+        }
+      ],
       "detected_skill": "detected/express"
     },
     {
       "name": "fastify",
-      "signals": [{ "file_exists": "package.json", "contains": "\"fastify\"" }],
+      "signals": [
+        {
+          "file_exists": "package.json",
+          "contains": "\"fastify\""
+        }
+      ],
       "detected_skill": "detected/fastify"
     },
     {
       "name": "vue",
-      "signals": [{ "file_exists": "package.json", "contains": "\"vue\"" }],
+      "signals": [
+        {
+          "file_exists": "package.json",
+          "contains": "\"vue\""
+        }
+      ],
       "detected_skill": "detected/vue"
     },
     {
       "name": "python",
-      "signals": [{ "file_exists": "pyproject.toml" }],
+      "signals": [
+        {
+          "file_exists": "pyproject.toml"
+        }
+      ],
       "detected_skill": "detected/python"
     },
     {
       "name": "python-legacy",
-      "signals": [{ "file_exists": "setup.py" }],
+      "signals": [
+        {
+          "file_exists": "setup.py"
+        }
+      ],
       "detected_skill": "detected/python"
     },
     {
       "name": "django",
-      "signals": [{ "file_exists": "manage.py" }],
+      "signals": [
+        {
+          "file_exists": "manage.py"
+        }
+      ],
       "detected_skill": "detected/django"
     },
     {
       "name": "fastapi",
-      "signals": [{ "file_exists": "pyproject.toml", "contains": "fastapi" }],
+      "signals": [
+        {
+          "file_exists": "pyproject.toml",
+          "contains": "fastapi"
+        }
+      ],
       "detected_skill": "detected/fastapi"
     },
     {
       "name": "go",
-      "signals": [{ "file_exists": "go.mod" }],
+      "signals": [
+        {
+          "file_exists": "go.mod"
+        }
+      ],
       "detected_skill": "detected/go"
     },
     {
       "name": "rust",
-      "signals": [{ "file_exists": "Cargo.toml" }],
+      "signals": [
+        {
+          "file_exists": "Cargo.toml"
+        }
+      ],
       "detected_skill": "detected/rust"
     },
     {
       "name": "java-maven",
-      "signals": [{ "file_exists": "pom.xml" }],
+      "signals": [
+        {
+          "file_exists": "pom.xml"
+        }
+      ],
       "detected_skill": "detected/java"
     },
     {
       "name": "java-gradle",
-      "signals": [{ "file_exists": "build.gradle" }],
+      "signals": [
+        {
+          "file_exists": "build.gradle"
+        }
+      ],
       "detected_skill": "detected/java"
     },
     {
       "name": "springboot-maven",
-      "signals": [{ "file_exists": "pom.xml", "contains": "spring-boot" }],
+      "signals": [
+        {
+          "file_exists": "pom.xml",
+          "contains": "spring-boot"
+        }
+      ],
       "detected_skill": "detected/springboot"
     },
     {
       "name": "springboot-gradle",
-      "signals": [{ "file_exists": "build.gradle", "contains": "spring-boot" }],
+      "signals": [
+        {
+          "file_exists": "build.gradle",
+          "contains": "spring-boot"
+        }
+      ],
       "detected_skill": "detected/springboot"
     },
     {
       "name": "kotlin",
-      "signals": [{ "file_exists": "build.gradle.kts" }],
+      "signals": [
+        {
+          "file_exists": "build.gradle.kts"
+        }
+      ],
       "detected_skill": "detected/kotlin"
     },
     {
       "name": "swift",
-      "signals": [{ "file_exists": "Package.swift" }],
+      "signals": [
+        {
+          "file_exists": "Package.swift"
+        }
+      ],
       "detected_skill": "detected/swift"
     },
     {
       "name": "ruby",
-      "signals": [{ "file_exists": "Gemfile" }],
+      "signals": [
+        {
+          "file_exists": "Gemfile"
+        }
+      ],
       "detected_skill": "detected/ruby"
     },
     {
       "name": "rails",
-      "signals": [{ "file_exists": "Gemfile", "contains": "rails" }],
+      "signals": [
+        {
+          "file_exists": "Gemfile",
+          "contains": "rails"
+        }
+      ],
       "detected_skill": "detected/rails"
     },
     {
       "name": "elixir",
-      "signals": [{ "file_exists": "mix.exs" }],
+      "signals": [
+        {
+          "file_exists": "mix.exs"
+        }
+      ],
       "detected_skill": "detected/elixir"
     },
     {
       "name": "docker",
-      "signals": [{ "file_exists": "Dockerfile" }],
+      "signals": [
+        {
+          "file_exists": "Dockerfile"
+        }
+      ],
       "detected_skill": "detected/docker"
     },
     {
       "name": "k8s",
-      "signals": [{ "dir_exists": "k8s" }],
+      "signals": [
+        {
+          "dir_exists": "k8s"
+        }
+      ],
       "detected_skill": "detected/kubernetes"
     },
     {
       "name": "terraform",
-      "signals": [{ "glob": "*.tf" }],
+      "signals": [
+        {
+          "glob": "*.tf"
+        }
+      ],
       "detected_skill": "detected/terraform"
+    },
+    {
+      "name": "flask",
+      "signals": [
+        {
+          "file_exists": "pyproject.toml",
+          "contains": "flask"
+        }
+      ],
+      "detected_skill": "detected/flask"
+    },
+    {
+      "name": "koa",
+      "signals": [
+        {
+          "file_exists": "package.json",
+          "contains": "\"koa\""
+        }
+      ],
+      "detected_skill": "detected/koa"
+    },
+    {
+      "name": "hapi",
+      "signals": [
+        {
+          "file_exists": "package.json",
+          "contains": "\"@hapi/hapi\""
+        }
+      ],
+      "detected_skill": "detected/hapi"
+    },
+    {
+      "name": "gin",
+      "signals": [
+        {
+          "file_exists": "go.mod",
+          "contains": "gin-gonic/gin"
+        }
+      ],
+      "detected_skill": "detected/gin"
+    },
+    {
+      "name": "echo",
+      "signals": [
+        {
+          "file_exists": "go.mod",
+          "contains": "labstack/echo"
+        }
+      ],
+      "detected_skill": "detected/echo"
+    },
+    {
+      "name": "fiber",
+      "signals": [
+        {
+          "file_exists": "go.mod",
+          "contains": "gofiber/fiber"
+        }
+      ],
+      "detected_skill": "detected/fiber"
     }
   ]
 }

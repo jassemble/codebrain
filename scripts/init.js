@@ -113,6 +113,29 @@ function copyTemplate(srcRel, destAbs, opts) {
   report.log('OK', destAbs);
 }
 
+// Recursively copy a directory of templates. Used by M#12 to ship the
+// per-verb slash-command files under commands/brain/ and commands/codebrain/.
+// Atomicity, .bak, and idempotency are inherited from copyTemplate — one
+// atomic write per file. Subdirectories are mkdir'd before each file write.
+function copyDir(srcRel, destAbs, opts) {
+  const srcAbs = path.join(ROOT, srcRel);
+  if (!fs.existsSync(srcAbs)) {
+    report.log('FAIL', srcAbs, 'source directory missing');
+    return;
+  }
+  ensureDir(destAbs, opts);
+  for (const entry of fs.readdirSync(srcAbs, { withFileTypes: true })) {
+    const childSrcRel = path.join(srcRel, entry.name);
+    const childDest = path.join(destAbs, entry.name);
+    if (entry.isDirectory()) {
+      copyDir(childSrcRel, childDest, opts);
+    } else if (entry.isFile()) {
+      copyTemplate(childSrcRel, childDest, opts);
+    }
+    // symlinks + other types: skip silently — codebrain templates are plain files
+  }
+}
+
 function scaffoldBrainDir(cwd, opts) {
   const brain = path.join(cwd, '.brain');
   const dirs = ['code', 'concepts', 'decisions'];
@@ -157,6 +180,40 @@ function scaffoldBrainDir(cwd, opts) {
       + '\n# Decisions\n\n## Active Decisions\n\n## Superseded Decisions\n',
     'status.md': frontmatter({ kind: 'status', status: 'UNENRICHED', created: today })
       + '\n# Status — Page Lifecycle Tracker\n\nDerived view; regenerated from per-page frontmatter.\n\n| Page | Status | Last Sync | Source Hash |\n|------|--------|-----------|-------------|\n',
+    'CHANGELOG.md': frontmatter({ kind: 'changelog', status: 'UNENRICHED', created: today })
+      + `\n# CHANGELOG — what the brain learned\n\n`
+      + `Append-only narrative of compound learning (M#10d). Reverse-chronological by month.\n`
+      + `Each entry shape: \`- YYYY-MM-DD: <narrative summary of what changed and why>\`\n`
+      + `\n`
+      + `## ${today.slice(0, 7)}\n\n`
+      + `- ${today}: codebrain v${CODEBRAIN_VERSION} scaffolded \`.brain/\` in this project.\n`,
+    'llms.txt': `# .brain — codebrain wiki\n`
+      + `# llms.txt — agent-readable site map (https://llmstxt.org / AEO convention)\n`
+      + `# Last refreshed: ${today}\n`
+      + `# codebrain v${CODEBRAIN_VERSION}\n`
+      + `# Pages: 0, estimated tokens: ~0\n`
+      + `\n`
+      + `> .brain is a folder-mirrored markdown wiki of this codebase, maintained by codebrain.\n`
+      + `> Each page is generated from a real source file (code/), an extracted concept (concepts/),\n`
+      + `> or a recorded architectural decision (decisions/). Pages are addressable as wikilinks:\n`
+      + `> [[code/<path>]], [[concepts/<slug>]], [[decisions/<adr>]].\n`
+      + `\n`
+      + `## Top-level\n`
+      + `- [overview.md](overview.md) — Project purpose, codebase structure, key patterns, active state\n`
+      + `- [index.md](index.md) — Page catalog (code, concepts, decisions)\n`
+      + `- [log.md](log.md) — Activity history + promoted recurring patterns\n`
+      + `- [status.md](status.md) — Page lifecycle tracker (FRESH/STALE/RESYNCED)\n`
+      + `- [decisions.md](decisions.md) — ADR index\n`
+      + `- [CHANGELOG.md](CHANGELOG.md) — Compound-learning narrative (M#10d): what the brain learned, when, why\n`
+      + `\n`
+      + `## Code pages (0)\n`
+      + `_(no pages yet — run \`/brain ingest <file>\` or \`/brain ingest <folder>\`)_\n`
+      + `\n`
+      + `## Concept pages (0)\n`
+      + `_(no pages yet — concepts are auto-extracted by the linker during folder ingest)_\n`
+      + `\n`
+      + `## Decision pages (0)\n`
+      + `_(no pages yet — manually record ADRs under decisions/ as your project evolves)_\n`,
   };
 
   for (const [name, content] of Object.entries(files)) {
@@ -342,8 +399,10 @@ function init(argv) {
   ensureDir(path.join(claudeDir, 'commands'), opts);
 
   // Copy slash-command templates into target.
+  // Top-level dispatcher + per-verb namespaced files (M#12b layout).
+  // v0.2: only /brain — the /codebrain alias was dropped (see v0.2.0 changelog).
   copyTemplate('commands/brain.md', path.join(claudeDir, 'commands', 'brain.md'), opts);
-  copyTemplate('commands/codebrain.md', path.join(claudeDir, 'commands', 'codebrain.md'), opts);
+  copyDir('commands/brain', path.join(claudeDir, 'commands', 'brain'), opts);
 
   // Merge hooks into settings.local.json.
   mergeHooks(claudeDir, opts);

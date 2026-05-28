@@ -6,6 +6,11 @@ source_hash: <!-- AGENT: insert format-prefixed hash — `git:<hash>` from `git 
 last_ingested: <!-- AGENT: insert today's ISO date YYYY-MM-DD -->
 ingested_by: <!-- AGENT: insert your model identifier, e.g. claude-sonnet-4-6 -->
 tokens: <!-- AGENT: insert your best estimate of page token count; informational, ±20% is fine, not enforced -->
+# Optional M#10d supersession fields — set ONLY when the page is replaced by a newer page (refactor / rename / pattern change).
+# Once `superseded_by:` is set, /brain query SKIPS this page and follows the pointer to the replacement;
+# /brain lint warns if the replacement page does NOT list this page in its `supersedes:` array (asymmetric supersession = defect).
+# superseded_by: <slug-or-path of the replacement page, e.g. code/src/api/auth-v2.ts.md>
+# supersedes: [<list of slugs/paths this page replaces, e.g. code/src/api/auth.ts.md>]
 ---
 
 # <!-- AGENT: insert source-path verbatim, e.g. src/api/auth.ts -->

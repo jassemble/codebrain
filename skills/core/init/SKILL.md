@@ -14,7 +14,7 @@ This skill is the agent-side complement to `npx codebrain init`. The npm step cr
 
 ## When to Activate
 
-- Operator runs `/brain init` (or `/codebrain init`)
+- Operator runs `/brain init`
 - Operator types a trigger phrase: "initialize codebrain", "set up the brain", "populate .brain/", "fill in the codebrain schema"
 - An automated workflow needs to refresh the schema block after a codebrain upgrade (`/brain init --force`)
 
