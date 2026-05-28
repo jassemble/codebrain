@@ -2550,9 +2550,9 @@ done
 #   3. The Step 7 success-report template has a `Recommended skills:` block
 #      so the agent knows where to print.
 
-grep -qF '**Step 4c — Stack-specific skill recommendations' "$CODEBRAIN_ROOT/commands/brain/init.md" \
-  && ok "T49: commands/brain/init.md has Step 4c (stack-specific recommendations)" \
-  || nope "T49: commands/brain/init.md missing Step 4c"
+grep -qF '**Step 4e — Stack-specific skill recommendations' "$CODEBRAIN_ROOT/commands/brain/init.md" \
+  && ok "T49: commands/brain/init.md has Step 4e (stack-specific recommendations; was Step 4c pre-v1.0.12)" \
+  || nope "T49: commands/brain/init.md missing Step 4e"
 
 grep -qF 'recommended_skills' "$CODEBRAIN_ROOT/commands/brain/init.md" \
   && ok "T49: Step 4c references stack-detection.json's recommended_skills field" \
@@ -2590,14 +2590,16 @@ for klass in 'identical' 'whitespace-only' 'operator-additions' 'operator-edit-t
     || nope "T50: Step 1b missing classification '$klass'"
 done
 
-# Safe-class auto-confirm with --yes; never auto-confirm data-loss classes
-grep -qF 'auto-confirm only the safe classes' "$CODEBRAIN_ROOT/commands/brain/init.md" \
-  && ok "T50: Step 1b restricts --yes auto-confirm to safe classes" \
-  || nope "T50: Step 1b missing --yes safety gate"
+# Safe-class auto-apply by default (v1.0.12 flipped the default); --yes
+# additionally non-interactive for prompted classes; data-loss classes
+# never auto-confirm even with --yes.
+grep -qF 'safe classes (no operator-data loss possible) apply immediately' "$CODEBRAIN_ROOT/commands/brain/init.md" \
+  && ok "T50: Step 1b auto-applies safe classes (v1.0.12 default)" \
+  || nope "T50: Step 1b missing safe-class auto-apply default"
 
-grep -qF 'NEVER auto-confirm' "$CODEBRAIN_ROOT/commands/brain/init.md" \
-  && ok "T50: Step 1b explicitly forbids auto-confirm of data-loss classes" \
-  || nope "T50: Step 1b missing data-loss forbid"
+grep -qF 'EXCEPT `operator-edit-to-graphbrain-content` and `unclear`' "$CODEBRAIN_ROOT/commands/brain/init.md" \
+  && ok "T50: Step 1b protects data-loss + judgment classes even with --yes" \
+  || nope "T50: Step 1b missing data-loss + unclear protection"
 
 # Log entry format documented
 grep -qF '## [YYYY-MM-DD] reconcile' "$CODEBRAIN_ROOT/commands/brain/init.md" \
@@ -2750,6 +2752,126 @@ grep -qF 'L6b' "$CODEBRAIN_ROOT/commands/brain/lint.md" \
 grep -qF 'Refreshed: .brain/llms.txt, .brain/status.md' "$CODEBRAIN_ROOT/commands/brain/lint.md" \
   && ok "T52: lint report mentions status.md refresh" \
   || nope "T52: lint report does not surface status.md refresh"
+
+# === Test 53: v1.0.12 — subdir-aware stack detection ========================
+#
+# Real critique on a monorepo: cwd-only signal match caused EVERY .tsx file
+# in {server/, client/} to fall through to "nodejs" because tsconfig.json +
+# "react" + "@nestjs/core" lived one level down, not at cwd root.
+#
+# T53 asserts /brain:init's procedure walks subtrees and persists a map
+# that /brain:ingest can route per-file from.
+
+INIT_MD="$CODEBRAIN_ROOT/commands/brain/init.md"
+INGEST_MD="$CODEBRAIN_ROOT/commands/brain/ingest.md"
+
+grep -qF '4a — Enumerate subtrees' "$INIT_MD" \
+  && ok "T53: init.md Step 4a enumerates subtrees" \
+  || nope "T53: Step 4a (subtree enumeration) missing"
+
+grep -qF '4b — Run signal match per subtree' "$INIT_MD" \
+  && ok "T53: init.md Step 4b runs detection per subtree" \
+  || nope "T53: Step 4b (per-subtree match) missing"
+
+grep -qF '4c — Persist the subtree → stacks map' "$INIT_MD" \
+  && ok "T53: init.md Step 4c persists the map" \
+  || nope "T53: Step 4c (map persistence) missing"
+
+grep -qF '.brain/.graphbrain-stacks.json' "$INIT_MD" \
+  && ok "T53: init.md names the load-bearing stacks map file" \
+  || nope "T53: stacks map path not specified"
+
+grep -qF 'subtree-routed' "$INGEST_MD" \
+  && ok "T53: ingest.md Step 4b is subtree-routed" \
+  || nope "T53: ingest.md not updated for subtree routing"
+
+grep -qF 'longest prefix' "$INGEST_MD" \
+  && ok "T53: ingest.md documents longest-prefix matching" \
+  || nope "T53: ingest.md missing longest-prefix rule"
+
+grep -qF 'Fallback if `.graphbrain-stacks.json` missing' "$INGEST_MD" \
+  && ok "T53: ingest.md has fallback when map is missing" \
+  || nope "T53: ingest.md missing fallback handling"
+
+# Subtree report in Step 7
+grep -qF 'Detected stacks (per subtree)' "$INIT_MD" \
+  && ok "T53: Step 7 report shows per-subtree breakdown" \
+  || nope "T53: Step 7 report not updated for subtree breakdown"
+
+# === Test 54: v1.0.12 — two-pass parallel linker ============================
+#
+# Critique measured 411s for 46 pages (~9s/page) on a sequential linker. The
+# bidirectional reverse-write is structurally race-prone: agents A and B both
+# editing pages X and Y when X imports Y and Y imports X.
+#
+# T54 asserts the L2 procedure is split into L2a (read-only parallel
+# extraction) and L2b (per-target consolidator writes).
+
+grep -qF 'L2a — Edge extraction (parallel, read-only)' "$INGEST_MD" \
+  && ok "T54: linker has L2a (parallel edge extraction)" \
+  || nope "T54: L2a phase missing"
+
+grep -qF 'L2b — Consolidator write phase' "$INGEST_MD" \
+  && ok "T54: linker has L2b (consolidator writes)" \
+  || nope "T54: L2b phase missing"
+
+grep -qF 'Writes nothing' "$INGEST_MD" \
+  && ok "T54: L2a workers are read-only (write-free)" \
+  || nope "T54: L2a's read-only guarantee not asserted"
+
+grep -qF 'race-free' "$INGEST_MD" \
+  && ok "T54: L2b documents the race-free per-target sharding" \
+  || nope "T54: L2b's race-freedom not documented"
+
+# Default K and threshold for spawning parallel
+grep -qF 'ingested[].length >= 8' "$INGEST_MD" \
+  && ok "T54: linker has explicit parallelism threshold (>=8 files)" \
+  || nope "T54: parallelism threshold not stated"
+
+# === Test 55: v1.0.12 — batched derived-file updates ========================
+#
+# Critique: per-file ingest does 5 derived-file updates × N files = 5N ops.
+# For 46 files that's 230 derived-file ops on growing files, forcing serial
+# execution due to write contention. T55 asserts the per-file procedure has
+# a batch-mode guard and the folder procedure has a single batched step.
+
+grep -qF 'Batch-mode guard (v1.0.12)' "$INGEST_MD" \
+  && ok "T55: per-file Step 6 has batch-mode guard" \
+  || nope "T55: per-file Step 6 missing batch-mode guard"
+
+grep -qF '**Step 5b — Batched derived-file update**' "$INGEST_MD" \
+  && ok "T55: folder procedure has Step 5b (batched derived-file update)" \
+  || nope "T55: Step 5b (batched derived) missing"
+
+grep -qF 'SKIP Step 6' "$INGEST_MD" \
+  && ok "T55: per-file loop instructs Step 6 skip in batch mode" \
+  || nope "T55: skip instruction not present"
+
+grep -qF 'SINGLE batched entry' "$INGEST_MD" \
+  && ok "T55: log.md gets ONE entry per folder, not N" \
+  || nope "T55: log.md batching not specified"
+
+# === Test 56: v1.0.12 — auto-confirm safe .bak classes by default ===========
+#
+# Critique: reconcile prompt asked operator to confirm 6 deletes for pure
+# version-bump diffs with zero operator content at risk. Safe classes should
+# auto-apply silently; only prompt on real risk.
+
+grep -qF 'auto-confirm safe classes by default' "$INIT_MD" \
+  && ok "T56: Step 1b documents auto-confirm-by-default" \
+  || nope "T56: auto-confirm default not in init.md"
+
+grep -qF 'operator-additions` (version-only:' "$INIT_MD" \
+  && ok "T56: operator-additions split into version-only vs real-content" \
+  || nope "T56: version-only subclass missing"
+
+grep -qF '/brain:init --interactive' "$INIT_MD" \
+  && ok "T56: --interactive flag opts back into per-class prompting" \
+  || nope "T56: --interactive flag missing"
+
+grep -qF 'suppress the prompt entirely' "$INIT_MD" \
+  && ok "T56: zero-prompt path documented when all classes auto-apply" \
+  || nope "T56: zero-prompt path not documented"
 
 # === Test 38: SKILL.md reciprocity — every related_skills entry resolves =====
 # Bidirectional-links lint, run statically over the shipped skill set.

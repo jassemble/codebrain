@@ -89,14 +89,45 @@ Found <N> .bak files from a previous --force upgrade. Proposed reconciliation:
 Apply? (yes/no/show-diffs/per-file)
 ```
 
-**1b-D — Confirmation gate**:
+**1b-D — Confirmation gate** (v1.0.12 — auto-confirm safe classes by default):
 
-- `yes` → apply all proposed actions
-- `no` → leave all .bak files; init proceeds normally to Step 2
+The reconciliation runs in **auto mode** by default — safe classes (no operator-data loss possible) apply immediately without a prompt. Only the classes that risk losing operator content or require human judgment trigger a confirmation:
+
+| Class | Default behavior | Operator content at risk? |
+|---|---|---|
+| `identical` | Auto-delete `.bak` silently | No (bytes equal) |
+| `whitespace-only` | Auto-delete `.bak` silently | No (trivial diff) |
+| `operator-additions` (version-only: the only `.bak` content not in current is a version stamp / timestamp / hash that graphbrain itself bumped) | Auto-delete `.bak` silently | No (graphbrain owns those lines) |
+| `operator-additions` (real content: section, paragraph, or named heading the operator wrote) | **PROMPT** before merging | Yes (need confirmation that the proposed merge is right) |
+| `operator-edit-to-graphbrain-content` | **PROMPT** with data-loss warning | Yes (discard means losing operator work) |
+| `mixed` | **PROMPT** with itemized kept/lost list | Yes |
+| `unclear` | Skip — leave `.bak` in place | Yes |
+
+Determining "version-only" for the `operator-additions` class: the diff lines added in the .bak only match these patterns: a version number (`v?\d+\.\d+\.\d+`), an ISO date (`\d{4}-\d{2}-\d{2}`), a git hash prefix (`git:[a-f0-9]+`), or whitespace. If any added line carries semantic prose, treat as real content and prompt.
+
+**Auto-mode output** (silent unless something needs a prompt):
+
+```
+.bak reconciliation: <S> auto-applied (safe), <P> need confirmation, <K> kept as unclear.
+```
+
+If `<P> == 0` and `<K> == 0`, suppress the prompt entirely and proceed to Step 2.
+
+**Prompt path** (only when `<P> > 0`):
+
+```
+Apply? (yes/no/show-diffs/per-file)
+```
+
+- `yes` → apply the prompted actions
+- `no` → skip the prompted actions; safe-class .bak files were already cleaned
 - `show-diffs` → print every per-file diff; re-prompt
-- `per-file` → walk each .bak with an individual prompt; per-file yes/no/skip
+- `per-file` → walk each prompted .bak individually; per-file yes/no/skip
 
-If the operator passed `--yes` on the `/brain:init` invocation: **auto-confirm only the safe classes** (`identical`, `whitespace-only`, `operator-additions`). NEVER auto-confirm `operator-edit-to-graphbrain-content` (data loss warning) or `unclear` (judgment call). For those, fall back to interactive confirmation even with `--yes`.
+**Flag overrides**:
+
+- `/brain:init --yes` — also auto-confirm the prompted classes EXCEPT `operator-edit-to-graphbrain-content` and `unclear` (data-loss + judgment guard remains). The operator gets a non-interactive run.
+- `/brain:init --interactive` — opt back into the pre-v1.0.12 behavior: prompt for ALL classes, including the safe ones. Useful when the operator wants to audit even the version-stamp bumps.
 
 **1b-E — Apply**:
 
@@ -144,20 +175,55 @@ If you cannot locate these template files, ask the operator to run `npm root -g`
 - Otherwise: write the file with the new content between the markers (preserve everything outside the markers). This is the only modification to CLAUDE.md.
 - Use a write strategy that preserves the file's existing line endings and final-newline state.
 
-**Step 4 — Detect tech stack**:
+**Step 4 — Detect tech stack** (v1.0.12 — subtree-aware for monorepos):
 
-- Parse `stack-detection.json`. For each entry in `stacks`, evaluate `signals`:
-  - `{ "file_exists": "<path>" }` — match if `<cwd>/<path>` exists as a file
-  - `{ "file_exists": "<path>", "contains": "<substring>" }` — match if file exists AND its content contains the substring
-  - `{ "dir_exists": "<path>" }` — match if `<cwd>/<path>` exists as a directory
-  - `{ "glob": "<pattern>" }` — match if at least one file matches the glob, relative to cwd
+The detection model walks the cwd root **and one level into each immediate subdirectory**. This is the monorepo fix: in repos like `{server/, client/, packages/}`, the real `package.json` / `tsconfig.json` / framework signals live one level down, not at cwd root. Single-package repos behave identically to v1.0.11 (only the root subtree matches).
+
+**4a — Enumerate subtrees**:
+
+- Always include the root subtree (path: `""`).
+- Additionally include every immediate subdir of cwd EXCEPT excluded names: `.git`, `node_modules`, `.venv`, `__pycache__`, `dist`, `build`, `.brain`, `.claude`, `.next`, `target`, `vendor`, `.cache`.
+- Cap at 16 subtrees. If cwd has more, take the first 16 alphabetically + emit a warning in the Step 7 report.
+
+**4b — Run signal match per subtree**:
+
+For each subtree `S`:
+
+- Parse `stack-detection.json`. For each entry in `stacks`, evaluate `signals` **rooted at `S`** (not at cwd):
+  - `{ "file_exists": "<path>" }` — match if `<cwd>/<S>/<path>` exists as a file
+  - `{ "file_exists": "<path>", "contains": "<substring>" }` — match if that file exists AND contains the substring
+  - `{ "dir_exists": "<path>" }` — match if `<cwd>/<S>/<path>` exists as a directory
+  - `{ "glob": "<pattern>" }` — match if at least one file matches the glob, relative to `<cwd>/<S>/`
 - A stack matches only if **all** of its `signals` match (logical AND).
-- Collect the matched stack names. Dedupe (e.g., `python` and `python-legacy` both detect Python — report once as `python`).
-- This step is reporting-only — `/brain:init` does NOT install `detected/*` skills. Those ship with the graphbrain npm package and are activated automatically by `/brain:ingest` Step 4b when the source file's extension + project signals match.
+- Collect the matched stack names for `S`. Dedupe within `S`.
 
-**Step 4c — Stack-specific skill recommendations (M#13a)**:
+**4c — Persist the subtree → stacks map**:
 
-For each detected stack from Step 4, the catalog (`stack-detection.json`) carries a `recommended_skills[]` array. Each entry is `{ source, package, install_command, description }`. Sources today:
+Write `<cwd>/.brain/.graphbrain-stacks.json` (creating it if absent, replacing if present):
+
+```json
+{
+  "version": "1.0.12",
+  "generated": "<YYYY-MM-DD>",
+  "subtrees": [
+    { "path": "",       "stacks": ["nodejs"] },
+    { "path": "server", "stacks": ["nodejs", "typescript", "nestjs"] },
+    { "path": "client", "stacks": ["nodejs", "typescript", "react", "vite"] }
+  ]
+}
+```
+
+This file is the **load-bearing contract** read by `/brain:ingest` Step 4b to pick the right detected-tier skills per file (subtree-routed, not cwd-routed). Without it, ingest falls back to cwd-only detection.
+
+**4d — Compute the union for reporting**:
+
+For Step 4d (recommendations) and Step 7 (report), use the **union of stacks across all subtrees**, deduped. The per-subtree breakdown is only consumed by `/brain:ingest`.
+
+This step is reporting-only — `/brain:init` does NOT install `detected/*` skills. Those ship with the graphbrain npm package and are activated automatically by `/brain:ingest` Step 4b when the source file's owning subtree's stack set matches.
+
+**Step 4e — Stack-specific skill recommendations** (formerly Step 4c; renamed v1.0.12 to make room for the subtree-aware detection sub-steps above):
+
+Operate on the **union of stacks across all subtrees** computed in Step 4d. For each detected stack, the catalog (`stack-detection.json`) carries a `recommended_skills[]` array. Each entry is `{ source, package, install_command, description }`. Sources today:
 
 - `source: "patterns.dev"` — installable via `npx -y skills add PatternsDev/skills/<framework>` (lands at `~/.claude/skills/`, user-global, available across all your repos)
 - `source: "ecc"` — graphbrain bridges automatically once the ECC plugin is installed (no direct install command — operator installs ECC once; graphbrain's `/brain:ingest` Step 4b.3 probes for the named skill and loads it when present)
@@ -170,7 +236,7 @@ Use Claude's judgment — not a static algorithm — to:
 4. **Surface them in the Step 7 report** under a `Recommended skills:` block. Group by source.
 5. **Phrase install commands as copy-paste-ready shell lines.** Not abstract instructions.
 
-Skip Step 4c entirely if Step 4 produced zero detected stacks.
+Skip Step 4e entirely if Step 4d produced zero detected stacks across all subtrees.
 
 This step is **agent-driven by design** — you (the LLM agent) make the judgment call on relevance, not a hardcoded JSON catalog. The catalog provides the candidates; you pick the ones that actually fit this repo.
 
@@ -203,10 +269,14 @@ Print exactly:
 /brain:init complete (graphbrain v<version-from-.graphbrain-version>)
   Schema block:   <refreshed | unchanged>
   overview.md:    <populated | unchanged>
-  Detected stack: <comma-separated list, or "(none detected)">
+  Detected stacks (per subtree):
+    <subtree-path or "(root)">: <comma-separated list, or "(none)">
+    <next subtree>:             <stacks>
+    ...
+  Stacks map:     .brain/.graphbrain-stacks.json
   Logged:         .brain/log.md
 
-Recommended skills for this stack: <only print this block if Step 4c produced recommendations>
+Recommended skills for this stack: <only print this block if Step 4e produced recommendations>
   patterns.dev (installs to ~/.claude/skills/, user-global):
     <description>
     $ <install_command>

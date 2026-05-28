@@ -92,11 +92,17 @@ tokens: <your best estimate of page token count; informational, ±20% is fine>
 - Aim for <4k tokens (soft warn). If the rendered page approaches 4k, summarize more aggressively.
 - If approaching 8k (hard error per PRD #7), emit `blocked: ingester couldn't fit page for <source-path> under the 8k cap. Reason: source file is too large for a single page. Operator action: split the source into smaller modules, then re-ingest.` and stop.
 
-**Step 4b — Stack-aware extras** (M#3d):
+**Step 4b — Stack-aware extras** (M#3d; **v1.0.12 subtree-routed**):
 
 After writing the generic 5 sections above, check whether any installed `detected/*` skills apply to this source file. A skill applies when BOTH:
 
-1. **Project signal matches**: the project's detected stack list (read from `.brain/overview.md` Active State; fall back to a fresh `skills/registry.json` detect-rule evaluation if cache is missing) includes the skill's stack name (`react`, `typescript`, `python`, `go`).
+1. **Project signal matches (subtree-routed, v1.0.12)**: read `.brain/.graphbrain-stacks.json` (written by `/brain:init` Step 4c). For the source file's path, pick the entry whose `path` is the **longest prefix** of the source path:
+   - Source path `server/src/foo.ts` → match `path: "server"` (length 6) over `path: ""` (length 0)
+   - Source path `README.md` → match `path: ""` (root)
+   - Tie-break: prefer the more-specific (longer) path; if no subtree matches, use root.
+   - The matched entry's `stacks` array is the project signal set for this file.
+   - **Fallback if `.graphbrain-stacks.json` missing or unreadable**: re-run a fresh cwd-root detect via `skills/registry.json` (legacy v1.0.11 behavior). Emit a one-line WARNING in the Step 7 report (`stacks_map_missing: re-running /brain:init recommended`).
+   - The skill applies if its stack name (`react`, `typescript`, `nestjs`, `python`, `go`, …) appears in this file's matched stacks array.
 2. **File signal matches**: the source file's extension is in the skill's `applies_to_extensions` list (e.g., `.tsx` matches React's `[".tsx", ".jsx"]`).
 
 For each matching skill, APPEND its extra sections to the page AFTER `## Cross-references`. Never replace the generic 5 sections.
@@ -279,7 +285,15 @@ Operationalizes the declarative contract from Step 4b.2. For each matched `detec
 - Ensure `.brain/code/<dir-of-source>/` exists (create directories as needed).
 - Write the filled template to `.brain/code/<source-path>.md`. Use Write (full file content), not Edit — we're replacing whatever was there.
 
-**Step 6 — Update derived files**:
+**Step 6 — Update derived files** (per-file path; **SKIP when invoked from folder-ingest Step 5** — folder mode batches all derived-file updates into a single pass at Step 5b for ~10× fewer I/O ops):
+
+- **Batch-mode guard (v1.0.12)**: if you were invoked from `## When $ARGUMENTS starts with ingest <folder>` Step 5, return a structured result instead of writing here:
+  ```
+  { page_path, source_path, source_hash, top_dir, purpose_oneliner, bridges_used[] }
+  ```
+  The folder orchestrator's Step 5b uses these results to update index.md / status.md / log.md / llms.txt / CHANGELOG.md once for the whole batch.
+
+- **Single-file path** (the only path that reaches the writes below) — when the operator typed `/brain:ingest <single-file>` directly, no batching is possible; do the per-file writes inline:
 
 - `.brain/index.md`: append a one-line entry under `## Code pages`. If the section does not exist yet (M#1's init.js ships a generic `index.md` without subsections), CREATE the section with that exact heading as your first edit, then append. Entry format:
   ```
@@ -365,11 +379,32 @@ You are orchestrating a folder ingest. Run the M#3a ingester per file, then invo
 - If count is 20–50 AND `$ARGUMENTS` does NOT contain `--yes`: print `Will ingest <count> files (~$<cost> estimated). Proceed? (yes/no/show-files)` and wait for operator. On `yes`: continue. On `no`: stop. On `show-files`: print the list, then re-prompt.
 - If count < 20: proceed without prompting.
 
-**Step 5 — Per-file ingest loop**:
+**Step 5 — Per-file ingest loop** (v1.0.12 — batch mode):
 
-- For each filtered file, invoke the **M#3a single-file procedure** (Steps 0–7 of `## When $ARGUMENTS starts with ingest <file>`). Treat each file as if the operator typed `/brain ingest <file>`.
-- Collect results: `ingested[]`, `skipped[]` (source unchanged), `failed[]` (with reason).
+- For each filtered file, invoke the **M#3a single-file procedure** (Steps 0–5 of `## When $ARGUMENTS starts with ingest <file>`; **SKIP Step 6** — derived-file updates are batched in Step 5b below). Each invocation returns a structured result `{ page_path, source_path, source_hash, top_dir, purpose_oneliner, bridges_used[] }`.
+- Collect results: `ingested[]` (full results), `skipped[]` (source unchanged), `failed[]` (with reason).
 - On any per-file FAIL, log the reason and continue. **Skip-and-report** behavior — do not abort the folder.
+- **You may parallelize this loop with up to K=6 concurrent subagents** when `ingested[]` is expected to be ≥8 files (it removes the sequential bottleneck the user critique flagged: 411s linker for 46 files). Per-file ingest is read-only on derived files in batch mode, so parallel calls cannot race. Spawn shards via the Task tool; each shard returns its slice of results.
+
+**Step 5b — Batched derived-file update** (v1.0.12):
+
+After the per-file loop completes — and BEFORE invoking the linker — apply all derived-file updates in ONE pass each. This collapses what was previously 5 × N derived-file ops into 5 ops for the whole batch.
+
+For the collected `ingested[]` results:
+
+- **`.brain/index.md`** — open once, append all N `- [[code/<source-path>]] — <purpose_oneliner>` entries under `## Code pages`, dedupe by path, write once.
+- **`.brain/status.md`** — open once. For each result, route the row `| code/<source-path>.md | FRESH | <ISO date> | <source_hash> |` to its `## <top_dir>/` section (create the section before `## Concepts` if absent). Write once. Do NOT touch `## Health` / `## Needs attention` (lint owns those).
+- **`.brain/log.md`** — append a SINGLE batched entry under `## Activity History` instead of N per-file entries:
+  ```
+  ## [YYYY-MM-DD] ingest | <folder>: <N> files → .brain/code/<folder>/ (skipped <S>, failed <F>)
+  ```
+- **`.brain/llms.txt`** — regenerate once per `skills/ingestion/llms-txt/SKILL.md`. Read that skill before refreshing.
+- **`.brain/CHANGELOG.md`** — append a single one-line summary entry under the current month's `## YYYY-MM` heading:
+  ```
+  - <YYYY-MM-DD>: ingested <folder> → <N> code pages (subtrees: <top_dirs comma-list>)
+  ```
+
+If `ingested[]` is empty (e.g., everything was skipped or failed), skip Step 5b entirely.
 
 **Step 6 — Invoke the linker procedure**:
 
@@ -402,13 +437,35 @@ You are the graphbrain **linker** (see `agents/brain/linker.md` for your full pe
 - Read all existing `.brain/concepts/**/*.md` pages (for idempotency: update rather than duplicate).
 - The concept-extraction criteria are inlined in this body (see L3); the standalone documentation lives at `skills/ingestion/concept-extraction/SKILL.md`.
 
-**L2 — Wire bidirectional Cross-references between code pages**:
+**L2 — Wire bidirectional Cross-references between code pages** (v1.0.12 — two-pass parallel):
 
-- For each code page, scan its `## Imports` section. For every imported module that resolves to another `.brain/code/<path>.md` page:
-  - Verify the target page EXISTS in `.brain/code/` before writing the wikilink (per linker Rule on dangling wikilinks).
-  - Add `- [[code/<target-path>]] — <one-line why imported>` under the importing page's `## Cross-references` section.
-  - Add the reverse link on the target page: `- [[code/<importing-path>]] — imported by`.
-- Dedupe: if a `[[code/<path>]]` link is already present, skip rather than duplicate.
+The pre-v1.0.12 design walked code pages serially, writing both forward and reverse links per page. That made L2 the dominant linker cost (the user critique measured 411s for 46 pages — ~9s/page sequential LLM round-trips) and was structurally race-prone: if agent A processes page X importing Y and agent B processes Y importing X, both write to both files.
+
+The v1.0.12 design splits L2 into a read-only extraction phase and a write-only consolidator phase:
+
+**L2a — Edge extraction (parallel, read-only)**:
+
+- Decide `K` (worker count): if `ingested[].length >= 8` then `K = 4` (or `min(4, ceil(N/4))`); else `K = 1` (serial — overhead of spawn dominates for tiny batches).
+- Partition the ingested code pages into `K` shards by deterministic index (e.g., shard = `i % K`).
+- Spawn `K` Task-tool subagents in parallel. Each shard worker:
+  - Reads its assigned `.brain/code/<path>.md` pages plus the full set of `.brain/code/**/*.md` (for target-existence checks).
+  - For each page in its shard, scans the `## Imports` section. For every imported module that resolves to another `.brain/code/<path>.md` page:
+    - Verifies the target page EXISTS in `.brain/code/` (per linker Rule on dangling wikilinks). If absent, emit it to a `dangling[]` list and skip.
+    - Emits an edge `{ importer: "<importer-path>", target: "<target-path>", reason: "<one-line why imported>" }` into the shard's result.
+  - **Writes nothing.** The shard returns its `edges[]` + `dangling[]` + per-page span hints (the L3 inputs).
+- Once all `K` shards return, **deduplicate edges** by `(importer, target)`. Concatenate all `edges[]` into a single global list.
+
+**L2b — Consolidator write phase (per-target sharded, race-free)**:
+
+- Group edges by `target` (the page that receives the reverse link). Each target page is now owned by exactly one writer — no two agents touch the same file.
+- For each target group `{ target: T, edges: [...] }`:
+  - Read `T`'s current page.
+  - Append `- [[code/<edge.importer>]] — imported by` under `## Cross-references` for each edge in the group. Dedupe by `[[code/<importer>]]` link.
+  - Write `T` once.
+- Then group edges by `importer` and apply the forward links symmetrically: for each `{ importer: I, edges: [...] }`, read `I` once, append `- [[code/<edge.target>]] — <edge.reason>` per edge, dedupe, write `I` once.
+- This pattern guarantees at most 2 writes per page (one for incoming edges, one for outgoing edges); the original design averaged `2 × in_degree` writes per page.
+
+For folder ingests with `ingested[].length < 8`, L2a/L2b collapse to a serial pass over the edges — same correctness, no parallelism overhead.
 
 **L3 — Discover concept candidates**:
 
