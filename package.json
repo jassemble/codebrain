@@ -1,6 +1,6 @@
 {
   "name": "codebrain",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Agent-maintained, folder-mirrored markdown wiki of your codebase. Installs into Claude Code via npx codebrain init.",
   "bin": {
     "codebrain": "./bin/codebrain.js"

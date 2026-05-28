@@ -60,12 +60,30 @@ Three-step onboarding:
 Then navigate the wiki in Obsidian (open the repo root as an Obsidian vault and explore `.brain/`) or query via Claude Code:
 
 ```
-/brain query "how does auth work?"   # pointer-first lookup (Milestone #5 — not yet implemented)
-/brain lint                          # health-check the wiki (Milestone #6 — not yet implemented)
-/brain lint --fix                    # batch re-ingest STALE pages
-/brain learn on                      # enable continuous-learning observer (Milestone #7)
-/brain status                        # dashboard view
+/brain:query "how does auth work?"        # pointer-first lookup (M#5)
+/brain:lint                                # health-check the wiki (M#6)
+/brain:lint --fix                          # batch re-ingest STALE pages
+/brain:learn on                            # enable continuous-learning observer (M#7)
+/brain:status                              # dashboard view (M#7)
+/brain:spec "add OAuth login"              # spec-orchestrate via ECC (M#10a — v0.2)
+/brain:creds add staging-db host=... ...   # per-project credential registry (M#11 — v0.2)
 ```
+
+The legacy `/brain <verb>` form (with a space) still works — `/brain ingest src/auth.ts` and `/brain:ingest src/auth.ts` are equivalent. The namespaced form is more discoverable in Claude Code's command palette.
+
+## What's new in v0.2
+
+- **Slash-command namespacing** (M#12) — every verb has its own file under `.claude/commands/brain/<verb>.md` for better Claude Code autocomplete + lower per-invocation token cost. Legacy `/brain <verb>` dispatcher preserved for muscle memory.
+- **`/brain:spec`** (M#10a) — orchestrate a feature intent through ECC's `plan-prd` → `plan` → optional `santa-loop` into a converged PRD + plan. Spec-first discipline.
+- **`/brain:creds`** (M#11) — per-project credential registry at `<XDG>/codebrain/projects/<git-hash>/credentials.toon`. Plaintext but outside the repo, chmod 0600, refusal-pattern enforcement (Stripe live keys / AWS / GitHub PATs / "prod" context all rejected), mask-by-default `show`, auditable override flag.
+- **`.brain/llms.txt`** (v0.1.2) — agent-portable AEO site map; external agents read it to route into the wiki.
+- **`.brain/CHANGELOG.md`** (M#10d) — curated compound-learning narrative; appended on every ingest + consolidate.
+- **`supersedes` / `superseded_by` frontmatter** (M#10d) — pink-elephant fix; `/brain:query` skips superseded pages and follows the pointer to the replacement.
+- **Runtime bridge probe** (M#9-prereq) — filesystem-probe pattern (`~/.claude/plugins/<vendor>/skills/<name>/SKILL.md`) lets per-stack skills load ECC's expert pattern skills at ingest time.
+- **8 new `detected/*` skills** (M#9-coverage) — vue, rails, flask, koa, hapi, gin, echo, fiber + `expert_skills:` bridges for the four M#3d skills (react, typescript, python, go).
+- **`wiki-reading-principles`** behavioral skill (M#10d) — 3-tier always/ask/never rules for how agents engage with `.brain/`.
+- **`discovery-loop`** skill (M#10b) — codifies the iterative convergence-sweep pattern; reusable.
+- **Intent-routing meta-skill section** (M#10c) — opt-in via `.brain/.codebrain-intent-routing-state`; when on, the agent suggests `/brain:spec` before code edits on feature-intent prompts.
 
 ## How it works
 
@@ -81,16 +99,43 @@ The architectural lineage: [LLM Wiki pattern reference](reference/llm-wiki.md).
 
 ## Roadmap
 
+**v0.1** (shipped):
+
+| # | Milestone | Status |
+|---|---|---|
+| 1 | npm package skeleton + `init` | complete |
+| 2 | `init` skill — scaffold + CLAUDE.md schema block | complete |
+| 3a/b/c/d | `ingest` pipeline + stack-aware extras | complete |
+| 4 | 4-tier staleness model via PostToolUse hook | complete |
+| 5 | `query` — pointer-first lookup with auto-refresh | complete |
+| 6 | `lint` — defects + gaps + contradictions + `--fix` | complete |
+| 7 | Continuous-learning observer | complete |
+| 8 | Dogfood + measure on 3 sample repos | complete |
+
+**v0.1.1** (framework detection):
+
 | Milestone | Outcome | Status |
 |---|---|---|
-| 1 | npm package skeleton + `init` | **in-progress** (v0.1.0) |
-| 2 | `init` skill — scaffold + CLAUDE.md schema block | pending |
-| 3 | `ingest` pipeline — folder-mirrored pages with wikilinks | pending |
-| 4 | 4-tier staleness model via PostToolUse hook | pending |
-| 5 | `query` — pointer-first lookup with auto-refresh | pending |
-| 6 | `lint` — defects + gaps + contradictions + `--fix` | pending |
-| 7 | Continuous-learning observer (background, read-only) | pending |
-| 8 | Dogfood + measure on 3 sample repos | pending |
+| 6 framework skills | nestjs / nextjs / express / django / fastapi / springboot | complete |
+
+**v0.1.2** (.brain/llms.txt + reciprocity):
+
+| Milestone | Outcome | Status |
+|---|---|---|
+| llms.txt | AEO-convention agent-portable site map | complete |
+| reciprocity test | SKILL.md `related_skills:` resolution check | complete |
+
+**v0.2** (this release):
+
+| # | Milestone | Outcome | Status |
+|---|---|---|---|
+| 9 | Framework-detection runtime probe + 8 more frameworks | complete |
+| 10a | `/brain:spec` verb + spec-orchestrator agent | complete |
+| 10b | discovery-loop skill (convergence sweep) | complete |
+| 10c | Intent-routing behavioral update (opt-in) | complete |
+| 10d | supersedes frontmatter + CHANGELOG + wiki-reading-principles | complete |
+| 11 | Credential registry (`/brain:creds` + TOON store) | complete |
+| 12 | Slash-command namespacing (per-verb files) | complete |
 
 See [the PRD](.claude/prds/codebrain.prd.md) for the full spec, 33 locked design decisions, success metrics, and risk register.
 

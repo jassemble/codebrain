@@ -6,16 +6,24 @@ Source content distilled from `/Users/dev/Desktop/Project/OSS/idea/ECC/.claude-p
 
 ## Slash-command file format
 
-**Path**: `.claude/commands/<verb>.md` (project-local) or `~/.claude/commands/<verb>.md` (global).
+**Two layouts coexist** (per M#12 — slash-command namespacing):
 
-**File name** becomes the slash command: `commands/brain.md` → `/brain`.
+1. **Top-level commands** at `.claude/commands/<name>.md` → `/<name>`. Example: `commands/brain.md` → `/brain`.
+2. **Namespaced commands** at `.claude/commands/<namespace>/<verb>.md` → `/<namespace>:<verb>`. Example: `commands/brain/ingest.md` → `/brain:ingest`. Subdirectories create namespaces; the colon is the separator.
+
+Codebrain uses **both**:
+- Top-level `brain.md` is a thin dispatcher / help disambiguator. It supports the muscle-memory `/brain <verb>` form via a Read-and-execute shim that loads the per-verb file.
+- Per-verb files under `commands/brain/<verb>.md` are the canonical procedure location and support the more discoverable `/brain:<verb>` form.
+
+Both invocations produce identical behavior because the dispatcher Read-and-executes the per-verb file. (v0.2.0 dropped the older `/codebrain` alias — only `/brain` remains.)
 
 **Conventions**:
 
 - Lowercase-with-hyphens file naming (`brain.md`, `code-review.md` — not `Brain.md`, `code_review.md`)
-- First line **may** be a version-marker comment (`<!-- codebrain v0.1.0 -->`). Markdown parsers ignore it; Claude Code does too.
+- First line **may** be a version-marker comment (`<!-- codebrain v0.2.0 -->`). Markdown parsers ignore it; Claude Code does too.
 - YAML frontmatter with `description:` required (single line); other fields optional
 - Body is free-form markdown. Use `$ARGUMENTS` for argument substitution.
+- For namespaced commands, the procedure body lives in the per-verb file; the top-level dispatcher in the same namespace (`brain.md`) should NOT duplicate the procedure — it should reference the per-verb file via "Read `commands/brain/<verb>.md` and execute its procedure."
 
 **Example** (matches codebrain's `commands/brain.md` template):
 
