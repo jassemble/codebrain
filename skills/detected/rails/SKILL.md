@@ -9,7 +9,7 @@ related_skills: [behavioral/graphbrain, ingestion/page-format]
 detect:
   - { file_exists: "Gemfile", contains: "rails" }
 applies_to_extensions: [".rb"]
-expert_skills: [ecc:rails-patterns]
+expert_skills: []
 ---
 
 # detected/rails — rails extras + ECC bridge

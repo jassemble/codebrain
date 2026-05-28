@@ -2289,40 +2289,57 @@ for stack in vue rails flask koa hapi gin echo fiber; do
     || nope "T45: detected/${stack} wrong tier"
 done
 
-# registry.json has all 8 new entries with expert_skills
+# registry.json has all 8 new framework entries; expert_skills may be empty
+# for vue/rails/flask (broken ECC bridges removed in v1.0.7) but must be set
+# for koa/hapi/gin/echo/fiber (verified ECC bridges).
 node -e "
   const r = require('$CODEBRAIN_ROOT/skills/registry.json');
   const expected = ['detected/vue', 'detected/rails', 'detected/flask', 'detected/koa', 'detected/hapi', 'detected/gin', 'detected/echo', 'detected/fiber'];
+  const must_have_bridge = ['detected/koa', 'detected/hapi', 'detected/gin', 'detected/echo', 'detected/fiber'];
   for (const k of expected) {
     if (!r.skills[k]) { console.error('missing skill:', k); process.exit(1); }
     if (r.skills[k].tier !== 'detected') { console.error('wrong tier:', k); process.exit(1); }
-    if (!Array.isArray(r.skills[k].expert_skills) || r.skills[k].expert_skills.length === 0) {
-      console.error('expert_skills empty or missing:', k); process.exit(1);
+    if (!Array.isArray(r.skills[k].expert_skills)) {
+      console.error('expert_skills not an array:', k); process.exit(1);
+    }
+    if (must_have_bridge.includes(k) && r.skills[k].expert_skills.length === 0) {
+      console.error('expert_skills empty for', k, '(should bridge to ECC)'); process.exit(1);
     }
   }
   process.exit(0);
 " 2>/dev/null \
-  && ok "T45: registry.json has 8 new detected entries with expert_skills" \
-  || nope "T45: registry.json M#9-coverage entries malformed or missing"
+  && ok "T45: registry.json has 8 framework entries; broken ECC bridges (vue/rails/flask) removed; verified bridges (koa/hapi/gin/echo/fiber) intact" \
+  || nope "T45: registry.json M#9-coverage entries malformed"
 
-# The 4 M#3d skills (react/typescript/python/go) gained expert_skills bridges
+# Updated post-v1.0.7 sweep: ecc:react-patterns + ecc:typescript-patterns
+# DO NOT EXIST in ECC's catalog (audited). Bridges removed. Only python + go
+# (the M#3d skills with real ECC counterparts) retain bridge declarations.
 node -e "
   const r = require('$CODEBRAIN_ROOT/skills/registry.json');
-  const m3d = {
-    'detected/react': 'ecc:react-patterns',
-    'detected/typescript': 'ecc:typescript-patterns',
+  const verified_m3d = {
     'detected/python': 'ecc:python-patterns',
-    'detected/go': 'ecc:golang-patterns',
+    'detected/go':     'ecc:golang-patterns',
   };
-  for (const [k, target] of Object.entries(m3d)) {
+  for (const [k, target] of Object.entries(verified_m3d)) {
     if (!r.skills[k]) { console.error('missing:', k); process.exit(1); }
     if (!Array.isArray(r.skills[k].expert_skills)) { console.error('expert_skills not array:', k); process.exit(1); }
     if (!r.skills[k].expert_skills.includes(target)) { console.error('missing bridge', target, 'in', k); process.exit(1); }
   }
+  // Confirm broken bridges are GONE:
+  const broken_targets = ['ecc:react-patterns', 'ecc:typescript-patterns'];
+  for (const stack of ['detected/react', 'detected/typescript']) {
+    const ent = r.skills[stack];
+    if (!ent) continue;
+    for (const target of broken_targets) {
+      if ((ent.expert_skills || []).includes(target)) {
+        console.error('broken bridge still declared:', stack, '→', target); process.exit(1);
+      }
+    }
+  }
   process.exit(0);
 " 2>/dev/null \
-  && ok "T45: M#3d skills (react/typescript/python/go) gained expert_skills bridges" \
-  || nope "T45: M#3d skills missing expert_skills bridges"
+  && ok "T45: M#3d bridges audited — python/go bridge to ECC; react/typescript no longer claim non-existent ECC skills" \
+  || nope "T45: M#3d bridge state incorrect (verified-bridge missing or broken-bridge still declared)"
 
 # stack-detection.json has the new framework detect rules (those not already present)
 for stack in flask koa hapi gin echo fiber; do
@@ -2480,6 +2497,84 @@ pack_list_t48="$(cd "$CODEBRAIN_ROOT" && npm pack --dry-run 2>&1)"
 echo "$pack_list_t48" | grep -q '.claude-plugin/plugin.json' \
   && ok "T48: .claude-plugin/plugin.json in npm pack" \
   || nope "T48: .claude-plugin/plugin.json missing from npm pack"
+
+# === Test 49: M#13a — stack detection + skill recommendations =================
+
+# Catalog has recommended_skills field on at least the major stacks
+node -e "
+  const j = require('$CODEBRAIN_ROOT/skills/core/init/templates/stack-detection.json');
+  const must_have = ['react', 'vue', 'nextjs', 'nodejs', 'python', 'django', 'go', 'docker'];
+  for (const name of must_have) {
+    const s = j.stacks.find(x => x.name === name);
+    if (!s) { console.error('stack missing:', name); process.exit(1); }
+    if (!Array.isArray(s.recommended_skills) || s.recommended_skills.length === 0) {
+      console.error('recommended_skills empty for:', name); process.exit(1);
+    }
+    for (const r of s.recommended_skills) {
+      if (!r.source || !r.package || !r.description) {
+        console.error('malformed recommendation in', name); process.exit(1);
+      }
+      if (r.source !== 'patterns.dev' && r.source !== 'ecc') {
+        console.error('unknown source in', name, ':', r.source); process.exit(1);
+      }
+    }
+  }
+  process.exit(0);
+" 2>/dev/null \
+  && ok "T49: stack-detection.json has recommended_skills on all major stacks (react, vue, nextjs, nodejs, python, django, go, docker)" \
+  || nope "T49: recommended_skills missing or malformed on major stacks"
+
+# Broken ECC bridges removed from v0.2-shipped skills
+for stack in react typescript vue rails flask; do
+  bridge_count=$(node -e "
+    const r = require('$CODEBRAIN_ROOT/skills/registry.json');
+    const entry = r.skills['detected/${stack}'];
+    if (!entry) { console.log(-1); process.exit(0); }
+    const broken = (entry.expert_skills || []).filter(s => /^ecc:(react|typescript|vue|rails|flask)-patterns\$/.test(s));
+    console.log(broken.length);
+  " 2>/dev/null)
+  [ "$bridge_count" = "0" ] \
+    && ok "T49: detected/${stack} has no broken ecc:*-patterns bridge (audited against ECC catalog)" \
+    || nope "T49: detected/${stack} still declares a broken ECC bridge"
+done
+
+# Architecture choice (post-sweep, v1.0.7): stack detection + recommendations
+# are AGENT-driven via /brain:init Step 4c, not imperative-driven via init.js.
+# init.js stays focused on file scaffolding; Claude does the smart stuff
+# (read package.json, judge relevance, dedupe by source+package, format the
+# recommendations block). T49 asserts the agent-side contract:
+#   1. The catalog (stack-detection.json) has the recommended_skills field
+#      populated for every major stack (data — verified above).
+#   2. commands/brain/init.md has a Step 4c that defines the agent procedure
+#      for surfacing recommendations.
+#   3. The Step 7 success-report template has a `Recommended skills:` block
+#      so the agent knows where to print.
+
+grep -qF '**Step 4c — Stack-specific skill recommendations' "$CODEBRAIN_ROOT/commands/brain/init.md" \
+  && ok "T49: commands/brain/init.md has Step 4c (stack-specific recommendations)" \
+  || nope "T49: commands/brain/init.md missing Step 4c"
+
+grep -qF 'recommended_skills' "$CODEBRAIN_ROOT/commands/brain/init.md" \
+  && ok "T49: Step 4c references stack-detection.json's recommended_skills field" \
+  || nope "T49: Step 4c does not reference recommended_skills"
+
+grep -qF 'PatternsDev/skills' "$CODEBRAIN_ROOT/commands/brain/init.md" \
+  && ok "T49: Step 4c documents the patterns.dev source" \
+  || nope "T49: Step 4c missing patterns.dev source documentation"
+
+grep -qF 'auto-bridges' "$CODEBRAIN_ROOT/commands/brain/init.md" \
+  && ok "T49: Step 4c documents the ECC bridge source" \
+  || nope "T49: Step 4c missing ECC bridge source documentation"
+
+grep -qF 'Recommended skills for this stack:' "$CODEBRAIN_ROOT/commands/brain/init.md" \
+  && ok "T49: Step 7 report template has the recommendations block" \
+  || nope "T49: Step 7 report template missing the recommendations block"
+
+# init.js is NOT doing stack detection (separation of concerns):
+# the imperative-detection helper we briefly added in v1.0.7 was reverted.
+! grep -q 'function detectStacks' "$CODEBRAIN_ROOT/scripts/init.js" \
+  && ok "T49: scripts/init.js does NOT contain detectStacks (correctly Claude-driven)" \
+  || nope "T49: scripts/init.js still contains imperative detection (should be in /brain:init)"
 
 # === Test 38: SKILL.md reciprocity — every related_skills entry resolves =====
 # Bidirectional-links lint, run statically over the shipped skill set.

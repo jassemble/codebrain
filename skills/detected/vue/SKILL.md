@@ -9,7 +9,7 @@ related_skills: [behavioral/graphbrain, ingestion/page-format, detected/typescri
 detect:
   - { file_exists: "package.json", contains: "\"vue\"" }
 applies_to_extensions: [".vue", ".ts", ".js"]
-expert_skills: [ecc:vue-patterns]
+expert_skills: []
 ---
 
 # detected/vue — vue extras + ECC bridge

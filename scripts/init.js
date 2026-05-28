@@ -64,20 +64,44 @@ const report = {
 
 // --- Atomic write helpers ---------------------------------------------------
 
+// Upgrade-strategy ownership model (v1.0.7):
+//
+// graphbrain ships files into the operator's repo in four categories. Each
+// category has a different update policy on `npx graphbrain init` runs.
+//
+//   1. OWNED-by-graphbrain    — slash-command bodies, plugin tree, version
+//                               marker. Operator must not edit; we update
+//                               in-place on every init. No .bak (nothing
+//                               to preserve).
+//   2. OPERATOR-CO-OWNED       — .brain/overview.md, .brain/index.md, etc.
+//                               Scaffold once; operator + /brain:* edit
+//                               thereafter. Skip if exists. --force can
+//                               opt into refresh (with .bak).
+//   3. OPERATOR-OWNED          — .brain/code/**, concepts/**, decisions/**,
+//                               toggle files. Never touched by init.
+//   4. MERGED                   — settings.local.json hooks (by id-prefix),
+//                               CLAUDE.md managed region (by begin/end
+//                               markers). Surgical updates; rest preserved.
+//
+// atomicWrite accepts opts.noBak — set TRUE for OWNED files so we don't
+// litter their (in-place auto-updated) directories with .bak files. Operator
+// shouldn't have anything to preserve for OWNED paths.
+
 function atomicWrite(target, content, opts) {
   // PRD: write `.bak` if target exists; write to .tmp; fsync; rename.
   // On --dry-run, log intent and return.
   // Content-aware (v1.0.5): if the existing content is byte-identical to the
-  // new content, no-op — don't write, don't create a .bak. This prevents
-  // wasteful identical .bak files when --force is passed but nothing has
-  // actually changed (e.g., a re-install of the same version, or a
-  // version bump that didn't touch this specific file). Returns:
-  //   - 'unchanged' if no write happened
-  //   - 'written'   if the file was created or overwritten (with .bak if it
-  //                 existed before)
+  // new content, no-op — don't write, don't create a .bak.
+  // Ownership-aware (v1.0.7): for OWNED files, skip the .bak entirely on
+  // overwrite (operator can't have local edits to lose on a graphbrain-owned
+  // file). Returns:
+  //   - 'unchanged' if no write happened (content is identical)
+  //   - 'written'   if the file was created or overwritten
   //   - 'dry-run'   if opts.dryRun was set
   const dryRun = opts && opts.dryRun;
   if (dryRun) return 'dry-run';
+
+  const noBak = opts && opts.noBak;
 
   if (fs.existsSync(target)) {
     let existing;
@@ -87,11 +111,13 @@ function atomicWrite(target, content, opts) {
       existing = null;
     }
     if (existing === content) {
-      // No-op: content is identical. Avoid creating an identical-bak.
+      // No-op: content is identical.
       return 'unchanged';
     }
-    const bak = `${target}.bak`;
-    fs.copyFileSync(target, bak);
+    if (!noBak) {
+      const bak = `${target}.bak`;
+      fs.copyFileSync(target, bak);
+    }
   }
 
   const tmp = `${target}.tmp`;
@@ -476,7 +502,7 @@ function init(argv) {
 
   if (!opts.dryRun) {
     console.log(`\nDone. Restart Claude Code or open a new session to use /brain commands.`);
-    console.log(`Try \`/brain:init\` to populate .brain/overview.md + the CLAUDE.md schema block.`);
+    console.log(`Try \`/brain:init\` to populate .brain/overview.md + the CLAUDE.md schema block + see stack-specific skill recommendations.`);
     console.log(`\nOr run non-interactively from the shell:`);
     console.log(`  claude -p '/brain:init' --dangerously-skip-permissions`);
     console.log(`(the --dangerously-skip-permissions flag auto-approves the file writes /brain:init needs;`);
@@ -486,5 +512,7 @@ function init(argv) {
   }
   return 0;
 }
+
+
 
 module.exports = init;

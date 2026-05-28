@@ -50,6 +50,25 @@ If you cannot locate these template files, ask the operator to run `npm root -g`
 - Collect the matched stack names. Dedupe (e.g., `python` and `python-legacy` both detect Python — report once as `python`).
 - This step is reporting-only — `/brain:init` does NOT install `detected/*` skills. Those ship with the graphbrain npm package and are activated automatically by `/brain:ingest` Step 4b when the source file's extension + project signals match.
 
+**Step 4c — Stack-specific skill recommendations (M#13a)**:
+
+For each detected stack from Step 4, the catalog (`stack-detection.json`) carries a `recommended_skills[]` array. Each entry is `{ source, package, install_command, description }`. Sources today:
+
+- `source: "patterns.dev"` — installable via `npx -y skills add PatternsDev/skills/<framework>` (lands at `~/.claude/skills/`, user-global, available across all your repos)
+- `source: "ecc"` — graphbrain bridges automatically once the ECC plugin is installed (no direct install command — operator installs ECC once; graphbrain's `/brain:ingest` Step 4b.3 probes for the named skill and loads it when present)
+
+Use Claude's judgment — not a static algorithm — to:
+
+1. **Read the matched stacks' `recommended_skills` arrays** from the catalog.
+2. **Dedupe by `(source, package)`** — a Next.js project would otherwise see `patterns.dev/javascript` listed twice (once for `nodejs`, once for `nextjs`).
+3. **Filter for relevance to THIS specific repo**: if the operator's `package.json` shows the project is genuinely a CLI tool (not a web app), the React/Vue recommendations may be noise. Lean conservative; only recommend skills that genuinely help on prompts the operator is likely to ask in this codebase. When uncertain, include them — the operator can ignore.
+4. **Surface them in the Step 7 report** under a `Recommended skills:` block. Group by source.
+5. **Phrase install commands as copy-paste-ready shell lines.** Not abstract instructions.
+
+Skip Step 4c entirely if Step 4 produced zero detected stacks.
+
+This step is **agent-driven by design** — you (the LLM agent) make the judgment call on relevance, not a hardcoded JSON catalog. The catalog provides the candidates; you pick the ones that actually fit this repo.
+
 **Step 5 — Populate overview.md**:
 
 - Read `<cwd>/.brain/overview.md` (M#1 wrote a minimal skeleton).
@@ -81,6 +100,17 @@ Print exactly:
   overview.md:    <populated | unchanged>
   Detected stack: <comma-separated list, or "(none detected)">
   Logged:         .brain/log.md
+
+Recommended skills for this stack: <only print this block if Step 4c produced recommendations>
+  patterns.dev (installs to ~/.claude/skills/, user-global):
+    <description>
+    $ <install_command>
+    ...
+  ECC plugin (auto-bridges once installed):
+    <description>
+    → <package>
+    ...
+
 Next:
   /brain:ingest <file>     single-file ingest
   /brain:ingest <folder>   folder ingest + concept-page linking

@@ -1,6 +1,6 @@
 {
-  "version": "0.1.0",
-  "description": "Stack-detection catalog used by /brain init (Milestone #2). Each entry's signals are evaluated against the user's cwd; if all signals match, the stack is reported as detected. The detected_skill field names the skill that will be auto-installed once Milestone #3 lands the skills/detected/* skills — for M#2, detected stacks are only reported, not installed.",
+  "version": "1.0.0",
+  "description": "Stack-detection catalog used by /brain init (Milestone #2). Each entry's signals are evaluated against the user's cwd; if all signals match, the stack is reported as detected. The detected_skill field names the skill that will be auto-installed once Milestone #3 lands the skills/detected/* skills — for M#2, detected stacks are only reported, not installed Each entry also carries a recommended_skills[] array (M#13a) — when the stack is detected, /brain:init Step 4c prints these install commands for the operator. patterns.dev installs to user-global ~/.claude/skills/; ecc:* entries require the ECC plugin and bridge automatically once installed.",
   "stacks": [
     {
       "name": "nodejs",
@@ -9,7 +9,21 @@
           "file_exists": "package.json"
         }
       ],
-      "detected_skill": "detected/nodejs"
+      "detected_skill": "detected/nodejs",
+      "recommended_skills": [
+        {
+          "source": "patterns.dev",
+          "package": "PatternsDev/skills/javascript",
+          "install_command": "npx -y skills add PatternsDev/skills/javascript",
+          "description": "JS design patterns (installs to ~/.claude/skills/, user-global)"
+        },
+        {
+          "source": "ecc",
+          "package": "ecc:backend-patterns",
+          "install_command": null,
+          "description": "API design, error handling, request validation (requires ECC plugin installed)"
+        }
+      ]
     },
     {
       "name": "typescript",
@@ -18,7 +32,15 @@
           "file_exists": "tsconfig.json"
         }
       ],
-      "detected_skill": "detected/typescript"
+      "detected_skill": "detected/typescript",
+      "recommended_skills": [
+        {
+          "source": "patterns.dev",
+          "package": "PatternsDev/skills/javascript",
+          "install_command": "npx -y skills add PatternsDev/skills/javascript",
+          "description": "JS design patterns (installs to ~/.claude/skills/, user-global)"
+        }
+      ]
     },
     {
       "name": "react",
@@ -28,7 +50,21 @@
           "contains": "\"react\""
         }
       ],
-      "detected_skill": "detected/react"
+      "detected_skill": "detected/react",
+      "recommended_skills": [
+        {
+          "source": "patterns.dev",
+          "package": "PatternsDev/skills/react",
+          "install_command": "npx -y skills add PatternsDev/skills/react",
+          "description": "React design + rendering patterns (installs to ~/.claude/skills/, user-global)"
+        },
+        {
+          "source": "patterns.dev",
+          "package": "PatternsDev/skills/javascript",
+          "install_command": "npx -y skills add PatternsDev/skills/javascript",
+          "description": "JS design patterns (installs to ~/.claude/skills/, user-global)"
+        }
+      ]
     },
     {
       "name": "nextjs",
@@ -38,7 +74,27 @@
           "contains": "\"next\""
         }
       ],
-      "detected_skill": "detected/nextjs"
+      "detected_skill": "detected/nextjs",
+      "recommended_skills": [
+        {
+          "source": "patterns.dev",
+          "package": "PatternsDev/skills/react",
+          "install_command": "npx -y skills add PatternsDev/skills/react",
+          "description": "React design + rendering patterns (installs to ~/.claude/skills/, user-global)"
+        },
+        {
+          "source": "patterns.dev",
+          "package": "PatternsDev/skills/javascript",
+          "install_command": "npx -y skills add PatternsDev/skills/javascript",
+          "description": "JS design patterns (installs to ~/.claude/skills/, user-global)"
+        },
+        {
+          "source": "ecc",
+          "package": "ecc:nextjs-turbopack",
+          "install_command": null,
+          "description": "Turbopack build/dev, route conventions, performance (requires ECC plugin installed)"
+        }
+      ]
     },
     {
       "name": "nestjs",
@@ -48,7 +104,21 @@
           "contains": "\"@nestjs/core\""
         }
       ],
-      "detected_skill": "detected/nestjs"
+      "detected_skill": "detected/nestjs",
+      "recommended_skills": [
+        {
+          "source": "patterns.dev",
+          "package": "PatternsDev/skills/javascript",
+          "install_command": "npx -y skills add PatternsDev/skills/javascript",
+          "description": "JS design patterns (installs to ~/.claude/skills/, user-global)"
+        },
+        {
+          "source": "ecc",
+          "package": "ecc:nestjs-patterns",
+          "install_command": null,
+          "description": "NestJS module/provider/controller patterns (requires ECC plugin installed)"
+        }
+      ]
     },
     {
       "name": "express",
@@ -58,7 +128,21 @@
           "contains": "\"express\""
         }
       ],
-      "detected_skill": "detected/express"
+      "detected_skill": "detected/express",
+      "recommended_skills": [
+        {
+          "source": "patterns.dev",
+          "package": "PatternsDev/skills/javascript",
+          "install_command": "npx -y skills add PatternsDev/skills/javascript",
+          "description": "JS design patterns (installs to ~/.claude/skills/, user-global)"
+        },
+        {
+          "source": "ecc",
+          "package": "ecc:backend-patterns",
+          "install_command": null,
+          "description": "Express middleware, error handling, validation (requires ECC plugin installed)"
+        }
+      ]
     },
     {
       "name": "fastify",
@@ -68,7 +152,21 @@
           "contains": "\"fastify\""
         }
       ],
-      "detected_skill": "detected/fastify"
+      "detected_skill": "detected/fastify",
+      "recommended_skills": [
+        {
+          "source": "patterns.dev",
+          "package": "PatternsDev/skills/javascript",
+          "install_command": "npx -y skills add PatternsDev/skills/javascript",
+          "description": "JS design patterns (installs to ~/.claude/skills/, user-global)"
+        },
+        {
+          "source": "ecc",
+          "package": "ecc:backend-patterns",
+          "install_command": null,
+          "description": "Fastify plugins, hooks, error handling (requires ECC plugin installed)"
+        }
+      ]
     },
     {
       "name": "vue",
@@ -78,7 +176,21 @@
           "contains": "\"vue\""
         }
       ],
-      "detected_skill": "detected/vue"
+      "detected_skill": "detected/vue",
+      "recommended_skills": [
+        {
+          "source": "patterns.dev",
+          "package": "PatternsDev/skills/vue",
+          "install_command": "npx -y skills add PatternsDev/skills/vue",
+          "description": "Vue design + performance patterns (installs to ~/.claude/skills/, user-global)"
+        },
+        {
+          "source": "patterns.dev",
+          "package": "PatternsDev/skills/javascript",
+          "install_command": "npx -y skills add PatternsDev/skills/javascript",
+          "description": "JS design patterns (installs to ~/.claude/skills/, user-global)"
+        }
+      ]
     },
     {
       "name": "python",
@@ -87,7 +199,15 @@
           "file_exists": "pyproject.toml"
         }
       ],
-      "detected_skill": "detected/python"
+      "detected_skill": "detected/python",
+      "recommended_skills": [
+        {
+          "source": "ecc",
+          "package": "ecc:python-patterns",
+          "install_command": null,
+          "description": "Python idioms, error handling, type hints (requires ECC plugin installed)"
+        }
+      ]
     },
     {
       "name": "python-legacy",
@@ -96,7 +216,15 @@
           "file_exists": "setup.py"
         }
       ],
-      "detected_skill": "detected/python"
+      "detected_skill": "detected/python",
+      "recommended_skills": [
+        {
+          "source": "ecc",
+          "package": "ecc:python-patterns",
+          "install_command": null,
+          "description": "Python idioms, error handling, type hints (requires ECC plugin installed)"
+        }
+      ]
     },
     {
       "name": "django",
@@ -105,7 +233,21 @@
           "file_exists": "manage.py"
         }
       ],
-      "detected_skill": "detected/django"
+      "detected_skill": "detected/django",
+      "recommended_skills": [
+        {
+          "source": "ecc",
+          "package": "ecc:django-patterns",
+          "install_command": null,
+          "description": "Django models, views, signals, ORM patterns (requires ECC plugin installed)"
+        },
+        {
+          "source": "ecc",
+          "package": "ecc:django-security",
+          "install_command": null,
+          "description": "CSRF, auth, deserialization, secrets handling (requires ECC plugin installed)"
+        }
+      ]
     },
     {
       "name": "fastapi",
@@ -115,7 +257,21 @@
           "contains": "fastapi"
         }
       ],
-      "detected_skill": "detected/fastapi"
+      "detected_skill": "detected/fastapi",
+      "recommended_skills": [
+        {
+          "source": "ecc",
+          "package": "ecc:fastapi-patterns",
+          "install_command": null,
+          "description": "FastAPI routes, dependencies, async patterns (requires ECC plugin installed)"
+        },
+        {
+          "source": "ecc",
+          "package": "ecc:python-patterns",
+          "install_command": null,
+          "description": "Python idioms (requires ECC plugin installed)"
+        }
+      ]
     },
     {
       "name": "go",
@@ -124,7 +280,15 @@
           "file_exists": "go.mod"
         }
       ],
-      "detected_skill": "detected/go"
+      "detected_skill": "detected/go",
+      "recommended_skills": [
+        {
+          "source": "ecc",
+          "package": "ecc:golang-patterns",
+          "install_command": null,
+          "description": "Go idioms, error handling, interfaces (requires ECC plugin installed)"
+        }
+      ]
     },
     {
       "name": "rust",
@@ -133,7 +297,8 @@
           "file_exists": "Cargo.toml"
         }
       ],
-      "detected_skill": "detected/rust"
+      "detected_skill": "detected/rust",
+      "recommended_skills": []
     },
     {
       "name": "java-maven",
@@ -142,7 +307,8 @@
           "file_exists": "pom.xml"
         }
       ],
-      "detected_skill": "detected/java"
+      "detected_skill": "detected/java",
+      "recommended_skills": []
     },
     {
       "name": "java-gradle",
@@ -151,7 +317,8 @@
           "file_exists": "build.gradle"
         }
       ],
-      "detected_skill": "detected/java"
+      "detected_skill": "detected/java",
+      "recommended_skills": []
     },
     {
       "name": "springboot-maven",
@@ -161,7 +328,21 @@
           "contains": "spring-boot"
         }
       ],
-      "detected_skill": "detected/springboot"
+      "detected_skill": "detected/springboot",
+      "recommended_skills": [
+        {
+          "source": "ecc",
+          "package": "ecc:springboot-patterns",
+          "install_command": null,
+          "description": "Spring Boot architecture, JPA, REST, caching (requires ECC plugin installed)"
+        },
+        {
+          "source": "ecc",
+          "package": "ecc:springboot-security",
+          "install_command": null,
+          "description": "Authn/authz, CSRF, validation, secrets (requires ECC plugin installed)"
+        }
+      ]
     },
     {
       "name": "springboot-gradle",
@@ -171,7 +352,21 @@
           "contains": "spring-boot"
         }
       ],
-      "detected_skill": "detected/springboot"
+      "detected_skill": "detected/springboot",
+      "recommended_skills": [
+        {
+          "source": "ecc",
+          "package": "ecc:springboot-patterns",
+          "install_command": null,
+          "description": "Spring Boot architecture, JPA, REST, caching (requires ECC plugin installed)"
+        },
+        {
+          "source": "ecc",
+          "package": "ecc:springboot-security",
+          "install_command": null,
+          "description": "Authn/authz, CSRF, validation, secrets (requires ECC plugin installed)"
+        }
+      ]
     },
     {
       "name": "kotlin",
@@ -180,7 +375,8 @@
           "file_exists": "build.gradle.kts"
         }
       ],
-      "detected_skill": "detected/kotlin"
+      "detected_skill": "detected/kotlin",
+      "recommended_skills": []
     },
     {
       "name": "swift",
@@ -189,7 +385,8 @@
           "file_exists": "Package.swift"
         }
       ],
-      "detected_skill": "detected/swift"
+      "detected_skill": "detected/swift",
+      "recommended_skills": []
     },
     {
       "name": "ruby",
@@ -198,7 +395,8 @@
           "file_exists": "Gemfile"
         }
       ],
-      "detected_skill": "detected/ruby"
+      "detected_skill": "detected/ruby",
+      "recommended_skills": []
     },
     {
       "name": "rails",
@@ -208,7 +406,8 @@
           "contains": "rails"
         }
       ],
-      "detected_skill": "detected/rails"
+      "detected_skill": "detected/rails",
+      "recommended_skills": []
     },
     {
       "name": "elixir",
@@ -217,7 +416,8 @@
           "file_exists": "mix.exs"
         }
       ],
-      "detected_skill": "detected/elixir"
+      "detected_skill": "detected/elixir",
+      "recommended_skills": []
     },
     {
       "name": "docker",
@@ -226,7 +426,21 @@
           "file_exists": "Dockerfile"
         }
       ],
-      "detected_skill": "detected/docker"
+      "detected_skill": "detected/docker",
+      "recommended_skills": [
+        {
+          "source": "ecc",
+          "package": "ecc:docker-patterns",
+          "install_command": null,
+          "description": "Dockerfile best practices, multi-stage builds (requires ECC plugin installed)"
+        },
+        {
+          "source": "ecc",
+          "package": "ecc:deployment-patterns",
+          "install_command": null,
+          "description": "CI/CD, rollback, observability (requires ECC plugin installed)"
+        }
+      ]
     },
     {
       "name": "k8s",
@@ -235,7 +449,15 @@
           "dir_exists": "k8s"
         }
       ],
-      "detected_skill": "detected/kubernetes"
+      "detected_skill": "detected/kubernetes",
+      "recommended_skills": [
+        {
+          "source": "ecc",
+          "package": "ecc:deployment-patterns",
+          "install_command": null,
+          "description": "Deployment strategies, rolling updates, observability (requires ECC plugin installed)"
+        }
+      ]
     },
     {
       "name": "terraform",
@@ -244,7 +466,15 @@
           "glob": "*.tf"
         }
       ],
-      "detected_skill": "detected/terraform"
+      "detected_skill": "detected/terraform",
+      "recommended_skills": [
+        {
+          "source": "ecc",
+          "package": "ecc:deployment-patterns",
+          "install_command": null,
+          "description": "IaC patterns, state management, drift detection (requires ECC plugin installed)"
+        }
+      ]
     },
     {
       "name": "flask",
@@ -254,7 +484,8 @@
           "contains": "flask"
         }
       ],
-      "detected_skill": "detected/flask"
+      "detected_skill": "detected/flask",
+      "recommended_skills": []
     },
     {
       "name": "koa",
@@ -264,7 +495,8 @@
           "contains": "\"koa\""
         }
       ],
-      "detected_skill": "detected/koa"
+      "detected_skill": "detected/koa",
+      "recommended_skills": []
     },
     {
       "name": "hapi",
@@ -274,7 +506,8 @@
           "contains": "\"@hapi/hapi\""
         }
       ],
-      "detected_skill": "detected/hapi"
+      "detected_skill": "detected/hapi",
+      "recommended_skills": []
     },
     {
       "name": "gin",
@@ -284,7 +517,8 @@
           "contains": "gin-gonic/gin"
         }
       ],
-      "detected_skill": "detected/gin"
+      "detected_skill": "detected/gin",
+      "recommended_skills": []
     },
     {
       "name": "echo",
@@ -294,7 +528,8 @@
           "contains": "labstack/echo"
         }
       ],
-      "detected_skill": "detected/echo"
+      "detected_skill": "detected/echo",
+      "recommended_skills": []
     },
     {
       "name": "fiber",
@@ -304,7 +539,8 @@
           "contains": "gofiber/fiber"
         }
       ],
-      "detected_skill": "detected/fiber"
+      "detected_skill": "detected/fiber",
+      "recommended_skills": []
     }
   ]
 }

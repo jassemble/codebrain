@@ -13,9 +13,7 @@
         ".ts",
         ".tsx"
       ],
-      "expert_skills": [
-        "ecc:typescript-patterns"
-      ]
+      "expert_skills": []
     },
     "detected/react": {
       "tier": "detected",
@@ -30,9 +28,7 @@
         ".tsx",
         ".jsx"
       ],
-      "expert_skills": [
-        "ecc:react-patterns"
-      ]
+      "expert_skills": []
     },
     "detected/python": {
       "tier": "detected",
@@ -180,9 +176,7 @@
         ".ts",
         ".js"
       ],
-      "expert_skills": [
-        "ecc:vue-patterns"
-      ]
+      "expert_skills": []
     },
     "detected/rails": {
       "tier": "detected",
@@ -196,9 +190,7 @@
       "applies_to_extensions": [
         ".rb"
       ],
-      "expert_skills": [
-        "ecc:rails-patterns"
-      ]
+      "expert_skills": []
     },
     "detected/flask": {
       "tier": "detected",
@@ -212,9 +204,7 @@
       "applies_to_extensions": [
         ".py"
       ],
-      "expert_skills": [
-        "ecc:flask-patterns"
-      ]
+      "expert_skills": []
     },
     "detected/koa": {
       "tier": "detected",

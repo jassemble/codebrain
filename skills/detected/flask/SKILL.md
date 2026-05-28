@@ -9,7 +9,7 @@ related_skills: [behavioral/graphbrain, ingestion/page-format, detected/python]
 detect:
   - { file_exists: "pyproject.toml", contains: "flask" }
 applies_to_extensions: [".py"]
-expert_skills: [ecc:flask-patterns]
+expert_skills: []
 ---
 
 # detected/flask — flask extras + ECC bridge
