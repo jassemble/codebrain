@@ -33,9 +33,10 @@ In summary, init does:
 2. **Read templates** — `claude-md-schema.md`, `overview-starter.md`, `stack-detection.json` from this skill's `templates/` directory
 3. **Schema block** — splice the verbatim `claude-md-schema.md` content between the managed-region markers in the user's `CLAUDE.md` (preserve everything outside; skip if content already current unless `--force`)
 4. **Detect stack** — match `stack-detection.json` signals against the cwd; collect matched stacks (e.g., `react`, `typescript`, `nodejs`)
+4c. **Stack-specific skill recommendations (M#13a)** — for each detected stack, read the catalog's `recommended_skills[]` array. Apply LLM judgment (this is what makes init agent-driven, not imperative) to filter for relevance to THIS specific repo: e.g., is `package.json`'s `"main"` a CLI script or a web app entry? Are there test directories that suggest the operator does TDD? Skip recommendations that are technically applicable but unlikely to help in this codebase. Dedupe by `(source, package)`. Format the block for the Step 7 report.
 5. **Populate overview.md** — read `overview-starter.md`; fill each `<!-- AGENT: ... -->` instruction comment using info inferred from `package.json`, `README.md`, top-level dir tree; update frontmatter (`status: FRESH`, `last_ingested`, `ingested_by`)
 6. **Log** — append a grep-parseable entry to `.brain/log.md`: `## [YYYY-MM-DD] init | /brain init populated schema block + overview; detected: <stacks>`
-7. **Report** — structured summary (schema-block status, overview status, detected stacks, log path, next-step pointer)
+7. **Report** — structured summary (schema-block status, overview status, detected stacks, log path, **Recommended skills block from Step 4c** when applicable, next-step pointer)
 
 ## Examples
 

@@ -1,6 +1,6 @@
 ---
 name: detected/vue
-description: Stack-aware page-template extras + ECC-bridge for Vue.js code pages. Activates when `package.json` contains `"vue"` AND source file extension is one of `.vue` / `.ts` / `.js`. Extras APPEND AFTER the generic 5 sections. Bridges to ECC's expert skill (ecc:vue-patterns) when available via the M#9-prereq runtime probe.
+description: Stack-aware page-template extras for Vue.js code pages. Activates when `package.json` contains `"vue"` AND source file extension is one of `.vue` / `.ts` / `.js`. Extras APPEND AFTER the generic 5 sections.
 origin: graphbrain
 version: 0.1.0
 tier: detected
@@ -12,7 +12,7 @@ applies_to_extensions: [".vue", ".ts", ".js"]
 expert_skills: []
 ---
 
-# detected/vue — vue extras + ECC bridge
+# detected/vue — vue extras
 
 ## When Activated
 
@@ -27,12 +27,11 @@ Generic 5 sections always written first → vue extras append AFTER `## Cross-re
 
 ## Extra Sections This Skill Declares
 
-This skill is a minimal v0.2 shipment. The bridge to `ecc:vue-patterns` is the load-bearing primitive — when ECC's expert skill is available (M#9-prereq filesystem probe), it provides the code-writing guidance. Graphbrain-side extras (`## vue-specific` section) are intentionally light in v0.2; flesh out as operator dogfood produces evidence of what's needed.
+No ECC counterpart skill exists yet (`ecc:vue-patterns` was assumed in v0.2 but never shipped by ECC — audited v1.0.7). For vue code-writing expertise, see the recommendations surfaced by `/brain:init` Step 4c: patterns.dev/skills/javascript covers general patterns; patterns.dev/skills/vue covers Vue-specific.
 
-For now the generic 5 sections (`## Purpose`, `## Exports`, `## Imports`, `## Key behaviors`, `## Cross-references`) are sufficient for most vue files.
+This skill (graphbrain-side) provides vue-specific page-template extras during `/brain:ingest`. The generic 5 sections (`## Purpose`, `## Exports`, `## Imports`, `## Key behaviors`, `## Cross-references`) are intentionally light in v1.x; flesh out as operator dogfood produces evidence of what's needed.
 
 ## Related
 
 - **`commands/brain/ingest.md` Step 4b.3** (M#9-prereq) — runtime probe + activation
-- **`skills/registry.json`** — registry entry with the bridge target
-- **`ecc:vue-patterns`** (external, ECC) — the code-writing expertise this skill bridges to
+- **`/brain:init` Step 4c** — surfaces recommended vue skills (patterns.dev for Vue + JS, ECC bridges where available)
