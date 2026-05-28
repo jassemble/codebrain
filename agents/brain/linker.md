@@ -49,7 +49,7 @@ These are self-enforcing per graphbrain's dual-layer guardrail model (PRD Design
 - **ALWAYS update both sides of a wikilink** when introducing a new cross-reference. If A's `## Cross-references` gains `- [[code/B]] — <why>`, then B's `## Cross-references` gains `- [[code/A]] — <reverse-why>`.
 - **ALWAYS include per-source hashes** in concept-page `sources:` entries: `- path: src/api/auth.ts\n  hash: git:<hash>` (or `sha256:<hash>`). Compute via `git hash-object <path>` or `shasum -a 256 <path>` (M#3a's pattern, PRD Design Decision #32).
 - **ALWAYS update `.brain/index.md`** by appending under `## Concept pages` (create the section if missing — M#1's init.js doesn't pre-create it).
-- **ALWAYS update `.brain/status.md`** for every concept page you write or refresh — append/update a row.
+- **ALWAYS update `.brain/status.md`** for every concept page you write or refresh — append/update a row under the `## Concepts` section (v1.0.11 layout — concepts have their own section, not the per-directory tables). On first write replace the `_(no concept pages yet)_` placeholder with the table header `| Page | Status | Last Sync | Sources |`. **Do not touch** the file's `## Health` or `## Needs attention` blocks — those are refreshed by `/brain:lint`.
 - **ALWAYS append to `.brain/log.md`** under `## Activity History` with the grep-parseable prefix: `## [YYYY-MM-DD] link | <folder>: <N code pages wired, M concept pages>`.
 
 ## Error recovery (PRD Design Decision #26)

@@ -241,7 +241,24 @@ function scaffoldBrainDir(cwd, opts) {
     'decisions.md': frontmatter({ kind: 'decisions-index', status: 'UNENRICHED', created: today })
       + '\n# Decisions\n\n## Active Decisions\n\n## Superseded Decisions\n',
     'status.md': frontmatter({ kind: 'status', status: 'UNENRICHED', created: today })
-      + '\n# Status — Page Lifecycle Tracker\n\nDerived view; regenerated from per-page frontmatter.\n\n| Page | Status | Last Sync | Source Hash |\n|------|--------|-----------|-------------|\n',
+      + '\n# Status\n\n'
+      + '_Derived view. Source of truth lives in each page\'s frontmatter._\n'
+      + '_Per-directory tables are grown on every `/brain:ingest`; Health + Needs attention are refreshed by `/brain:lint`._\n\n'
+      + `## Health  (last refreshed: ${today})\n\n`
+      + '- Code:      0 pages\n'
+      + '- Concepts:  0 pages\n'
+      + '- Decisions: 0 pages\n\n'
+      + '## Needs attention\n\n'
+      + '_(none — vault is empty)_\n\n'
+      + '<!--\n'
+      + '  Per-directory page sections are appended below as files are ingested.\n'
+      + '  Heading shape:  ## <top-level-dir>/\n'
+      + '  Each section holds a 4-column table:\n'
+      + '    | Page | Status | Last Sync | Source Hash |\n'
+      + '  The `## Concepts` section is always the last section in the file.\n'
+      + '-->\n\n'
+      + '## Concepts\n\n'
+      + '_(no concept pages yet)_\n',
     'CHANGELOG.md': frontmatter({ kind: 'changelog', status: 'UNENRICHED', created: today })
       + `\n# CHANGELOG — what the brain learned\n\n`
       + `Append-only narrative of compound learning. Reverse-chronological by month.\n`

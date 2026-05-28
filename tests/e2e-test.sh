@@ -2676,6 +2676,81 @@ own_bak_count=$(find "$T51_DIR/.claude/commands" "$T51_DIR/.claude/plugins/graph
   && ok "T51: zero .bak files across all OWNED roots after upgrade" \
   || nope "T51: $own_bak_count stray .bak file(s) under OWNED roots"
 
+# === Test 52: v1.0.11 — status.md scaffold is human-readable ================
+#
+# Background: the original scaffold was a single 4-column table that grew flat
+# to 50+ rows on real codebases — unreadable. v1.0.11 introduces a layered
+# layout: Health block, Needs attention, per-directory tables (grown on
+# demand), and a dedicated Concepts section at the bottom. Per-ingest writes
+# only the per-directory tables; /brain:lint refreshes Health + Needs attention.
+
+T52_DIR="$(mktemp -d)"
+( cd "$T52_DIR" && git init -q . ) >/dev/null 2>&1
+( cd "$T52_DIR" && HOME="$HOME" node "$CB" init >/dev/null 2>&1 )
+
+S="$T52_DIR/.brain/status.md"
+
+# Scaffold has the Health block (with placeholder counts) — NOT a flat table.
+grep -qF '## Health' "$S" \
+  && ok "T52: status.md scaffold has ## Health block" \
+  || nope "T52: scaffold missing ## Health"
+
+grep -qF '## Needs attention' "$S" \
+  && ok "T52: status.md scaffold has ## Needs attention block" \
+  || nope "T52: scaffold missing ## Needs attention"
+
+grep -qF '_(none — vault is empty)_' "$S" \
+  && ok "T52: scaffold's empty-state placeholder is human-friendly" \
+  || nope "T52: scaffold missing empty-state placeholder"
+
+# The scaffold MUST NOT pre-create a flat table at the top — that was the
+# v1.0.10-and-earlier shape that made status.md unreadable on real codebases.
+! grep -E '^\| Page \| Status \| Last Sync \| Source Hash \|' "$S" >/dev/null \
+  && ok "T52: scaffold does NOT start with a flat 4-col table (the v1.0.11 fix)" \
+  || nope "T52: scaffold still ships the unreadable flat table"
+
+# Dedicated Concepts section pre-created at the bottom, with placeholder.
+grep -qF '## Concepts' "$S" \
+  && ok "T52: scaffold pre-creates ## Concepts section" \
+  || nope "T52: scaffold missing ## Concepts section"
+
+grep -qF '_(no concept pages yet)_' "$S" \
+  && ok "T52: ## Concepts has placeholder until linker writes" \
+  || nope "T52: ## Concepts missing placeholder"
+
+# Author-side instructions: ingester routes rows by top-dir section.
+grep -qF '## <top-dir>/' "$CODEBRAIN_ROOT/commands/brain/ingest.md" \
+  && ok "T52: commands/brain/ingest.md instructs per-top-dir section routing" \
+  || nope "T52: ingest.md missing per-top-dir routing instruction"
+
+# Ingester is told to leave Health/Needs-attention alone.
+grep -qF 'Do not touch' "$CODEBRAIN_ROOT/commands/brain/ingest.md" \
+  && ok "T52: ingest.md tells the ingester not to touch Health/Needs-attention" \
+  || nope "T52: ingest.md missing the Do-not-touch guard"
+
+# Linker routes concept rows under ## Concepts (not the flat table).
+grep -qF 'under the `## Concepts` section' "$CODEBRAIN_ROOT/commands/brain/ingest.md" \
+  && ok "T52: linker (in ingest.md) routes concept rows under ## Concepts" \
+  || nope "T52: linker section-routing instruction missing"
+
+# Both agent personas updated.
+grep -qF 'per-top-level-directory section' "$CODEBRAIN_ROOT/agents/brain/ingester.md" \
+  && ok "T52: agents/brain/ingester.md mentions per-top-dir section routing" \
+  || nope "T52: ingester agent persona not updated"
+
+grep -qF '## Concepts' "$CODEBRAIN_ROOT/agents/brain/linker.md" \
+  && ok "T52: agents/brain/linker.md mentions ## Concepts section" \
+  || nope "T52: linker agent persona not updated"
+
+# /brain:lint refreshes Health + Needs-attention.
+grep -qF 'L6b' "$CODEBRAIN_ROOT/commands/brain/lint.md" \
+  && ok "T52: commands/brain/lint.md has L6b (status.md refresh step)" \
+  || nope "T52: lint.md missing L6b refresh step"
+
+grep -qF 'Refreshed: .brain/llms.txt, .brain/status.md' "$CODEBRAIN_ROOT/commands/brain/lint.md" \
+  && ok "T52: lint report mentions status.md refresh" \
+  || nope "T52: lint report does not surface status.md refresh"
+
 # === Test 38: SKILL.md reciprocity — every related_skills entry resolves =====
 # Bidirectional-links lint, run statically over the shipped skill set.
 node -e "

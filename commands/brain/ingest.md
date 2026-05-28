@@ -286,11 +286,21 @@ Operationalizes the declarative contract from Step 4b.2. For each matched `detec
   - [[code/<source-path>]] — <one-line summary from your Purpose section, no leading "This file"/"This module">
   ```
   Dedupe if an entry for this `code/<source-path>` already exists; update it in place.
-- `.brain/status.md`: append/update a row in the status table:
-  ```
-  | code/<source-path>.md | FRESH | <ISO date> | <source-hash with format prefix> |
-  ```
-  Dedupe / update by page path.
+- `.brain/status.md`: append/update a row in the status table. **v1.0.11 routing**: rows live under per-top-level-dir sections, not a single flat table.
+  - Determine the section: take the first path segment of `<source-path>` (e.g., `server` for `server/src/app.module.ts`, `client` for `client/src/main.tsx`). Files at the repo root (no directory) go under section `## root/`.
+  - Find heading `## <top-dir>/` in `.brain/status.md`. If absent, **CREATE** it immediately before the `## Concepts` heading with a fresh 4-column table header:
+    ```
+    ## <top-dir>/
+
+    | Page | Status | Last Sync | Source Hash |
+    |---|---|---|---|
+    ```
+  - Append the row to that section's table:
+    ```
+    | code/<source-path>.md | FRESH | <ISO date> | <source-hash with format prefix> |
+    ```
+  - Dedupe / update by page path within the section.
+  - **Do not touch** the `## Health` or `## Needs attention` blocks at the top of the file — those are refreshed by `/brain:lint`. Per-ingest writes only the table row.
 - `.brain/log.md`: append under `## Activity History` using the grep-parseable prefix (PRD Design Decision #15):
   ```
   ## [YYYY-MM-DD] ingest | <source-path> → .brain/code/<source-path>.md
@@ -467,7 +477,13 @@ Page-size cap: concept pages 6k soft warn / 12k hard error (per PRD Design Decis
 **L5 — Update derived files**:
 
 - `.brain/index.md`: append under `## Concept pages`. If the section does not exist, CREATE it as your first edit (mirror M#3a's `## Code pages` pattern). Entry format: `- [[concepts/<name>]] — <one-line summary from Definition section>`. Dedupe by `[[concepts/<name>]]` link.
-- `.brain/status.md`: append/update a row for each concept page: `| concepts/<name>.md | FRESH | <ISO date> | <count> sources |`.
+- `.brain/status.md`: under the `## Concepts` section, append/update a row for each concept page (v1.0.11 layout — concepts have their own section, not the per-directory tables). Use a 4-column table; first time you write, replace the `_(no concept pages yet)_` placeholder with the table header:
+  ```
+  | Page | Status | Last Sync | Sources |
+  |---|---|---|---|
+  | concepts/<name>.md | FRESH | <ISO date> | <count> sources |
+  ```
+  Subsequent writes append rows / update in place by `concepts/<name>.md`. **Do not touch** the file's `## Health` or `## Needs attention` blocks — those are refreshed by `/brain:lint`.
 - `.brain/log.md`: append under `## Activity History` with the grep-parseable prefix: `## [YYYY-MM-DD] link | <folder>: <N code pages wired, M concept pages>`.
 - `.brain/llms.txt`: refresh per the procedure in `skills/ingestion/llms-txt/SKILL.md`. Read that skill before refreshing. Deterministic, no LLM call.
 - `.brain/CHANGELOG.md` (M#10d): append a one-line narrative entry summarizing the linker's net contribution — concept pages created/refreshed + cross-references wired. Shape: `- <YYYY-MM-DD>: linked <folder> → <N concept pages created/updated>, <M cross-references wired> (concepts: <comma-separated names>)`. Append under the current month's `## YYYY-MM` heading.

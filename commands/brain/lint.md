@@ -89,6 +89,38 @@ For each finding, add a suggestion line. Examples:
   - For each unique parent directory of true-stale **concept page** sources: invoke `/brain ingest <folder>` (M#3b folder procedure). The linker (M#3b L1–L6) refreshes the concept page.
 - On `no`: skip the refresh; the report stays read-only. Note in "Fix results: skipped per operator".
 
+**L6b — Refresh `.brain/status.md` Health + Needs attention blocks** (v1.0.11):
+
+You already walked `.brain/code/`, `.brain/concepts/`, `.brain/decisions/` in L1 and partitioned pages by status in L3. Reuse those counts — do not re-walk.
+
+- Read `.brain/status.md`.
+- Replace the `## Health` block with refreshed counts (use the bullet shape verbatim; preserve order):
+  ```
+  ## Health  (last refreshed: <today YYYY-MM-DD>)
+
+  - Code:      <total> pages  ·  <FRESH> FRESH  ·  <STALE> STALE  ·  <VERIFIED> VERIFIED
+  - Concepts:  <total> pages  ·  <FRESH> FRESH  ·  <STALE> STALE
+  - Decisions: <total> pages
+  ```
+  Omit kinds with zero pages from the breakdown columns: e.g., on a vault with no VERIFIED pages, write `45 FRESH  ·  0 STALE` (drop the trailing `0 VERIFIED`). Always keep the leading total.
+- Replace the `## Needs attention` block. From L3's defects:
+  - If `Stale (true)` or `Stale (false; ready to promote)` or `Page-size hard` is non-zero, render one bullet per category with a short path list (cap at 5 paths; if more, append `, … +N more`):
+    ```
+    ## Needs attention
+
+    - **Stale (true)** ({n}): <path1>, <path2>, …
+    - **Stale (false; ready to promote)** ({n}): <path1>, …
+    - **Page-size hard** ({n}): <path1>, …
+    ```
+  - If everything is healthy, write the empty-state placeholder:
+    ```
+    ## Needs attention
+
+    _(none — all pages FRESH)_
+    ```
+- **Do not touch** per-directory tables or the `## Concepts` table — those are owned by the ingester / linker. Only the top two blocks (`## Health`, `## Needs attention`) are refreshed here.
+- Idempotency: if both blocks would have byte-identical content (same counts, same defect lists, same date), skip the write.
+
 **L7 — Output + log**:
 
 Refresh `.brain/llms.txt` per the procedure in `skills/ingestion/llms-txt/SKILL.md`. Read that skill before refreshing. This is unconditional — even on a clean run with no defects, the refresh updates the `# Last refreshed:` header line (idempotent: skip the write if that is the only diff).
@@ -130,7 +162,7 @@ Inventory:
   Failed:                             <count>  [<paths with reasons>]
 
 Logged: .brain/log.md
-Refreshed: .brain/llms.txt
+Refreshed: .brain/llms.txt, .brain/status.md (Health + Needs attention)
 ```
 
 Append to `.brain/log.md` under `## Activity History`:

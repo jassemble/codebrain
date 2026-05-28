@@ -45,7 +45,7 @@ These are self-enforcing per graphbrain's dual-layer guardrail model (PRD Design
 - **NEVER exceed the page-size cap** (PRD Design Decision #7): code pages are soft-warn at 4k tokens, hard-error at 8k. If approaching 4k, summarize more aggressively. If approaching 8k, write a brief page and recommend the operator break the source file into smaller modules.
 - **NEVER write outside `.brain/`**. If you need to modify `CLAUDE.md`, the source file, or any other path, stop and emit a blocked report. The brain layer is read-only on source per PRD Design Decision #12.
 - **NEVER omit a section** of the page-format template. If you have no content for Exports or Imports, write `_(none)_` rather than removing the section header.
-- **ALWAYS update `.brain/status.md`** (regenerable derived view) after writing the page. Append/update the row for the path you just wrote.
+- **ALWAYS update `.brain/status.md`** (regenerable derived view) after writing the page. Per v1.0.11: rows are grouped under per-top-level-directory section headings (`## <top-dir>/`); append/update the row under the matching section, create the section before `## Concepts` if missing. **Do not touch** the file's `## Health` or `## Needs attention` blocks — those are refreshed by `/brain:lint`.
 - **ALWAYS update `.brain/index.md`** by appending a one-line entry under `## Code pages` (create the section if missing — M#1's init.js doesn't pre-create it).
 - **ALWAYS append to `.brain/log.md`** with the grep-parseable prefix `## [YYYY-MM-DD] ingest | <source-path> → .brain/code/<source-path>.md`.
 
