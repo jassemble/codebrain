@@ -22,6 +22,111 @@ You are the graphbrain init agent. Run this procedure exactly. If any step's pre
   Re-run `npx graphbrain init --force` to rewrite the markers, then retry /brain init.
   ```
 
+**Step 1b — `.bak` reconciliation** (v1.0.9):
+
+After preconditions, BEFORE any scaffolding or schema changes, check whether the previous `npx graphbrain init --force` run left `.bak` files. These are atomic-write safety backups created when graphbrain overwrote an existing file during an upgrade. Without this step they accumulate as silent litter; with this step the agent uses LLM judgment to merge operator edits intelligently and clear the backups.
+
+**1b-A — Detect**:
+
+```bash
+# Glob — exclude node_modules + .git
+find .brain .claude CLAUDE.md.bak -name "*.bak" -not -path "*/node_modules/*" -not -path "*/.git/*" 2>/dev/null
+```
+
+Also check repo root: `CLAUDE.md.bak`.
+
+If zero matches: **skip Step 1b silently** and proceed to Step 2. No output, no log entry.
+
+**1b-B — Classify each pair**:
+
+For each `<path>.bak`:
+
+- Verify the current `<path>` (without `.bak`) exists. If it doesn't (rare — operator deleted the current file but left the .bak), the .bak is orphaned; flag as `orphaned` and offer to either restore from .bak or delete .bak.
+- Read both files. Compute their diff.
+- Classify the diff into one of:
+
+  | Class | Definition | Default action |
+  |---|---|---|
+  | `identical` | Files are byte-identical (legacy noise from v1.0.4 and earlier — content-equality check wasn't in atomicWrite yet) | Silently delete `.bak`; no merge needed |
+  | `whitespace-only` | Only trailing whitespace, line ending, or final-newline differences | Silently delete `.bak` |
+  | `operator-additions` | The .bak has content the current version does NOT, AND that content does NOT correspond to a section graphbrain owns (e.g., a new top-level heading, custom paragraph, or extra entry the operator added) | **Propose MERGE**: take graphbrain's new shipped content + splice in the operator's additions. Preserve operator's work. |
+  | `operator-edit-to-graphbrain-content` | The .bak modifies content graphbrain owns (e.g., changed a procedure step's wording, modified an example output, renamed a verb) | **Discard the .bak** (graphbrain's shipped version is canonical). **Warn the operator** so they know what was lost. |
+  | `mixed` | Combination of additions AND edits to graphbrain content | Apply additions, discard graphbrain-content edits. Itemize what was kept vs lost. |
+  | `unclear` | The diff is too complex / shows refactoring / cross-file moves that you can't classify confidently | **Do NOT auto-merge**. Show the diff to the operator + ask. |
+
+**1b-C — Propose**:
+
+Print a structured plan the operator can review before applying:
+
+```
+Found <N> .bak files from a previous --force upgrade. Proposed reconciliation:
+
+  .brain/overview.md.bak
+    Class: operator-additions
+    • Operator added "## Team conventions" section (12 lines) → PRESERVE
+    • Graphbrain rewrote "Active State" → use new structure (operator did not edit this part)
+    Action: MERGE new shipped content + operator's "Team conventions" section
+    
+  .brain/log.md.bak
+    Class: identical
+    Action: DELETE (no operator edits)
+    
+  .claude/plugins/graphbrain/skills/core/init/SKILL.md.bak
+    Class: operator-edit-to-graphbrain-content
+    • Operator modified Step 4 wording → DISCARD (graphbrain owns this)
+    Warning: you'll lose your edits to Step 4. If you want a custom init flow,
+             override via .claude/skills/<your-name>/SKILL.md instead of editing
+             the plugin tree.
+    Action: DELETE .bak (keep current shipped content)
+    
+  CLAUDE.md.bak
+    Class: unclear
+    The diff includes both managed-region changes and outside-marker edits.
+    Recommend: review manually. Diff below.
+    Action: KEEP .bak — operator decides
+    [show diff]
+
+Apply? (yes/no/show-diffs/per-file)
+```
+
+**1b-D — Confirmation gate**:
+
+- `yes` → apply all proposed actions
+- `no` → leave all .bak files; init proceeds normally to Step 2
+- `show-diffs` → print every per-file diff; re-prompt
+- `per-file` → walk each .bak with an individual prompt; per-file yes/no/skip
+
+If the operator passed `--yes` on the `/brain:init` invocation: **auto-confirm only the safe classes** (`identical`, `whitespace-only`, `operator-additions`). NEVER auto-confirm `operator-edit-to-graphbrain-content` (data loss warning) or `unclear` (judgment call). For those, fall back to interactive confirmation even with `--yes`.
+
+**1b-E — Apply**:
+
+For each accepted action:
+
+- `identical` / `whitespace-only`: `Bash: rm <path>.bak`
+- `operator-additions` (MERGE): Write the merged content to `<path>` using the Write tool; then `Bash: rm <path>.bak`
+- `operator-edit-to-graphbrain-content` (DISCARD): `Bash: rm <path>.bak`. Print the warning prominently.
+- `unclear` (KEEP): no-op, .bak stays.
+
+**1b-F — Log**:
+
+Append to `.brain/log.md` under `## Activity History`:
+
+```
+## [YYYY-MM-DD] reconcile | <K> .bak processed: <I> merged, <D> deleted, <W> warnings, <U> kept-as-unclear
+```
+
+If any `operator-edit-to-graphbrain-content` was discarded, additionally log a per-file note:
+
+```
+   - DISCARDED edit in <path>: <one-line summary of what operator lost>
+```
+
+**1b-G — Continue**:
+
+Proceed to Step 2 (read templates). The rest of /brain:init is unchanged.
+
+**Error recovery**: if any merge fails (Write tool errors, disk full, etc.), abort that single file's reconciliation (leave .bak intact for operator manual handling); continue with the others. Do not abort the whole init.
+
 **Step 2 — Read templates** (locate them in the installed graphbrain npm package; the slash-command file you are reading was copied from `commands/brain.md` in that package, and the templates live alongside it under `skills/core/init/templates/`):
 
 - `skills/core/init/templates/claude-md-schema.md` — the verbatim schema block

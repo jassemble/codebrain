@@ -2576,6 +2576,44 @@ grep -qF 'Recommended skills for this stack:' "$CODEBRAIN_ROOT/commands/brain/in
   && ok "T49: scripts/init.js does NOT contain detectStacks (correctly Claude-driven)" \
   || nope "T49: scripts/init.js still contains imperative detection (should be in /brain:init)"
 
+# === Test 50: v1.0.9 — /brain:init Step 1b (.bak reconciliation) ============
+
+# Step 1b documented in the procedure body
+grep -qF '**Step 1b — `.bak` reconciliation**' "$CODEBRAIN_ROOT/commands/brain/init.md" \
+  && ok "T50: commands/brain/init.md has Step 1b (.bak reconciliation)" \
+  || nope "T50: brain/init.md missing Step 1b"
+
+# Classification taxonomy documented
+for klass in 'identical' 'whitespace-only' 'operator-additions' 'operator-edit-to-graphbrain-content' 'mixed' 'unclear'; do
+  grep -qF "\`$klass\`" "$CODEBRAIN_ROOT/commands/brain/init.md" \
+    && ok "T50: Step 1b classifies '$klass' .bak diffs" \
+    || nope "T50: Step 1b missing classification '$klass'"
+done
+
+# Safe-class auto-confirm with --yes; never auto-confirm data-loss classes
+grep -qF 'auto-confirm only the safe classes' "$CODEBRAIN_ROOT/commands/brain/init.md" \
+  && ok "T50: Step 1b restricts --yes auto-confirm to safe classes" \
+  || nope "T50: Step 1b missing --yes safety gate"
+
+grep -qF 'NEVER auto-confirm' "$CODEBRAIN_ROOT/commands/brain/init.md" \
+  && ok "T50: Step 1b explicitly forbids auto-confirm of data-loss classes" \
+  || nope "T50: Step 1b missing data-loss forbid"
+
+# Log entry format documented
+grep -qF '## [YYYY-MM-DD] reconcile' "$CODEBRAIN_ROOT/commands/brain/init.md" \
+  && ok "T50: Step 1b documents grep-parseable log entry format" \
+  || nope "T50: Step 1b missing log entry format"
+
+# Empty-case behavior (no .bak files → silent skip)
+grep -qF 'skip Step 1b silently' "$CODEBRAIN_ROOT/commands/brain/init.md" \
+  && ok "T50: Step 1b skipped silently when no .bak files exist" \
+  || nope "T50: Step 1b empty-case behavior not documented"
+
+# Surfaced in skill summary
+grep -qF '`.bak` reconciliation' "$CODEBRAIN_ROOT/skills/core/init/SKILL.md" \
+  && ok "T50: skills/core/init/SKILL.md summary includes .bak reconciliation step" \
+  || nope "T50: SKILL.md summary missing reconciliation step"
+
 # === Test 38: SKILL.md reciprocity — every related_skills entry resolves =====
 # Bidirectional-links lint, run statically over the shipped skill set.
 node -e "

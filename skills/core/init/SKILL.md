@@ -30,6 +30,7 @@ The full 7-step procedure is in `commands/brain.md` under "When `$ARGUMENTS` is 
 In summary, init does:
 
 1. **Preconditions** — verify `.brain/` and CLAUDE.md markers exist
+1b. **`.bak` reconciliation (v1.0.9)** — detect leftover `.bak` files from previous `--force` upgrades; classify each (`identical` / `whitespace-only` / `operator-additions` / `operator-edit-to-graphbrain-content` / `mixed` / `unclear`); LLM-merge operator additions on top of new shipped content; delete safe-class .bak files; warn on lost graphbrain-content edits; keep `unclear` .bak files for manual review. Skipped silently when no .bak files exist.
 2. **Read templates** — `claude-md-schema.md`, `overview-starter.md`, `stack-detection.json` from this skill's `templates/` directory
 3. **Schema block** — splice the verbatim `claude-md-schema.md` content between the managed-region markers in the user's `CLAUDE.md` (preserve everything outside; skip if content already current unless `--force`)
 4. **Detect stack** — match `stack-detection.json` signals against the cwd; collect matched stacks (e.g., `react`, `typescript`, `nodejs`)
