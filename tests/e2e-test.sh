@@ -2396,6 +2396,45 @@ echo "$second_out" | grep -q 'plugins/graphbrain/skills.*already current' \
   && ok "T46: second init produces SKIP for skill files (idempotent)" \
   || nope "T46: idempotency broken for skill files"
 
+# === Test 47: v1.0.5 — atomicWrite skips identical content (no spurious .bak) ===
+
+# Scenario: --force re-init on an already-current install should NOT create
+# identical .bak files. The atomicWrite content-equality check (added v1.0.5)
+# prevents the wasteful "backup of identical content" pattern that v1.0.2-1.0.4
+# produced when force was passed but nothing changed.
+
+T47_DIR="$(mktemp -d)"
+( cd "$T47_DIR" && git init -q . ) >/dev/null 2>&1
+
+# First init (no --force) — produces clean install, no .bak files
+( cd "$T47_DIR" && HOME="$HOME" node "$CB" init >/dev/null 2>&1 )
+bak_count_1=$(find "$T47_DIR/.brain" "$T47_DIR/.claude" -name "*.bak" 2>/dev/null | wc -l | tr -d ' ')
+[ "$bak_count_1" = "0" ] \
+  && ok "T47: fresh install produces 0 .bak files" \
+  || nope "T47: fresh install produced $bak_count_1 .bak files (expected 0)"
+
+# Second init WITH --force — content is identical, so atomicWrite should
+# no-op and NOT create .bak files.
+( cd "$T47_DIR" && HOME="$HOME" node "$CB" init --force >/dev/null 2>&1 )
+bak_count_2=$(find "$T47_DIR/.brain" "$T47_DIR/.claude" -name "*.bak" 2>/dev/null | wc -l | tr -d ' ')
+[ "$bak_count_2" = "0" ] \
+  && ok "T47: re-init with --force on identical content produces 0 .bak files" \
+  || nope "T47: --force on identical content produced $bak_count_2 spurious .bak files"
+
+# Third scenario: hand-edit a scaffold file, then --force re-init. The .bak
+# SHOULD appear for that one file (since content actually differs), but NOT
+# for all the others.
+echo "# operator's edit" >> "$T47_DIR/.brain/overview.md"
+( cd "$T47_DIR" && HOME="$HOME" node "$CB" init --force >/dev/null 2>&1 )
+[ -f "$T47_DIR/.brain/overview.md.bak" ] \
+  && ok "T47: --force creates .bak for genuinely-changed file (overview.md)" \
+  || nope "T47: --force did NOT create .bak for the edited overview.md"
+
+# Other files (which weren't edited) should still have NO .bak
+[ ! -f "$T47_DIR/.brain/index.md.bak" ] \
+  && ok "T47: unchanged files still get no .bak after --force" \
+  || nope "T47: --force created spurious .bak for unchanged index.md"
+
 # === Test 38: SKILL.md reciprocity — every related_skills entry resolves =====
 # Bidirectional-links lint, run statically over the shipped skill set.
 node -e "

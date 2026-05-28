@@ -67,10 +67,29 @@ const report = {
 function atomicWrite(target, content, opts) {
   // PRD: write `.bak` if target exists; write to .tmp; fsync; rename.
   // On --dry-run, log intent and return.
+  // Content-aware (v1.0.5): if the existing content is byte-identical to the
+  // new content, no-op — don't write, don't create a .bak. This prevents
+  // wasteful identical .bak files when --force is passed but nothing has
+  // actually changed (e.g., a re-install of the same version, or a
+  // version bump that didn't touch this specific file). Returns:
+  //   - 'unchanged' if no write happened
+  //   - 'written'   if the file was created or overwritten (with .bak if it
+  //                 existed before)
+  //   - 'dry-run'   if opts.dryRun was set
   const dryRun = opts && opts.dryRun;
-  if (dryRun) return;
+  if (dryRun) return 'dry-run';
 
   if (fs.existsSync(target)) {
+    let existing;
+    try {
+      existing = fs.readFileSync(target, 'utf8');
+    } catch {
+      existing = null;
+    }
+    if (existing === content) {
+      // No-op: content is identical. Avoid creating an identical-bak.
+      return 'unchanged';
+    }
     const bak = `${target}.bak`;
     fs.copyFileSync(target, bak);
   }
@@ -84,6 +103,7 @@ function atomicWrite(target, content, opts) {
     fs.closeSync(fd);
   }
   fs.renameSync(tmp, target);
+  return 'written';
 }
 
 function ensureDir(p, opts) {
@@ -109,8 +129,15 @@ function copyTemplate(srcRel, destAbs, opts) {
       return;
     }
   }
-  atomicWrite(destAbs, content, opts);
-  report.log('OK', destAbs);
+  const result = atomicWrite(destAbs, content, opts);
+  if (result === 'unchanged') {
+    // atomicWrite detected identical content even though we asked it to write
+    // (--force path bypassed the SKIP above). Log as SKIP instead of OK so
+    // operators don't see spurious "OK" lines for no-op overwrites.
+    report.log('SKIP', destAbs, 'already current');
+  } else {
+    report.log('OK', destAbs);
+  }
 }
 
 // Recursively copy a directory of templates. Used by M#12 to ship the
@@ -222,8 +249,12 @@ function scaffoldBrainDir(cwd, opts) {
       report.log('SKIP', target, 'exists');
       continue;
     }
-    atomicWrite(target, content, opts);
-    report.log('OK', target);
+    const result = atomicWrite(target, content, opts);
+    if (result === 'unchanged') {
+      report.log('SKIP', target, 'already current');
+    } else {
+      report.log('OK', target);
+    }
   }
 }
 
