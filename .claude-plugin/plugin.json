@@ -1,0 +1,27 @@
+{
+  "name": "graphbrain",
+  "version": "1.0.6",
+  "description": "Agent-maintained, folder-mirrored markdown wiki of your codebase. Scaffolds .brain/, ships hooks, agents, skills, and the /brain:<verb> slash-command family.",
+  "author": {
+    "name": "jassemble"
+  },
+  "homepage": "https://github.com/jassemble/graphbrain",
+  "repository": "https://github.com/jassemble/graphbrain",
+  "license": "MIT",
+  "keywords": [
+    "claude-code",
+    "agentic-development",
+    "knowledge-graph",
+    "obsidian",
+    "code-context",
+    "continuous-learning",
+    "llm-wiki"
+  ],
+  "mcpServers": {},
+  "skills": [
+    "./skills/"
+  ],
+  "commands": [
+    "./commands/"
+  ]
+}

@@ -2435,6 +2435,52 @@ echo "# operator's edit" >> "$T47_DIR/.brain/overview.md"
   && ok "T47: unchanged files still get no .bak after --force" \
   || nope "T47: --force created spurious .bak for unchanged index.md"
 
+# === Test 48: v1.0.6 — Claude Code plugin manifest at .claude-plugin/ =========
+
+# Plugin manifest exists in graphbrain source
+test -f "$CODEBRAIN_ROOT/.claude-plugin/plugin.json" \
+  && ok "T48: .claude-plugin/plugin.json source manifest exists" \
+  || nope "T48: source plugin.json missing"
+
+# Manifest has required fields + follows ECC's PLUGIN_SCHEMA_NOTES.md rules
+node -e "
+  const m = require('$CODEBRAIN_ROOT/.claude-plugin/plugin.json');
+  if (m.name !== 'graphbrain') { console.error('name wrong'); process.exit(1); }
+  if (!m.version || !/^\d+\.\d+\.\d+/.test(m.version)) { console.error('version missing or bad'); process.exit(1); }
+  if (!m.description) { console.error('description missing'); process.exit(1); }
+  if (m.license !== 'MIT') { console.error('license wrong'); process.exit(1); }
+  if (!Array.isArray(m.skills)) { console.error('skills not array'); process.exit(1); }
+  if (!Array.isArray(m.commands)) { console.error('commands not array'); process.exit(1); }
+  // Validator-rejected fields MUST NOT appear:
+  if (m.agents !== undefined) { console.error('agents field present (validator rejects)'); process.exit(1); }
+  if (m.hooks !== undefined) { console.error('hooks field present (validator rejects)'); process.exit(1); }
+  // Empty mcpServers opt-out present
+  if (typeof m.mcpServers !== 'object') { console.error('mcpServers opt-out missing'); process.exit(1); }
+  process.exit(0);
+" 2>/dev/null \
+  && ok "T48: plugin.json shape conforms to Claude Code validator rules" \
+  || nope "T48: plugin.json shape violates one or more validator rules"
+
+# init.js ships the manifest to .claude/plugins/graphbrain/.claude-plugin/
+T48_DIR="$(mktemp -d)"
+( cd "$T48_DIR" && git init -q . ) >/dev/null 2>&1
+( cd "$T48_DIR" && HOME="$HOME" node "$CB" init >/dev/null 2>&1 )
+
+[ -f "$T48_DIR/.claude/plugins/graphbrain/.claude-plugin/plugin.json" ] \
+  && ok "T48: init scaffolds .claude/plugins/graphbrain/.claude-plugin/plugin.json" \
+  || nope "T48: plugin manifest not installed to .claude/plugins/graphbrain/.claude-plugin/"
+
+# Installed manifest is byte-identical to source (no transformation)
+diff -q "$CODEBRAIN_ROOT/.claude-plugin/plugin.json" "$T48_DIR/.claude/plugins/graphbrain/.claude-plugin/plugin.json" >/dev/null 2>&1 \
+  && ok "T48: installed manifest is byte-identical to source" \
+  || nope "T48: installed manifest differs from source"
+
+# Manifest ships in npm pack
+pack_list_t48="$(cd "$CODEBRAIN_ROOT" && npm pack --dry-run 2>&1)"
+echo "$pack_list_t48" | grep -q '.claude-plugin/plugin.json' \
+  && ok "T48: .claude-plugin/plugin.json in npm pack" \
+  || nope "T48: .claude-plugin/plugin.json missing from npm pack"
+
 # === Test 38: SKILL.md reciprocity — every related_skills entry resolves =====
 # Bidirectional-links lint, run statically over the shipped skill set.
 node -e "

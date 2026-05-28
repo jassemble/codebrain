@@ -435,12 +435,26 @@ function init(argv) {
   copyTemplate('commands/brain.md', path.join(claudeDir, 'commands', 'brain.md'), opts);
   copyDir('commands/brain', path.join(claudeDir, 'commands', 'brain'), opts);
 
-  // Copy skills + agents into .claude/plugins/graphbrain/ so they're visible
-  // in the operator's repo (not buried in node_modules) AND discoverable by
-  // Claude Code's plugin convention. Matches the bridge-probe path used by
-  // /brain:ingest Step 4b.3 + /brain:spec Sp1 for finding ECC's skills.
-  // Operators can edit installed copies; `npx graphbrain init --force` refreshes
-  // them (with .bak backups of any local edits).
+  // Install graphbrain as a Claude Code plugin under .claude/plugins/graphbrain/.
+  // This convention requires a .claude-plugin/plugin.json manifest at the plugin
+  // root — without it, Claude Code may treat the skills/agents as inert files
+  // rather than plugin-discovered components. See ECC's PLUGIN_SCHEMA_NOTES.md
+  // for the validator's strictness rules:
+  //   - "agents" field MUST NOT appear in plugin.json (validator rejects it;
+  //     agents are auto-discovered from ./agents/ by convention)
+  //   - "hooks" field MUST NOT appear (auto-discovered from ./hooks/hooks.json)
+  //   - "skills" + "commands" must be arrays of directory paths
+  //   - "mcpServers: {}" empty opt-out prevents legacy MCP auto-load races
+  //
+  // Layout (matches ECC's plugin structure):
+  //   .claude/plugins/graphbrain/
+  //     .claude-plugin/plugin.json    ← manifest (THIS is what makes it a plugin)
+  //     skills/                       ← auto-discovered via the manifest's skills[] entry
+  //     agents/                       ← auto-discovered by convention (NO manifest entry)
+  //
+  // The bridge-probe path used by /brain:ingest Step 4b.3 + /brain:spec Sp1
+  // is symmetric with this layout (~/.claude/plugins/<vendor>/skills/<name>/SKILL.md).
+  copyDir('.claude-plugin', path.join(claudeDir, 'plugins', 'graphbrain', '.claude-plugin'), opts);
   copyDir('skills', path.join(claudeDir, 'plugins', 'graphbrain', 'skills'), opts);
   copyDir('agents', path.join(claudeDir, 'plugins', 'graphbrain', 'agents'), opts);
 
