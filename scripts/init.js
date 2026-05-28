@@ -189,6 +189,14 @@ function copyDir(srcRel, destAbs, opts) {
   }
 }
 
+// Convenience: build an opts bundle for an OWNED-category write path.
+// OWNED files (slash commands, plugin tree, version marker) must NEVER leave
+// a `.bak` on upgrade — the operator has no edits to preserve there, and
+// stale `.bak` files cause silent litter (see v1.0.10 fix).
+function ownedOpts(opts) {
+  return Object.assign({}, opts, { noBak: true });
+}
+
 function scaffoldBrainDir(cwd, opts) {
   const brain = path.join(cwd, '.brain');
   const dirs = ['code', 'concepts', 'decisions'];
@@ -209,13 +217,14 @@ function scaffoldBrainDir(cwd, opts) {
     }
   }
 
-  // .graphbrain-version marker — PRD Design Decision #33
+  // .graphbrain-version marker — PRD Design Decision #33.
+  // OWNED: operator must not edit the version marker; suppress .bak on upgrade (v1.0.10).
   const versionFile = path.join(brain, '.graphbrain-version');
   const versionContent = `${CODEBRAIN_VERSION}\n`;
   if (fs.existsSync(versionFile) && fs.readFileSync(versionFile, 'utf8') === versionContent) {
     report.log('SKIP', versionFile, 'already current');
   } else {
-    atomicWrite(versionFile, versionContent, opts);
+    atomicWrite(versionFile, versionContent, ownedOpts(opts));
     report.log('OK', versionFile);
   }
 
@@ -458,8 +467,9 @@ function init(argv) {
   // Copy slash-command templates into target.
   // Top-level dispatcher + per-verb namespaced files (M#12b layout).
   // v0.2: only /brain — the /graphbrain alias was dropped (see v0.2.0 changelog).
-  copyTemplate('commands/brain.md', path.join(claudeDir, 'commands', 'brain.md'), opts);
-  copyDir('commands/brain', path.join(claudeDir, 'commands', 'brain'), opts);
+  // OWNED: operator must not edit; suppress .bak on upgrade (v1.0.10).
+  copyTemplate('commands/brain.md', path.join(claudeDir, 'commands', 'brain.md'), ownedOpts(opts));
+  copyDir('commands/brain', path.join(claudeDir, 'commands', 'brain'), ownedOpts(opts));
 
   // Install graphbrain as a Claude Code plugin under .claude/plugins/graphbrain/.
   // This convention requires a .claude-plugin/plugin.json manifest at the plugin
@@ -480,9 +490,10 @@ function init(argv) {
   //
   // The bridge-probe path used by /brain:ingest Step 4b.3 + /brain:spec Sp1
   // is symmetric with this layout (~/.claude/plugins/<vendor>/skills/<name>/SKILL.md).
-  copyDir('.claude-plugin', path.join(claudeDir, 'plugins', 'graphbrain', '.claude-plugin'), opts);
-  copyDir('skills', path.join(claudeDir, 'plugins', 'graphbrain', 'skills'), opts);
-  copyDir('agents', path.join(claudeDir, 'plugins', 'graphbrain', 'agents'), opts);
+  // OWNED: plugin tree is graphbrain-shipped; operator must not edit. Suppress .bak (v1.0.10).
+  copyDir('.claude-plugin', path.join(claudeDir, 'plugins', 'graphbrain', '.claude-plugin'), ownedOpts(opts));
+  copyDir('skills', path.join(claudeDir, 'plugins', 'graphbrain', 'skills'), ownedOpts(opts));
+  copyDir('agents', path.join(claudeDir, 'plugins', 'graphbrain', 'agents'), ownedOpts(opts));
 
   // Merge hooks into settings.local.json.
   mergeHooks(claudeDir, opts);

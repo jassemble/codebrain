@@ -2614,6 +2614,68 @@ grep -qF '`.bak` reconciliation' "$CODEBRAIN_ROOT/skills/core/init/SKILL.md" \
   && ok "T50: skills/core/init/SKILL.md summary includes .bak reconciliation step" \
   || nope "T50: SKILL.md summary missing reconciliation step"
 
+# === Test 51: v1.0.10 — OWNED upgrades produce zero .bak files ===============
+#
+# Bug discovered in v1.0.9: although scripts/init.js declared an ownership model
+# (v1.0.7 comment block lines 65-88), no caller passed noBak:true. Every OWNED
+# file (slash commands, plugin tree, .graphbrain-version) silently produced a
+# .bak on upgrade — pure litter, since the operator can't have edits to preserve.
+#
+# Simulate an upgrade by pre-seeding OWNED targets with stale content, then run
+# init and assert no .bak appears for any OWNED path. OPERATOR-CO-OWNED .bak
+# files (CLAUDE.md, .brain/*.md) are out of scope for this test (those are
+# correctly preserved as the operator's last-edit safety net).
+
+T51_DIR="$(mktemp -d)"
+( cd "$T51_DIR" && git init -q . ) >/dev/null 2>&1
+
+# First install — clean slate.
+( cd "$T51_DIR" && HOME="$HOME" node "$CB" init >/dev/null 2>&1 )
+
+# Mutate OWNED files to simulate v1.0.7 stale content. Each line below picks a
+# file that's actually overwritten on a real upgrade path.
+echo '1.0.7-fake' > "$T51_DIR/.brain/.graphbrain-version"
+printf '\n<!-- v1.0.7 stale tail -->\n' >> "$T51_DIR/.claude/commands/brain.md"
+printf '\n<!-- v1.0.7 stale tail -->\n' >> "$T51_DIR/.claude/commands/brain/init.md"
+printf '\n  "_stale_v107_marker": true\n' >> "$T51_DIR/.claude/plugins/graphbrain/.claude-plugin/plugin.json"
+printf '\n<!-- v1.0.7 stale tail -->\n' >> "$T51_DIR/.claude/plugins/graphbrain/skills/core/init/SKILL.md"
+
+# Re-init — this is the upgrade path. Each mutated file's content now differs
+# from the shipped template, triggering atomicWrite's overwrite branch.
+( cd "$T51_DIR" && HOME="$HOME" node "$CB" init >/dev/null 2>&1 )
+
+# Each OWNED path: file is restored (content matches shipped) AND no .bak exists.
+[ ! -f "$T51_DIR/.brain/.graphbrain-version.bak" ] \
+  && ok "T51: OWNED .graphbrain-version produces no .bak on upgrade" \
+  || nope "T51: .graphbrain-version.bak still appearing on upgrade"
+
+[ ! -f "$T51_DIR/.claude/commands/brain.md.bak" ] \
+  && ok "T51: OWNED commands/brain.md produces no .bak on upgrade" \
+  || nope "T51: commands/brain.md.bak still appearing on upgrade"
+
+[ ! -f "$T51_DIR/.claude/commands/brain/init.md.bak" ] \
+  && ok "T51: OWNED commands/brain/init.md produces no .bak on upgrade" \
+  || nope "T51: commands/brain/init.md.bak still appearing on upgrade"
+
+[ ! -f "$T51_DIR/.claude/plugins/graphbrain/.claude-plugin/plugin.json.bak" ] \
+  && ok "T51: OWNED plugin.json produces no .bak on upgrade" \
+  || nope "T51: plugin.json.bak still appearing on upgrade"
+
+[ ! -f "$T51_DIR/.claude/plugins/graphbrain/skills/core/init/SKILL.md.bak" ] \
+  && ok "T51: OWNED plugin skill SKILL.md produces no .bak on upgrade" \
+  || nope "T51: plugin skill SKILL.md.bak still appearing on upgrade"
+
+# Sanity: the stale-content mutations were actually restored (test wasn't a no-op).
+! grep -q 'v1.0.7 stale tail' "$T51_DIR/.claude/commands/brain/init.md" \
+  && ok "T51: OWNED file content was restored (stale marker overwritten)" \
+  || nope "T51: stale content survived — upgrade did not actually overwrite"
+
+# Aggregate guard: no .bak anywhere under OWNED roots, even nested skill files.
+own_bak_count=$(find "$T51_DIR/.claude/commands" "$T51_DIR/.claude/plugins/graphbrain" "$T51_DIR/.brain/.graphbrain-version.bak" -name "*.bak" 2>/dev/null | wc -l | tr -d ' ')
+[ "$own_bak_count" = "0" ] \
+  && ok "T51: zero .bak files across all OWNED roots after upgrade" \
+  || nope "T51: $own_bak_count stray .bak file(s) under OWNED roots"
+
 # === Test 38: SKILL.md reciprocity — every related_skills entry resolves =====
 # Bidirectional-links lint, run statically over the shipped skill set.
 node -e "
