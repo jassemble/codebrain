@@ -43,6 +43,7 @@ tokens: 1842
 | `/brain query "<question>"` | Pointer-first lookup; reads `index.md` → 1–3 pages → answers with citations; auto-refreshes STALE pages |
 | `/brain lint [--fix]` | Health-check the wiki: defects + gaps + contradictions + suggested questions; `--fix` batch re-ingests STALE pages |
 | `/brain learn {on\|off\|status}` | Toggle the continuous-learning observer (narrow-scope; tracked-file edits + codebase-symbol prompts only) |
+| `/brain learn auto-refresh {on\|off\|status}` | v1.0.15 — toggle auto-refresh of STALE wiki pages on next prompt. **Default: on.** When on, every prompt that follows source edits is prepended with a refresh-first directive so the wiki is fresh by the time Claude reads it. |
 | `/brain status` | Dashboard: total pages, % stale, recent log entries, top instincts |
 
 ### Staleness model (4-tier)

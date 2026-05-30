@@ -402,6 +402,20 @@ function mergeHooks(targetDir, opts) {
         description: 'Mark .brain/ pages STALE when their source file is edited (4-tier staleness model tier 1)',
       },
     ],
+    UserPromptSubmit: [
+      {
+        matcher: '*',
+        hooks: [
+          {
+            type: 'command',
+            command: 'npx graphbrain hook auto-refresh-prompt',
+            timeout: 5,
+          },
+        ],
+        id: 'graphbrain:prompt:auto-refresh',
+        description: 'Auto-refresh wiki context (v1.0.15): drains .brain/.refresh-queue and prepends a refresh-first directive to the user prompt when source files have been edited since the last turn. Toggle off via /brain:learn auto-refresh off.',
+      },
+    ],
   };
 
   let existing;

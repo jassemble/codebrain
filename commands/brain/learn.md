@@ -8,7 +8,8 @@ You are operating the continuous-learning subsystem (see `agents/observers/obser
 
 **Le0 — Argument parsing**:
 
-- Extract the subcommand from `$ARGUMENTS`: `on`, `off`, `status`, `consolidate`. Any other token → print `error: /brain learn requires a subcommand: on | off | status | consolidate` and stop.
+- Extract the subcommand from `$ARGUMENTS`: `on`, `off`, `status`, `consolidate`, or `auto-refresh <on|off|status>` (v1.0.15).
+- Any other token → print `error: /brain learn requires a subcommand: on | off | status | consolidate | auto-refresh <on|off|status>` and stop.
 
 **Le1 — Preconditions**:
 
@@ -21,6 +22,7 @@ You are operating the continuous-learning subsystem (see `agents/observers/obser
 - `off` → proceed to Le4 (toggle off)
 - `status` → proceed to Le5 (status report)
 - `consolidate` → proceed to Le6 (consolidator agent)
+- `auto-refresh <on|off|status>` → proceed to Le8 (v1.0.15 — auto-refresh wiki on stale)
 
 ---
 
@@ -126,6 +128,38 @@ For `consolidate`, print:
 ```
 
 For other subcommands, the report is the toggle-confirmation or status output from Le3-Le5.
+
+---
+
+**Le8 — `learn auto-refresh <on|off|status>`** (v1.0.15):
+
+Controls the auto-refresh hook: when source files are edited, the wiki pages mirroring them go STALE, and on the operator's next prompt the `auto-refresh-prompt` UserPromptSubmit hook prepends a refresh-first directive. Default state is **on** (missing file → on).
+
+- `auto-refresh on`:
+  1. Atomic-write `.brain/.graphbrain-auto-refresh-state` with content `on\n`.
+  2. Append to `.brain/log.md`: `## [YYYY-MM-DD] learn | auto-refresh toggled on`.
+  3. Print: `Toggle written: .brain/.graphbrain-auto-refresh-state = on`. Add a one-line explainer: `Edits to source files will queue corresponding wiki pages for refresh on your next prompt.`
+
+- `auto-refresh off`:
+  1. Atomic-write `.brain/.graphbrain-auto-refresh-state` with content `off\n`.
+  2. Append to `.brain/log.md`: `## [YYYY-MM-DD] learn | auto-refresh toggled off`.
+  3. Print: `Toggle written: .brain/.graphbrain-auto-refresh-state = off`. Add: `Pages will still be marked STALE by the PostToolUse hook; refresh manually via /brain:ingest <path> or /brain:lint --fix.`
+
+- `auto-refresh status`:
+  1. Read `.brain/.graphbrain-auto-refresh-state` (`on`/`off`/missing → display as `on (default)`).
+  2. Read `.brain/.refresh-queue` if present; count queued paths.
+  3. Print:
+     ```
+     /brain learn auto-refresh status (graphbrain v<version>)
+       Toggle:        <on | off | on (default)>
+       Queue depth:   <count> path(s) waiting for next prompt
+       Queue file:    .brain/.refresh-queue
+     ```
+  4. If queue depth > 0, also print: `Next prompt will trigger refresh of: <comma-list of first 5 paths, +N more if longer>`.
+
+This toggle is **independent** of the continuous-learning observer (Le3/Le4) — `/brain:learn auto-refresh off` does not disable observation; `/brain:learn off` does not disable auto-refresh.
+
+---
 
 **Error recovery** (per observer Rules + PRD #26): Tier 1 retry once; Tier 2 emit:
 ```

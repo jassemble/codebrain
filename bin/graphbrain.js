@@ -46,7 +46,7 @@ After \`graphbrain init\`, restart Claude Code (or open a new session) and use
 \`/brain init\` to begin. See https://github.com/jassemble/graphbrain for more.`);
 }
 
-const HOOK_SUBCOMMANDS = ['stale-detect', 'verified-guard', 'observe'];
+const HOOK_SUBCOMMANDS = ['stale-detect', 'verified-guard', 'observe', 'auto-refresh-prompt'];
 
 function dispatchHook(args) {
   const sub = args[0];

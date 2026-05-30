@@ -109,6 +109,22 @@ async function main() {
   // in tool-call logs but doesn't interfere with Claude Code's tool flow.
   if (flipped.length > 0) {
     process.stderr.write(`[graphbrain] stale-detect: flipped ${flipped.length} page(s) STALE for edit of ${relEdited}\n`);
+
+    // v1.0.15 auto-refresh: append the edited source path to the refresh queue
+    // so the UserPromptSubmit hook can drain it on the operator's next turn
+    // and prepend a "refresh first" directive. Quiet on failure — auto-refresh
+    // is best-effort, never blocks the hook from returning.
+    safe(() => {
+      const fs = require('fs');
+      const queuePath = path.join(brainRoot, '.refresh-queue');
+      let existing = '';
+      try { existing = fs.readFileSync(queuePath, 'utf8'); } catch { /* missing is fine */ }
+      const seen = new Set(existing.split('\n').map(l => l.trim()).filter(Boolean));
+      if (!seen.has(relEdited)) {
+        seen.add(relEdited);
+        fs.writeFileSync(queuePath, Array.from(seen).join('\n') + '\n');
+      }
+    });
   }
 
   process.exit(0);

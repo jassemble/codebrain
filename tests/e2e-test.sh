@@ -795,8 +795,8 @@ codebrain_hook_count=$(node -e "
   const all = Object.values(j.hooks || {}).flat();
   console.log(all.filter(e => e && typeof e.id === 'string' && e.id.startsWith('graphbrain:')).length);
 " 2>/dev/null)
-# M#7 added a 3rd graphbrain hook (graphbrain:pre:observe), so post-M#7 count is 3
-[ "$codebrain_hook_count" = "3" ] && ok "T21: re-init keeps exactly 3 graphbrain hooks (no duplication; M#7 added observe to M#4's 2)" || nope "T21: graphbrain hook count after re-init was $codebrain_hook_count (expected 3)"
+# M#7 added observe (3 hooks). v1.0.15 added auto-refresh-prompt (4 hooks).
+[ "$codebrain_hook_count" = "4" ] && ok "T21: re-init keeps exactly 4 graphbrain hooks (no duplication; v1.0.15 added auto-refresh-prompt to M#4's 2 + M#7's observe)" || nope "T21: graphbrain hook count after re-init was $codebrain_hook_count (expected 4)"
 
 # Pre-existing non-graphbrain hook + stale graphbrain entry → init preserves non-graphbrain + cleans graphbrain
 T21B_REPO="$(setup_user_repo)"
@@ -1457,22 +1457,22 @@ node -e "
   process.exit(0);
 " 2>/dev/null && ok "T34: settings.local.json has graphbrain:pre:observe with correct shape" || nope "T34: observe entry incorrect"
 
-# Total graphbrain hooks = 3 (verified-guard + stale-detect + observe)
+# Total graphbrain hooks = 4 (verified-guard + observe + stale-detect + auto-refresh-prompt; v1.0.15)
 total_cb_hooks=$(node -e "
   const j = require('$T34_REPO/.claude/settings.local.json');
-  const all = [...(j.hooks.PreToolUse||[]), ...(j.hooks.PostToolUse||[])];
+  const all = [...(j.hooks.PreToolUse||[]), ...(j.hooks.PostToolUse||[]), ...(j.hooks.UserPromptSubmit||[])];
   console.log(all.filter(e => e && typeof e.id === 'string' && e.id.startsWith('graphbrain:')).length);
 " 2>/dev/null)
-[ "$total_cb_hooks" = "3" ] && ok "T34: settings.local.json has exactly 3 graphbrain hooks (verified-guard + stale-detect + observe)" || nope "T34: graphbrain hook count was $total_cb_hooks (expected 3)"
+[ "$total_cb_hooks" = "4" ] && ok "T34: settings.local.json has exactly 4 graphbrain hooks (verified-guard + stale-detect + observe + auto-refresh-prompt)" || nope "T34: graphbrain hook count was $total_cb_hooks (expected 4)"
 
-# Re-init: still 3 (no duplication)
+# Re-init: still 4 (no duplication)
 ( cd "$T34_REPO" && HOME="$HOME" node "$CB" init >/dev/null 2>&1 )
 total_after=$(node -e "
   const j = require('$T34_REPO/.claude/settings.local.json');
-  const all = [...(j.hooks.PreToolUse||[]), ...(j.hooks.PostToolUse||[])];
+  const all = [...(j.hooks.PreToolUse||[]), ...(j.hooks.PostToolUse||[]), ...(j.hooks.UserPromptSubmit||[])];
   console.log(all.filter(e => e && typeof e.id === 'string' && e.id.startsWith('graphbrain:')).length);
 " 2>/dev/null)
-[ "$total_after" = "3" ] && ok "T34: re-init keeps exactly 3 graphbrain hooks (no duplication)" || nope "T34: re-init count was $total_after"
+[ "$total_after" = "4" ] && ok "T34: re-init keeps exactly 4 graphbrain hooks (no duplication; v1.0.15 added auto-refresh-prompt)" || nope "T34: re-init count was $total_after"
 
 # === Test 35: M#7 — observe hook + learn/status procedures =================
 
@@ -3094,6 +3094,113 @@ grep -qF 'transitive: true' "$CODEBRAIN_ROOT/commands/brain/ingest.md" \
 grep -qF 'walk one-level transitive imports for every primary source' "$CODEBRAIN_ROOT/agents/brain/linker.md" \
   && ok "T60: linker agent persona rules cover transitive walking" \
   || nope "T60: linker persona not updated for transitive rule"
+
+# === Test 61: v1.0.15 — auto-refresh wiki context between turns =============
+#
+# The wiki was silently drifting after every feature implementation: edits
+# flipped pages STALE but nothing refreshed them until /brain:lint --fix or
+# /brain:query. v1.0.15 wires a UserPromptSubmit hook that drains
+# .brain/.refresh-queue (populated by the PostToolUse stale-detect hook)
+# and prepends a refresh-first directive so Claude refreshes the wiki at
+# the start of every user prompt that follows source edits. Toggle: on by
+# default; /brain:learn auto-refresh off disables per-project.
+
+# Hook script exists + parses clean
+[ -f "$CODEBRAIN_ROOT/scripts/hooks/auto-refresh-prompt.js" ] \
+  && ok "T61: scripts/hooks/auto-refresh-prompt.js exists" \
+  || nope "T61: auto-refresh-prompt.js missing"
+
+node --check "$CODEBRAIN_ROOT/scripts/hooks/auto-refresh-prompt.js" >/dev/null 2>&1 \
+  && ok "T61: auto-refresh-prompt.js is syntactically valid Node" \
+  || nope "T61: auto-refresh-prompt.js has a syntax error"
+
+# CLI dispatcher recognizes the new subcommand
+grep -qF "'auto-refresh-prompt'" "$CODEBRAIN_ROOT/bin/graphbrain.js" \
+  && ok "T61: bin/graphbrain.js HOOK_SUBCOMMANDS includes auto-refresh-prompt" \
+  || nope "T61: bin/graphbrain.js missing auto-refresh-prompt subcommand"
+
+# Fresh init registers the hook in settings.local.json with the correct id
+T61_DIR="$(mktemp -d)"
+( cd "$T61_DIR" && git init -q . ) >/dev/null 2>&1
+( cd "$T61_DIR" && HOME="$HOME" node "$CB" init >/dev/null 2>&1 )
+node -e "
+const fs = require('fs');
+const cfg = JSON.parse(fs.readFileSync('$T61_DIR/.claude/settings.local.json', 'utf8'));
+const ups = (cfg.hooks && cfg.hooks.UserPromptSubmit) || [];
+const found = ups.find(e => e && e.id === 'graphbrain:prompt:auto-refresh');
+process.exit(found && found.hooks && found.hooks[0].command === 'npx graphbrain hook auto-refresh-prompt' ? 0 : 1);
+" \
+  && ok "T61: fresh init registers UserPromptSubmit hook with id graphbrain:prompt:auto-refresh" \
+  || nope "T61: hook not registered in settings.local.json"
+
+# End-to-end: edit → queue → drained on next prompt
+T61_E2E="$(mktemp -d)"
+( cd "$T61_E2E" && git init -q . ) >/dev/null 2>&1
+( cd "$T61_E2E" && HOME="$HOME" node "$CB" init >/dev/null 2>&1 )
+mkdir -p "$T61_E2E/.brain/code"
+cat > "$T61_E2E/.brain/code/sample.ts.md" <<'PAGE'
+---
+kind: code
+status: FRESH
+source: sample.ts
+source_hash: git:abc
+last_ingested: 2026-05-30
+ingested_by: test
+tokens: 10
+---
+
+# sample.ts
+
+placeholder
+PAGE
+T61_REAL=$( cd "$T61_E2E" && node -e 'console.log(process.cwd())' )
+echo "{\"tool_name\":\"Edit\",\"tool_input\":{\"file_path\":\"$T61_REAL/sample.ts\"}}" | \
+  ( cd "$T61_REAL" && node "$CODEBRAIN_ROOT/scripts/hooks/stale-detect.js" 2>/dev/null )
+
+# Queue should now exist with one entry
+[ -f "$T61_REAL/.brain/.refresh-queue" ] \
+  && ok "T61: stale-detect appends edited paths to .brain/.refresh-queue" \
+  || nope "T61: refresh-queue not written after stale flip"
+
+grep -qF 'sample.ts' "$T61_REAL/.brain/.refresh-queue" 2>/dev/null \
+  && ok "T61: queue contains the edited source path" \
+  || nope "T61: queue missing the expected path"
+
+# UserPromptSubmit hook drains queue + emits the documented JSON shape
+T61_OUT=$( echo '{"prompt":"hi"}' | ( cd "$T61_REAL" && node "$CODEBRAIN_ROOT/scripts/hooks/auto-refresh-prompt.js" ) )
+echo "$T61_OUT" | node -e '
+const j = JSON.parse(require("fs").readFileSync(0, "utf8"));
+const ctx = (j.hookSpecificOutput && j.hookSpecificOutput.additionalContext) || j.additionalContext;
+process.exit(typeof ctx === "string" && ctx.includes("graphbrain auto-refresh") && ctx.includes("sample.ts") ? 0 : 1);
+' \
+  && ok "T61: auto-refresh-prompt emits additionalContext with edited paths" \
+  || nope "T61: auto-refresh-prompt did not produce the expected directive"
+
+[ ! -f "$T61_REAL/.brain/.refresh-queue" ] \
+  && ok "T61: queue drained after auto-refresh-prompt hook runs" \
+  || nope "T61: queue still present after hook fired"
+
+# Toggle off → no injection even with queued paths
+echo 'next.ts' > "$T61_REAL/.brain/.refresh-queue"
+echo 'off' > "$T61_REAL/.brain/.graphbrain-auto-refresh-state"
+T61_OFF=$( echo '{"prompt":"hi"}' | ( cd "$T61_REAL" && node "$CODEBRAIN_ROOT/scripts/hooks/auto-refresh-prompt.js" ) )
+[ -z "$T61_OFF" ] \
+  && ok "T61: toggle off → hook produces no output (passes through)" \
+  || nope "T61: toggle off but hook still injected — toggle is broken"
+
+# /brain:learn auto-refresh subcommand documented
+grep -qF 'auto-refresh <on|off|status>' "$CODEBRAIN_ROOT/commands/brain/learn.md" \
+  && ok "T61: /brain:learn auto-refresh subcommand documented in learn.md" \
+  || nope "T61: learn.md missing auto-refresh subcommand"
+
+grep -qF '.graphbrain-auto-refresh-state' "$CODEBRAIN_ROOT/commands/brain/learn.md" \
+  && ok "T61: learn.md references the toggle state file" \
+  || nope "T61: learn.md missing state file path"
+
+# CLAUDE.md schema mentions the new toggle
+grep -qF '/brain learn auto-refresh' "$CODEBRAIN_ROOT/skills/core/init/templates/claude-md-schema.md" \
+  && ok "T61: CLAUDE.md schema documents the auto-refresh toggle" \
+  || nope "T61: claude-md-schema.md missing auto-refresh row"
 
 # === Test 38: SKILL.md reciprocity — every related_skills entry resolves =====
 # Bidirectional-links lint, run statically over the shipped skill set.
