@@ -509,10 +509,47 @@ Produce a candidate list: `[{ name, sources: [{path, hash}], evidence: "..." }]`
 
 **L4 — Materialize concept pages**:
 
-For each surviving candidate:
+For each surviving candidate, build the **complete `sources:` set** before writing the page. This has two parts:
+
+**L4a — Primary sources**:
+
+The files you cited in the body's `## Spans` section. These are the files the concept's narrative directly references. Use the per-source-hash format below.
+
+**L4b — Transitive sources (v1.0.14 — closes the staleness-propagation gap)**:
+
+For EACH primary source, run the transitive-import walker. It parses that page's `## Imports` section, resolves relative paths, and returns any in-vault code pages the primary imports from:
+
+```bash
+HELPER_DIR=$([ -d .claude/plugins/graphbrain/scripts/lib ] \
+  && echo .claude/plugins/graphbrain/scripts/lib \
+  || echo "$HOME/.claude/plugins/graphbrain/scripts/lib")
+node "$HELPER_DIR/walk-imports.js" .brain/code/<primary-source>.md
+```
+
+Output shape:
+
+```json
+{
+  "source": "server/src/modules/workers/workers.service.ts",
+  "transitive": [
+    { "source_path": "server/src/modules/workers/streak-bonus.ts",
+      "brain_page_path": ".brain/code/server/src/modules/workers/streak-bonus.ts.md",
+      "hash": "git:6c86b760..." }
+  ],
+  "unresolved": []
+}
+```
+
+Dedupe transitive entries across all primaries. **Add each unique transitive dep to the concept's `sources:` array with `transitive: true`** to distinguish from primaries.
+
+Why this matters: the M#4 staleness hook iterates a concept's `sources:` to decide what to flip STALE on a source edit. Without transitive sources, edits to a file the concept depends on (but doesn't directly cite — e.g., `streak-bonus.ts` defines tier numbers that drive `bonus-shifts-feature`) silently don't propagate. With transitive sources, the propagation is genuine.
+
+Keep transitive walking to **one level deep**. Walking deeper inflates `sources:` arrays beyond utility and would mark concept pages STALE on edits to files only loosely connected.
+
+**L4c — Write the page**:
 
 - If a concept page with that name already exists at `.brain/concepts/<name>.md`:
-  - **UPDATE**: extend the `sources:` frontmatter array with any new entries (per-source-hash format below); refresh the Spans and Examples sections; bump `status: RESYNCED`; update `last_ingested`.
+  - **UPDATE**: merge primaries + transitives into the existing `sources:` array (dedupe by `path`; refresh `hash` and `transitive:` flag for entries you just recomputed); refresh the Spans and Examples sections; bump `status: RESYNCED`; update `last_ingested`.
 - If new:
   - **WRITE** using this verbatim template:
 
@@ -525,10 +562,16 @@ last_ingested: <today YYYY-MM-DD>
 ingested_by: <your model id>
 tokens: <best estimate>
 sources:
-  - path: <source path 1>
+  - path: <primary source path 1>
     hash: <git:<hash> or sha256:<hash>>
-  - path: <source path 2>
+  - path: <primary source path 2>
     hash: <git:<hash> or sha256:<hash>>
+  - path: <transitive source path 1>
+    hash: <git:<hash>>
+    transitive: true
+  - path: <transitive source path 2>
+    hash: <git:<hash>>
+    transitive: true
 ---
 
 # <Human-readable concept name>
@@ -537,8 +580,8 @@ sources:
 <1-3 sentences in domain terms; explain the idea, not the implementation>
 
 ## Spans
-- [[code/<source path 1>]] — <role this file plays in the concept>
-- [[code/<source path 2>]] — <role this file plays in the concept>
+- [[code/<primary path 1>]] — <role this file plays in the concept>
+- [[code/<primary path 2>]] — <role this file plays in the concept>
 
 ## Examples
 1. **<short heading>** ([[code/<path>]]):

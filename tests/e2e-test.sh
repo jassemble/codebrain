@@ -2964,6 +2964,137 @@ grep -qF '[ -d .claude/plugins/graphbrain/scripts/lib ]' "$CODEBRAIN_ROOT/comman
   && ok "T59: init.md uses dual-path helper resolver (project-local | global)" \
   || nope "T59: init.md missing dual-path resolver"
 
+# === Test 60: v1.0.14 — transitive concept sources close staleness gap ======
+#
+# Real bug: on the CodeScreen project, concept `bonus-shifts-feature` listed
+# 5 primary sources but not `streak-bonus.ts` (which `workers.service.ts`
+# imports from). When the operator edited `streak-bonus.ts`, the
+# PostToolUse hook correctly walked sources[] + wikilinks but couldn't
+# propagate to the concept page because the dep wasn't recorded.
+#
+# v1.0.14 fix: linker calls walk-imports.js per primary, dedupes the
+# in-vault transitives, writes them as sources entries with transitive:true.
+
+# Helper exists + parses clean
+[ -f "$CODEBRAIN_ROOT/scripts/lib/walk-imports.js" ] \
+  && ok "T60: scripts/lib/walk-imports.js exists" \
+  || nope "T60: walk-imports.js missing"
+
+node --check "$CODEBRAIN_ROOT/scripts/lib/walk-imports.js" >/dev/null 2>&1 \
+  && ok "T60: walk-imports.js is syntactically valid Node" \
+  || nope "T60: walk-imports.js has a syntax error"
+
+# Helper installs into the plugin tree on fresh init.
+T60_DIR="$(mktemp -d)"
+( cd "$T60_DIR" && git init -q . ) >/dev/null 2>&1
+( cd "$T60_DIR" && HOME="$HOME" node "$CB" init >/dev/null 2>&1 )
+[ -f "$T60_DIR/.claude/plugins/graphbrain/scripts/lib/walk-imports.js" ] \
+  && ok "T60: walk-imports.js installed under plugin tree" \
+  || nope "T60: walk-imports.js not installed by init"
+
+# Helper produces the documented JSON shape on a fixture page.
+T60_FIX="$(mktemp -d)"
+mkdir -p "$T60_FIX/src/lib" "$T60_FIX/.brain/code/src/lib"
+echo 'export const X = 1;' > "$T60_FIX/src/lib/helper.ts"
+echo 'import { X } from "./lib/helper";' > "$T60_FIX/src/main.ts"
+cat > "$T60_FIX/.brain/code/src/main.ts.md" <<'EOF'
+---
+kind: code
+status: FRESH
+source: src/main.ts
+source_hash: git:abc
+last_ingested: 2026-05-30
+ingested_by: test
+tokens: 50
+---
+
+# src/main.ts
+
+## Purpose
+Entry point.
+
+## Imports
+- from `./lib/helper`: `X` — exported constant.
+
+## Cross-references
+EOF
+cat > "$T60_FIX/.brain/code/src/lib/helper.ts.md" <<'EOF'
+---
+kind: code
+status: FRESH
+source: src/lib/helper.ts
+source_hash: git:def
+last_ingested: 2026-05-30
+ingested_by: test
+tokens: 10
+---
+
+# src/lib/helper.ts
+
+## Purpose
+Helper.
+
+## Imports
+_(none)_
+EOF
+
+T60_OUT=$( cd "$T60_FIX" && node "$CODEBRAIN_ROOT/scripts/lib/walk-imports.js" .brain/code/src/main.ts.md 2>/dev/null )
+echo "$T60_OUT" | node -e '
+const j = JSON.parse(require("fs").readFileSync(0, "utf8"));
+process.exit(
+  j.source === "src/main.ts"
+  && Array.isArray(j.transitive)
+  && j.transitive.length === 1
+  && j.transitive[0].source_path === "src/lib/helper.ts"
+  && j.transitive[0].brain_page_path === ".brain/code/src/lib/helper.ts.md"
+  ? 0 : 1
+)' \
+  && ok "T60: walk-imports resolves relative deps to in-vault pages" \
+  || nope "T60: walk-imports failed to resolve the fixture's transitive dep"
+
+# External package paths (no `./` prefix) are skipped silently.
+cat > "$T60_FIX/.brain/code/src/main.ts.md" <<'EOF'
+---
+kind: code
+status: FRESH
+source: src/main.ts
+source_hash: git:abc
+last_ingested: 2026-05-30
+ingested_by: test
+tokens: 50
+---
+
+# src/main.ts
+
+## Imports
+- from `@nestjs/common`: `Injectable` — DI.
+- from `react`: `useState` — hook.
+EOF
+T60_EXT=$( cd "$T60_FIX" && node "$CODEBRAIN_ROOT/scripts/lib/walk-imports.js" .brain/code/src/main.ts.md 2>/dev/null )
+echo "$T60_EXT" | node -e '
+const j = JSON.parse(require("fs").readFileSync(0, "utf8"));
+process.exit(j.transitive.length === 0 ? 0 : 1)' \
+  && ok "T60: walk-imports silently skips external package paths" \
+  || nope "T60: walk-imports incorrectly tried to resolve external packages"
+
+# Linker procedure now mentions transitive sources + the helper.
+grep -qF 'L4b — Transitive sources' "$CODEBRAIN_ROOT/commands/brain/ingest.md" \
+  && ok "T60: linker has L4b (transitive sources step)" \
+  || nope "T60: linker L4b missing"
+
+grep -qF 'node "$HELPER_DIR/walk-imports.js"' "$CODEBRAIN_ROOT/commands/brain/ingest.md" \
+  && ok "T60: linker procedure calls walk-imports.js helper" \
+  || nope "T60: linker procedure missing walk-imports invocation"
+
+grep -qF 'transitive: true' "$CODEBRAIN_ROOT/commands/brain/ingest.md" \
+  && ok "T60: concept page template shows transitive: true flag" \
+  || nope "T60: concept template missing transitive marker"
+
+# Linker agent persona updated.
+grep -qF 'walk one-level transitive imports for every primary source' "$CODEBRAIN_ROOT/agents/brain/linker.md" \
+  && ok "T60: linker agent persona rules cover transitive walking" \
+  || nope "T60: linker persona not updated for transitive rule"
+
 # === Test 38: SKILL.md reciprocity — every related_skills entry resolves =====
 # Bidirectional-links lint, run statically over the shipped skill set.
 node -e "
